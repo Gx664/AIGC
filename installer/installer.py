@@ -26,6 +26,12 @@ PYPI_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AUTHOR_EMAIL = "gxgx3456@qq.com"
 
+# 匿名遥测上报配置（PostHog）。
+# 留空 = 安装后不写入上报配置（fork 自建时请填入你自己的 Project API Key）。
+# 官方预编译安装器在构建时由 build_installer_with_key.ps1 注入真实 Key。
+POSTHOG_API_KEY = ""
+POSTHOG_HOST = "https://us.i.posthog.com"
+
 
 def app_source_dir():
     if getattr(sys, "frozen", False):
@@ -323,6 +329,13 @@ class Installer(tk.Tk):
                     '{"app": {"install_dir": "%s"}, "ui": {"language": "%s"}}'
                     % (target.replace("\\", "\\\\"), get_lang())
                 )
+
+            if POSTHOG_API_KEY:
+                with open(os.path.join(target, "posthog_config.json"), "w", encoding="utf-8") as f:
+                    f.write(
+                        '{"api_key": "%s", "host": "%s"}'
+                        % (POSTHOG_API_KEY, POSTHOG_HOST)
+                    )
 
             self.set_status(tr("inst_create_shortcut"), 94)
             pythonw = os.path.join(venv, "Scripts", "pythonw.exe")
