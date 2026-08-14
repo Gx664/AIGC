@@ -71,26 +71,34 @@ If you don't use Alipay or WeChat Pay, you can also **gift any AI API key** (any
 
 Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
 
-## Usage Dashboard (PC + Android · Open Source)
+## Usage Dashboard (Open Source · Anyone Can View)
+
+> ⚠️ Two things to tell apart:
+> - **Main project**: the AIGC Detector Toolkit (detects AI-written text) - folders `app/`, `installer/`, installer [dist/AIGC_Toolkit_Setup.exe](dist/AIGC_Toolkit_Setup.exe)
+> - **Usage dashboard**: tools for viewing anonymous usage stats (not part of detection) - the PC / Android versions below
 
 This project also ships an **open-source usage dashboard** showing the software's anonymous usage statistics (total starts, detection count, online devices, engine/GPU distribution, GitHub download counts, etc.) - **anyone can view it**. It only contains anonymous metadata, never your paper content or personal information.
 
-### PC version
+### PC dashboard (Windows)
 
-- Portable exe: [tools/dist/AIGC_Dashboard.exe](tools/dist/AIGC_Dashboard.exe)
-- Double-click [tools/run_dashboard.bat](tools/run_dashboard.bat) or `AIGC_Dashboard.exe`, then open `http://127.0.0.1:8765` in a browser
-- To let phones / other devices (same Wi-Fi) view it too: double-click [tools/run_dashboard_lan.bat](tools/run_dashboard_lan.bat)
+- Portable exe: [tools/dist/AIGC_Dashboard.exe](tools/dist/AIGC_Dashboard.exe) - **double-click and it just works** (view key built in, no config needed)
 - Source: [tools/dashboard.py](tools/dashboard.py)
+- To let phones / other devices (same Wi-Fi) view the dashboard on your PC: double-click [tools/run_dashboard_lan.bat](tools/run_dashboard_lan.bat)
 
-### Android (APK)
+### Android dashboard (APK · recommended)
 
-- Installer: [tools/dist/AIGC_Dashboard_allinone_v9.apk](tools/dist/AIGC_Dashboard_allinone_v9.apk) - fill in your own PostHog key and repackage (see "Build your own config" below)
+- Installer: [tools/dist/AIGC_Dashboard_allinone_v10.apk](tools/dist/AIGC_Dashboard_allinone_v10.apk) - **install it, open it, and you can view the data directly** (view key built in)
 - The dashboard has a **中 / EN toggle button** in the top-right corner (PC and Android)
 - Source: [tools/apk_self/](tools/apk_self/) (self-packaged shell) and [tools/android_webview/](tools/android_webview/) (Android Studio project)
 
-### Build your own config
+### Phone without APK (Termux, optional)
 
-Copy `tools/dashboard_config.example.json` to `tools/dashboard_config.json` and fill in your own **PostHog personal_api_key and project_id** (the dashboard shows a hint when not configured). For the Android APK, put your key in `tools/apk_self/assets/posthog_key.txt` (a placeholder in this repo) and repackage following [tools/android_webview/README.txt](tools/android_webview/README.txt). The repo contains no real secrets; if you fork and self-host, always use your own key.
+- Zip: [tools/phone/AIGC_Dashboard_phone.zip](tools/phone/AIGC_Dashboard_phone.zip) (view key built in, no config needed)
+- Usage: see [tools/phone/README-phone.txt](tools/phone/README-phone.txt)
+
+### Build your own config (fork / self-host)
+
+The prebuilt exe / APK contains the author's **view key** (only for viewing this public anonymous statistics). Key files in the source (`tools/dashboard_config.example.json`, `tools/apk_self/assets/posthog_key.txt`) stay as placeholders; **if you fork and self-host, fill in your own PostHog personal_api_key and project_id before repackaging** - do not reuse the key in the prebuilt packages.
 
 ## Tech Stack
 
