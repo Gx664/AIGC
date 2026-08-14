@@ -77,7 +77,7 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value.
 > - **项目主体**：AI 检测工具箱（检测论文 AI 率）——目录 `app/`、`installer/`，安装包 [dist/AIGC_Toolkit_Setup.exe](dist/AIGC_Toolkit_Setup.exe)
 > - **数据看板**：查看匿名使用统计的工具（不参与检测）——就是下面的电脑版 / 安卓版
 
-看板展示匿名统计（总启动次数、检测次数、在线设备、引擎/显卡分布、GitHub 下载量等），**任何人都可以看**。数据仅包含匿名元数据，不含论文内容与任何个人信息。
+看板展示匿名统计（总启动次数、检测次数、在线设备、引擎/显卡分布、GitHub 下载量等），**任何人都可以看**。数据仅包含匿名元数据，不含论文内容与任何个人信息。电脑版检测软件安装后默认开启匿名统计（设置里可一键关闭），使用数据会自动出现在这里。
 
 ### 电脑版看板（Windows）
 

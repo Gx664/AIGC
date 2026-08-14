@@ -77,7 +77,7 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. I
 > - **Main project**: the AIGC Detector Toolkit (detects AI-written text) - folders `app/`, `installer/`, installer [dist/AIGC_Toolkit_Setup.exe](dist/AIGC_Toolkit_Setup.exe)
 > - **Usage dashboard**: tools for viewing anonymous usage stats (not part of detection) - the PC / Android versions below
 
-This project also ships an **open-source usage dashboard** showing the software's anonymous usage statistics (total starts, detection count, online devices, engine/GPU distribution, GitHub download counts, etc.) - **anyone can view it**. It only contains anonymous metadata, never your paper content or personal information.
+This project also ships an **open-source usage dashboard** showing the software's anonymous usage statistics (total starts, detection count, online devices, engine/GPU distribution, GitHub download counts, etc.) - **anyone can view it**. It only contains anonymous metadata, never your paper content or personal information. The desktop detector app enables anonymous stats by default after installation (can be disabled in one click), so its usage data automatically shows up here.
 
 ### PC dashboard (Windows)
 
