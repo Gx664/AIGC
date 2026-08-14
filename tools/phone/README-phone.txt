@@ -10,9 +10,10 @@
 2. 在 F-Droid 里搜索 Termux，安装
    （注意：不要用应用商店里的 Termux，那是旧版）
 
-第二步：把两个文件传到手机
-把 tools/dashboard.py 和 tools/dashboard_config.json
-传到手机（微信文件传输/网盘/数据线均可），放到 Download 目录。
+第二步：把压缩包传到手机
+把 AIGC_Dashboard_phone.zip 传到手机（微信文件传输/网盘/数据线均可），
+放到 Download 目录并解压。压缩包里已带好 dashboard.py、dashboard_config.json、
+termux_setup.sh，配置文件已内置查看密钥，无需再手动配置。
 
 第三步：在 Termux 里一键启动（全自动）
 把 AIGC_Dashboard_phone.zip 传到手机 Download 目录并解压，
@@ -26,7 +27,7 @@
 1. 检查环境：Python 装了没有、存储权限开了没有、文件在不在，
    逐项显示 [OK] 或 [缺]
 2. 只安装缺失的组件（自动更新源 + 装 Python，pkg 自带下载进度）
-3. 复制文件、检查个人密钥是否已配置
+3. 复制文件、检查查看密钥是否已配置
 4. 启动看板并自检（返回 200 才算成功）
 全程带进度条 [====]。
 
@@ -40,7 +41,10 @@
   把上面的启动命令写进 ~/.termux/boot/start.sh
 
 安全说明：
-- dashboard_config.json 里是读取数据的个人密钥，只放在你自己手机
+- 压缩包内置的是作者项目的"查看密钥"（仅供查看公开的匿名统计）；
+  如果你 fork 自建，请把 dashboard_config.json 里的密钥换成你自己的
+  PostHog personal_api_key，不要沿用预编译包里的密钥。
+- dashboard_config.json 里是读取数据的密钥，只放在你自己手机
 - 建议设置 access_token（访问密码），并只在本机/可信设备使用
 - 如果只是自己手机看，地址 http://127.0.0.1:8765 只有本机能访问，很安全
 
