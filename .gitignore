@@ -1,6 +1,7 @@
 settings.json
 posthog_config.json
 tools/dashboard_config.json
+tools/test_telemetry_result.txt
 telemetry_queue.json
 license.key
 logs/
