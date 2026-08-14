@@ -1,0 +1,13 @@
+{
+  "refresh_seconds": 1,
+  "listen": "127.0.0.1",
+  "access_token": "",
+  "posthog": {
+    "personal_api_key": "",
+    "project_id": 549467,
+    "host": "https://us.posthog.com"
+  },
+  "github": {
+    "repo": ""
+  }
+}
