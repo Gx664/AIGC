@@ -11,7 +11,7 @@ dist/*
 !dist/AIGC_Toolkit_Setup.exe
 tools/dist/*
 !tools/dist/AIGC_Dashboard.exe
-!tools/dist/AIGC_Dashboard_allinone_v9.apk
+!tools/dist/AIGC_Dashboard_allinone_v10.apk
 tools/apk_build/debug.keystore
 tools/apk_build/
 tools/apk_self/base.apk

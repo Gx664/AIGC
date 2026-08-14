@@ -24,8 +24,11 @@ AIGC 数据看板 · 安卓壳工程
   把 DEFAULT_URL 改成公网地址再打包，即可实现
 
 关于 PostHog 密钥（重要）：
-- 源码里不包含任何真实密钥，仓库可以安全公开。
-- APK 的查询密钥放在 tools/apk_self/assets/posthog_key.txt（仓库里是空占位符）。
-- 打包前把文件内容替换成你自己的 PostHog personal_api_key，
-  重新编译 classes（javac + d8）并重新签名打包即可。
-- 不要把你的真实密钥提交到公开仓库。
+- 仓库里预编译的看板 APK / exe（见根目录 README.md）已内置作者项目的"查看密钥"，
+  仅用于查看公开的匿名使用统计，下载安装后打开即可直接看数据。
+- 源码中的密钥文件保持占位符：APK 的查询密钥位于 tools/apk_self/assets/posthog_key.txt（仓库内为占位符）。
+- fork 自建时：把 tools/apk_self/assets/posthog_key.txt 替换成你自己的 PostHog personal_api_key，
+  运行 tools/apk_self/build_apk.bat（javac + d8 + zipalign + apksigner）重新打包；
+  不要沿用预编译包里的密钥。
+- 注意：personal_api_key 属于账号级钥匙，公开它等于把后台数据公开给所有人。
+  本项目作者有意公开这份匿名统计，因此预编译包内置了查看密钥；fork 请自行判断。

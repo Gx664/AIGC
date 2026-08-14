@@ -71,26 +71,34 @@ If you don't use Alipay or WeChat Pay, you can also **gift any AI API key** (any
 
 Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
 
-## 使用数据看板（电脑版 + 安卓版 · 开源）
+## 使用数据看板（开源 · 任何人都能看）
 
-本项目附带一个**开源的使用数据看板**，展示软件的匿名使用统计（总启动次数、检测次数、在线设备、引擎/显卡分布、GitHub 下载量等），**任何人都可以看**。数据仅包含匿名元数据，不含论文内容与任何个人信息。
+> ⚠️ 先分清两样东西：
+> - **项目主体**：AI 检测工具箱（检测论文 AI 率）——目录 `app/`、`installer/`，安装包 [dist/AIGC_Toolkit_Setup.exe](dist/AIGC_Toolkit_Setup.exe)
+> - **数据看板**：查看匿名使用统计的工具（不参与检测）——就是下面的电脑版 / 安卓版
 
-### 电脑版
+看板展示匿名统计（总启动次数、检测次数、在线设备、引擎/显卡分布、GitHub 下载量等），**任何人都可以看**。数据仅包含匿名元数据，不含论文内容与任何个人信息。
 
-- 免安装 exe：[tools/dist/AIGC_Dashboard.exe](tools/dist/AIGC_Dashboard.exe)
-- 双击 [tools/run_dashboard.bat](tools/run_dashboard.bat) 或 `AIGC_Dashboard.exe` 启动，浏览器打开 `http://127.0.0.1:8765`
-- 想让手机 / 其他设备（同一 Wi-Fi）也能看：双击 [tools/run_dashboard_lan.bat](tools/run_dashboard_lan.bat)
+### 电脑版看板（Windows）
+
+- 免安装 exe：[tools/dist/AIGC_Dashboard.exe](tools/dist/AIGC_Dashboard.exe) —— **下载后双击即用**（已内置查看密钥，无需配置）
 - 源码：[tools/dashboard.py](tools/dashboard.py)
+- 想让手机 / 其他设备（同一 Wi-Fi）也能看电脑上的看板：双击 [tools/run_dashboard_lan.bat](tools/run_dashboard_lan.bat)
 
-### 安卓版（APK）
+### 安卓版看板（APK · 推荐）
 
-- 安装包：[tools/dist/AIGC_Dashboard_allinone_v9.apk](tools/dist/AIGC_Dashboard_allinone_v9.apk)（需填入自己的 PostHog 密钥后打包，见下方"自建配置"）
+- 安装包：[tools/dist/AIGC_Dashboard_allinone_v10.apk](tools/dist/AIGC_Dashboard_allinone_v10.apk) —— **下载安装后打开即可直接看数据**（已内置查看密钥）
 - 看板页面右上角有 **中 / EN 切换按钮**，电脑版与安卓版通用
 - 源码：[tools/apk_self/](tools/apk_self/)（自打包壳）与 [tools/android_webview/](tools/android_webview/)（Android Studio 工程）
 
-### 自建配置
+### 手机免安装方案（Termux，可选）
 
-复制 `tools/dashboard_config.example.json` 为 `tools/dashboard_config.json`，填入你自己的 **PostHog personal_api_key 与 project_id** 即可（未配置时看板会给出提示）。安卓 APK 的密钥在 `tools/apk_self/assets/posthog_key.txt`（仓库内为占位符），填入你的密钥后按 [tools/android_webview/README.txt](tools/android_webview/README.txt) 重新打包即可。仓库不包含任何真实密钥；如果你 fork 自建，请务必使用你自己的密钥。
+- 压缩包：[tools/phone/AIGC_Dashboard_phone.zip](tools/phone/AIGC_Dashboard_phone.zip)（已内置查看密钥，免配置）
+- 使用方法见 [tools/phone/README-phone.txt](tools/phone/README-phone.txt)
+
+### 自建配置（fork / 自托管时）
+
+预编译的 exe / APK 已内置作者项目的**查看密钥**（仅供查看这份公开的匿名统计）。源码中的密钥文件（`tools/dashboard_config.example.json`、`tools/apk_self/assets/posthog_key.txt`）保持占位符；**如果你 fork 自建，请填入你自己的 PostHog personal_api_key 与 project_id 后再打包**，不要沿用本仓库预编译包里的密钥。
 
 ## 技术架构
 
