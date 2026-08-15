@@ -54,8 +54,16 @@ def post(url, payload, headers=None):
         headers=headers
         or {"Content-Type": "application/json", "User-Agent": "telemetry-selftest"},
     )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read().decode("utf-8", "ignore")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.read().decode("utf-8", "ignore")
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", "ignore")[:300]
+        except Exception:
+            pass
+        raise RuntimeError("HTTP %d %s | %s" % (e.code, e.reason, body))
 
 
 def query(hogql):
