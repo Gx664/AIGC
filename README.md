@@ -12,8 +12,36 @@
 - **多引擎可选**：SimpleAI 中文检测（默认）、GLTR 困惑度检测、Fast-DetectGPT 参考实现、以及可自定义的任意 HuggingFace 模型
 - **参数高度自定义**：判定阈值、段落切分、并行数等均可调整，预设可存档、导出、导入
 - **多设备算力合并**：同一台机器多显卡自动并行；局域网内可把室友的电脑、Pad、手机都加入并行计算
+- **检测 → 诊断 → 治疗闭环**：检测出 AI 率后，本地规则引擎诊断 AI 痕迹（段落级 JSON 报告），
+  再按“三轮降重协议”做保学术语体的确定性降重
 - **中英双语**：软件界面、安装器与数据看板均支持一键切换 中文 / English
 - **免费开源**：预留收费接口，核心功能永远免费
+
+## 检测 → 诊断 → 治疗（v1.1 新增）
+
+检测只是第一步。本项目融合了两个 MIT 开源项目的方法论，形成完整闭环，**全部本地运行、不调用任何外部 AI**：
+
+### 诊断（本地规则引擎）
+
+扫描以下三类信号，输出**段落级结构化 JSON 报告**（可导出）：
+
+| 类别 | 内容 |
+|---|---|
+| 9 维特征扫描 | 模板句式密度、突发性（句长变异系数 CV）、段落对称性、被动语态、嵌套编号、冒号并列、标点规律、**口语化预警**、**破折号密度**（后两项是“降重过度”门禁，守学术语体） |
+| 知网 5 种语言模式 | 句法节奏可预测性、信息密度均匀性、术语句法位置固定、连接词功能重叠、模板段功能全等性 |
+| 11 种深度 AI 痕迹 | 重要性膨胀、同义词轮换、三板斧强迫症、系词回避、模糊归因、公式化挑战段、悬浮式分析、空洞结论、破折号过度使用、虚假范围、成对转折收束 |
+
+每一段都会给出：风险等级、命中的模式与证据片段、逐句标记、建议动作。
+
+### 治疗（三轮降重协议，确定性改写）
+
+1. **第一轮（减法）**：先圈出受保护片段（引用编号、图表/公式编号、数据/百分比/P 值、专业术语、引语，**一字不动**），再做词级替换（中文 AI 高频词，多个变体轮换）、句级重构、拆排比/编号；
+2. **第二轮（加法）**：节奏工程——确定性长句拆分（目标 CV ≈ 0.45），**绝不编造原文没有的事实、数据或文献**；
+3. **第三轮（自检）**：Anti-AI 审计 + 语体守门——口语化/网络用语必须改回书面学术表达，破折号每段 ≤1 个，**语体优先于修改率**。
+
+四条铁律全程生效：禁止 AI 全量重写、修改率 >40% 只靠结构改写与模板去除、确定性替换、保持学术语体。
+
+检测完成后，如果整篇 AI 率超过你设置的阈值（默认 30%，可改），软件会弹出建议进入降重；也可以随时点「开始降重」。
 
 ## 灵感故事
 
@@ -36,6 +64,8 @@
 | **Binoculars**（零样本检测） | 论文《Spotting LLMs With Binoculars: Zero-Shot Detection of Machine-Generated Text》，arXiv:2401.12070，发表于 **ICML 2024**（机器学习顶级会议），检测准确率领先，代码开源 | [arXiv](https://arxiv.org/abs/2401.12070) · [GitHub](https://github.com/AHans30/Binoculars) |
 | **RAID**（评测基准） | 论文《RAID: A Shared Benchmark for Robust Evaluation of Machine-Generated Text Detectors》，arXiv:2401.09985，发表于 **ACL 2024**（计算语言学顶级会议）；目前最大、最全面的 AI 文本检测评测基准（600 万+ 条文本），用于公平评估各类检测器 | [arXiv](https://arxiv.org/abs/2401.09985) · [ACL](https://aclanthology.org/2024.acl-long.674/) · [GitHub](https://github.com/liamdugan/raid) |
 | **MGTBench**（评测基准） | 论文《MGTBench: Benchmarking Machine-Generated Text Detection》，arXiv:2303.14822；首个面向大语言模型（LLM）的机器生成文本检测基准框架 | [arXiv](https://arxiv.org/abs/2303.14822) · [GitHub](https://github.com/xinleihe/MGTBench) |
+| **aigc-reduce**（降重规则参考） | 基于知网 3.0（综合准确率 98.6%、假阳性率 1.2%）、万方、PaperPass、PaperPure 的检测原理实现；深度 AI 痕迹模式源自 Wikipedia “Signs of AI writing”（WikiProject AI Cleanup 维护）与 Humanizer skill；MIT 协议 | [GitHub](https://github.com/xiaofenggan01/aigc-reduce) |
+| **cnki-aigc---skill**（诊断模式参考） | 基于知网 AIGC 检测器“5 种语言模式”的实战方法：总 AI 率 20.6% → 10.1%（净降 10.5 个点），全文红色显著片段全部降为疑似；MIT 协议 | [GitHub](https://github.com/qingshanliuci/cnki-aigc---skill) |
 
 > 声明：检测效果受模型与文本类型影响，结果仅供自测参考，不代表任何权威机构结论；请以学校 / 期刊官方认定为准。
 
@@ -47,6 +77,15 @@
 - **[llama.cpp](https://github.com/ggml-org/llama.cpp)**（ggml-org/llama.cpp）：最受欢迎的本地 LLM 推理框架之一，其 [RPC 分布式推理](https://github.com/ggml-org/llama.cpp/tree/master/tools/rpc) 可在异构设备（如 Mac Metal + NVIDIA CUDA）间切分模型层，是本项目困惑度类引擎跨设备计算的参考方案。
 
 感谢以上项目及其社区，让"宿舍算力合并"成为可能。
+
+## 特别感谢（诊断与治疗）
+
+“检测 → 诊断 → 治疗”闭环直接融合了以下两个 MIT 开源项目的方法论：
+
+- **[aigc-reduce](https://github.com/xiaofenggan01/aigc-reduce)**（xiaofenggan01/aigc-reduce）：提供三轮降重协议、替换表、中文 AI 高频词清单、口语化负面清单与 9 维扫描方法论。本项目降重引擎完全按其规则实现，坚持“降重 ≠ 口语化”，保持学术书面语体为硬底线。
+- **[cnki-aigc---skill](https://github.com/qingshanliuci/cnki-aigc---skill)**（qingshanliuci/cnki-aigc---skill）：基于知网 AIGC 检测器“5 种语言模式”的实战方法（实测 20.6% → 10.1%）。本项目诊断引擎按其模式实现。
+
+感谢两位作者与相关社区，让"检测、诊断、治疗"的完整流程成为可能。
 
 ## 支持与赞赏 · Support
 
@@ -104,6 +143,8 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value.
 
 - 界面：Python + PySide6（玻璃拟态 UI）
 - 检测引擎：transformers（SimpleAI 中文分类 / 困惑度检测）
+- 诊断：本地规则引擎（9 维扫描 + 知网 5 种语言模式 + 11 种深度 AI 痕迹，段落级 JSON）
+- 治疗：三轮降重协议（确定性改写 + 受保护片段 + 语体守门，完全离线）
 - 多设备：同机多卡自动并行 + 局域网主从节点（UDP 自动发现 + TCP 任务分发）
 - 统计：匿名遥测（PostHog，可一键关闭）+ 本地运行日志（可导出）
 - 打包：小体积安装器，运行时环境按需下载（先检查、缺什么装什么、带进度条）

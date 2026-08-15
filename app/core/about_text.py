@@ -8,6 +8,20 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 - 多引擎：SimpleAI 中文检测（默认）、GLTR 困惑度、Fast-DetectGPT 参考实现、可自定义模型
 - 参数可自定义并存档
 - 同机多卡自动并行；局域网可把室友电脑、Pad、手机加入并行计算
+- 检测 → 诊断 → 治疗闭环：检测出 AI 率后，本地规则引擎诊断 AI 痕迹（段落级 JSON），
+  再按“三轮降重协议”做保学术语体的确定性降重
+
+【检测 → 诊断 → 治疗（v1.1 新增）】
+检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
+- 诊断：不调用任何外部 AI。扫描 9 维特征（模板句式、突发性、段落对称性、被动语态、
+  嵌套编号、冒号并列、标点规律、口语化预警、破折号密度）+ 知网 5 种语言模式
+  （句法节奏、信息密度、术语句法位置、连接词功能、模板段功能）+ 11 种深度 AI 痕迹
+  （重要性膨胀、同义词轮换、三板斧、系词回避、模糊归因、公式化挑战段、悬浮式分析、
+  空洞结论、破折号过度、虚假范围、成对转折收束），输出结构化 JSON 诊断报告。
+- 治疗：按三轮协议做确定性改写——去除 AI 痕迹（词级替换/句级重构/拆排比）、
+  注入书面学术特征（确定性长句拆分，绝不编造）、Anti-AI 审计与语体守门。
+  数字、术语、引用、图表编号、公式原样保留；不口语化，不编造事实；语体优先于修改率。
+- 检测到 AI 率高于阈值会自动建议进入降重；降重参数可自定义并存档。
 
 【灵感故事】
 灵感来自我的一位大学生朋友。他的毕业论文需要反复查 AI 率，
@@ -35,6 +49,13 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
    目前最大、最全面的 AI 文本检测评测基准（600 万+ 条文本）。
 7) MGTBench（评测基准）
    论文：arXiv:2303.14822；首个面向大语言模型（LLM）的机器生成文本检测基准框架。
+8) 知网 3.0 检测原理（诊断/降重规则参考）
+   数据来源：aigc-reduce 引用的《论文AIGC查重检测方法与原理深度研究报告》，
+   知网 3.0 综合准确率 98.6%、假阳性率 1.2%；降重规则按知网/万方/PaperPass/PaperPure
+   的检测原理实现。
+9) Wikipedia “Signs of AI writing” + Humanizer skill
+   深度 AI 痕迹模式清单源自 Wikipedia WikiProject AI Cleanup 维护的指南，
+   经 aigc-reduce 本地化适配。
 声明：检测结果受模型与文本类型影响，仅供自测参考，
 请以学校/期刊官方认定为准。
 
@@ -46,6 +67,14 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
   最受欢迎的本地 LLM 推理框架之一，其 RPC 分布式推理可在
   异构设备间切分模型层，是本项目跨设备计算的参考方案。
 感谢以上项目及其社区。
+
+【特别感谢（诊断与治疗）】
+- aigc-reduce（xiaofenggan01/aigc-reduce，MIT）：
+  提供三轮降重协议、替换表、中文 AI 高频词、口语化负面清单与 9 维扫描方法论，
+  本项目降重引擎按其规则实现。
+- cnki-aigc---skill（qingshanliuci/cnki-aigc---skill，MIT）：
+  基于知网 AIGC 检测器“5 种语言模式”的实战方法（实测 20.6% → 10.1%，
+  红色显著片段全部降为疑似），本项目诊断引擎按其模式实现。
 
 【技术架构】
 界面：Python + PySide6（玻璃拟态 UI）
@@ -94,7 +123,28 @@ a paragraph-level report.
 - Highly customizable parameters, with savable presets
 - Automatic multi-GPU parallelism on one machine; LAN cluster lets you add
   roommates' PCs, Pads and phones to the compute pool
+- Detect → Diagnose → Treat: after detecting the AI ratio, a fully local rule
+  engine diagnoses AI traces (paragraph-level JSON), then applies deterministic
+  rewriting that keeps the academic register
 
+[Detect → Diagnose → Treat (new in v1.1)]
+Detection is only the first step. This tool ships with fully offline diagnosis
+and rewriting (treatment):
+- Diagnosis: no external AI calls. Scans 9 feature dimensions (template phrases,
+  burstiness, paragraph symmetry, passive voice, nested numbers, colon lists,
+  punctuation, colloquial warning, em-dash density) + CNKI's 5 language patterns
+  (rhythm, density, term position, connective function, template paragraphs)
+  + 11 deep AI patterns (significance inflation, synonym cycling, rule of three,
+  copula avoidance, vague attribution, formulaic challenges, suspended analysis,
+  generic conclusions, em-dash overuse, false ranges, paired contrast closures).
+  Output: structured JSON diagnosis report.
+- Treatment: three-round protocol with deterministic rewriting - remove AI
+  traces (word/sentence/parallel), inject written academic features (deterministic
+  sentence splitting, never fabricating), then Anti-AI audit + register guard.
+  Numbers, terms, citations, figure/table refs and formulas stay untouched;
+  no colloquialisms, no invented facts; register comes before change ratio.
+- When the AI ratio exceeds the threshold you set, the app suggests entering
+  the rewrite flow. Rewrite parameters are customizable and savable.
 [Inspiration]
 This project was inspired by my college-student friend. His graduation
 thesis had to be re-checked for AI-written ratio again and again - once for
@@ -126,6 +176,15 @@ and papers that have been peer reviewed:
 7) MGTBench (benchmark)
    Paper: arXiv:2303.14822; the first benchmarking framework for machine-generated
    text detection against large language models.
+8) CNKI 3.0 detection principles (reference for diagnosis/rewrite rules)
+   Source: "In-depth Research Report on AIGC Detection Methods and Principles"
+   cited by aigc-reduce; CNKI 3.0 reports 98.6% accuracy and 1.2% false-positive
+   rate. The rewrite rules follow the detection principles of CNKI/Wanfang/
+   PaperPass/PaperPure.
+9) Wikipedia "Signs of AI writing" + Humanizer skill
+   The deep AI-pattern list (significance inflation, synonym cycling, rule of
+   three, etc.) originates from Wikipedia's WikiProject AI Cleanup guide,
+   localized by aigc-reduce.
 Disclaimer: results depend on the model and text type. Use them for
 self-checking only - the official verdict of your school/journal always wins.
 
@@ -137,6 +196,15 @@ self-checking only - the official verdict of your school/journal always wins.
   frameworks; its RPC distributed inference splits model layers across
   heterogeneous devices - our reference for cross-device computing.
 Thanks to those projects and their communities.
+
+[Special Thanks (diagnosis & treatment)]
+- aigc-reduce (xiaofenggan01/aigc-reduce, MIT): provides the three-round
+  protocol, replacement tables, Chinese AI high-frequency words, colloquial
+  blacklist and 9-dimension scanning methodology; our rewrite engine follows
+  its rules.
+- cnki-aigc---skill (qingshanliuci/cnki-aigc---skill, MIT): a real-world method
+  based on CNKI's "5 language patterns" (measured 20.6% -> 10.1%, all red
+  segments dropped to suspicious); our diagnosis engine follows its patterns.
 
 [Tech Stack]
 UI: Python + PySide6 (glassmorphism)

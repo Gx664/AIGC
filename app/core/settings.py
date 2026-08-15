@@ -15,6 +15,16 @@ DEFAULTS = {
         "max_workers": 0,
         "use_cluster": False,
     },
+    "rewrite": {
+        "suggest_threshold": 0.30,
+        "target_ratio": 0.40,
+        "word_level": True,
+        "sentence_level": True,
+        "parallel": True,
+        "dash_fix": True,
+        "split_long": True,
+        "style_guard": True,
+    },
     "telemetry": {
         "enabled": True,
         "consent_shown": False,
