@@ -15,7 +15,10 @@ from datetime import datetime, timezone
 
 TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(TOOLS_DIR)
-HOST = "https://us.posthog.com"
+QUERY_HOST = "https://us.posthog.com"
+# 上报地址：官方推荐 us.i.posthog.com（专用采集端点），us.posthog.com 也可用。
+# 两个都试一遍并自动重试，兼容网络抖动 / 部分地区拦截。
+SEND_HOSTS = ["https://us.posthog.com", "https://us.i.posthog.com"]
 RESULT_FILE = os.path.join(TOOLS_DIR, "test_telemetry_result.txt")
 
 
@@ -49,7 +52,7 @@ def post(url, payload, headers=None):
 
 def query(hogql):
     resp = post(
-        HOST + "/api/projects/%s/query/" % PID,
+        QUERY_HOST + "/api/projects/%s/query/" % PID,
         {"query": {"kind": "HogQLQuery", "query": hogql}},
         headers={
             "Authorization": "Bearer " + PHX,
@@ -96,12 +99,27 @@ def main():
     ]
 
     lines.append("[1/4] 发送 3 条测试事件到 PostHog ...")
-    try:
-        resp = post(HOST + "/batch/", {"api_key": PHC, "batch": batch})
-        lines.append("      发送响应: " + resp[:120])
-    except Exception as e:
-        lines.append("      发送失败: " + str(e))
-        lines.append("结果: FAIL（发送环节断了，检查网络和 phc_ 项目密钥）")
+    send_ok = False
+    last_err = ""
+    for host in SEND_HOSTS:
+        for attempt in range(1, 4):
+            try:
+                resp = post(host + "/batch/", {"api_key": PHC, "batch": batch})
+                lines.append("      发送成功: %s（第 %d 次尝试）-> %s" % (host, attempt, resp[:80]))
+                send_ok = True
+                break
+            except Exception as e:
+                last_err = str(e)
+                lines.append("      发送失败: %s（第 %d 次尝试）-> %s" % (host, attempt, e))
+        if send_ok:
+            break
+    if not send_ok:
+        lines.append("")
+        lines.append("结果: FAIL（发送环节全不通，最后错误: %s）" % last_err)
+        lines.append("提示: 这是网络层问题，不是钥匙问题。请依次尝试：")
+        lines.append("  1) 关掉 VPN 再跑一次；")
+        lines.append("  2) 开 VPN 再跑一次；")
+        lines.append("  3) 换个网络（如手机热点）再跑一次。")
         _finish(lines)
         return
 
