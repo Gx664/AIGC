@@ -12,8 +12,50 @@ A **fully local** AIGC detection desktop tool: drag in a paper (PDF / DOCX / TXT
 - **Multiple engines**: SimpleAI Chinese detection (default), GLTR perplexity detection, Fast-DetectGPT reference implementation, and any custom HuggingFace model
 - **Highly customizable**: threshold, paragraph splitting, worker count and more; presets can be saved, exported and imported
 - **Multi-device compute pooling**: automatic multi-GPU parallelism on one machine; add roommates' PCs, Pads and phones over LAN
+- **Detect → Diagnose → Treat**: after detecting the AI ratio, a fully local rule
+  engine diagnoses AI traces (paragraph-level JSON report), then applies
+  deterministic rewriting that keeps the academic register
 - **Bilingual UI**: the app, installer and dashboards support one-click switching between 中文 / English
 - **Free & open source**: a paid API is reserved, but the core features stay free forever
+
+## Detect → Diagnose → Treat (new in v1.1)
+
+Detection is only the first step. This project merges the methodology of two MIT
+open-source projects into a complete loop - **everything runs locally, with no
+external AI calls**:
+
+### Diagnosis (local rule engine)
+
+Scans three groups of signals and outputs a **paragraph-level structured JSON report** (exportable):
+
+| Group | What it covers |
+|---|---|
+| 9-dimension scan | template phrases, burstiness (sentence-length CV), paragraph symmetry, passive voice, nested numbers, colon lists, punctuation, **colloquial warning**, **em-dash density** (the last two are "over-rewriting" gates that protect academic register) |
+| CNKI's 5 language patterns | predictable rhythm, uniform density, fixed term position, overlapping connectives, template-functional paragraphs |
+| 11 deep AI patterns | significance inflation, synonym cycling, rule of three, copula avoidance, vague attribution, formulaic challenges, suspended analysis, generic conclusions, em-dash overuse, false ranges, paired contrast closures |
+
+Each paragraph gets: risk level, matched patterns with evidence snippets,
+sentence-level markers, and suggested actions.
+
+### Treatment (three-round protocol, deterministic rewriting)
+
+1. **Round 1 (subtraction)**: protect spans first (citations, figure/formula
+   numbers, data/percentages/P-values, technical terms, quotations - **never
+   touched**), then word-level replacements (Chinese AI high-frequency words,
+   rotating variants), sentence restructuring, and breaking parallels/numbering;
+2. **Round 2 (addition)**: rhythm engineering - deterministic long-sentence
+   splitting (target CV ≈ 0.45); **never fabricates facts, data or references**;
+3. **Round 3 (self-check)**: Anti-AI audit + register guard - any colloquial/online
+   slang must be restored to formal academic language, at most one em-dash per
+   paragraph, **register comes before change ratio**.
+
+Four iron rules apply throughout: no full AI rewrite, >40% change only through
+structural rewriting and template removal, deterministic replacements, and a
+hard academic-register floor.
+
+After detection, if the overall AI ratio exceeds the threshold you set (default
+30%, adjustable), the app suggests entering the rewrite flow; you can also click
+"Rewrite" at any time.
 
 ## Inspiration
 
@@ -36,6 +78,8 @@ This project does **not invent its own algorithms** - it integrates the followin
 | **Binoculars** (zero-shot detection) | Paper "Spotting LLMs With Binoculars: Zero-Shot Detection of Machine-Generated Text", arXiv:2401.12070, published at **ICML 2024** (top ML conference), state-of-the-art accuracy, open source | [arXiv](https://arxiv.org/abs/2401.12070) · [GitHub](https://github.com/AHans30/Binoculars) |
 | **RAID** (benchmark) | Paper "RAID: A Shared Benchmark for Robust Evaluation of Machine-Generated Text Detectors", arXiv:2401.09985, published at **ACL 2024** (top NLP conference); the largest and most comprehensive benchmark for AI-text detectors (6M+ texts) for fair evaluation | [arXiv](https://arxiv.org/abs/2401.09985) · [ACL](https://aclanthology.org/2024.acl-long.674/) · [GitHub](https://github.com/liamdugan/raid) |
 | **MGTBench** (benchmark) | Paper "MGTBench: Benchmarking Machine-Generated Text Detection", arXiv:2303.14822; the first benchmarking framework for machine-generated text detection against LLMs | [arXiv](https://arxiv.org/abs/2303.14822) · [GitHub](https://github.com/xinleihe/MGTBench) |
+| **aigc-reduce** (rewrite rules reference) | Implemented from the detection principles of CNKI 3.0 (98.6% accuracy, 1.2% false-positive rate), Wanfang, PaperPass and PaperPure; deep AI patterns originate from Wikipedia's "Signs of AI writing" (WikiProject AI Cleanup) and the Humanizer skill; MIT | [GitHub](https://github.com/xiaofenggan01/aigc-reduce) |
+| **cnki-aigc---skill** (diagnosis patterns reference) | Real-world method based on CNKI's "5 language patterns": overall AI ratio 20.6% -> 10.1% (-10.5 points), all red segments dropped to suspicious; MIT | [GitHub](https://github.com/qingshanliuci/cnki-aigc---skill) |
 
 > Disclaimer: results depend on the model and text type. They are for self-checking only and are not the verdict of any authority - the official judgement of your school / journal always wins.
 
@@ -47,6 +91,15 @@ The "multi-device parallel detection" feature borrows ideas from these two open-
 - **[llama.cpp](https://github.com/ggml-org/llama.cpp)** (ggml-org/llama.cpp): one of the most popular local LLM inference frameworks; its [RPC distributed inference](https://github.com/ggml-org/llama.cpp/tree/master/tools/rpc) splits model layers across heterogeneous devices (e.g. Mac Metal + NVIDIA CUDA), serving as the reference for our cross-device perplexity engines.
 
 Thanks to those projects and their communities for making "dorm compute pooling" possible.
+
+## Special Thanks (Diagnosis & Treatment)
+
+The "Detect → Diagnose → Treat" loop directly merges the methodology of two MIT open-source projects:
+
+- **[aigc-reduce](https://github.com/xiaofenggan01/aigc-reduce)** (xiaofenggan01/aigc-reduce): three-round protocol, replacement tables, Chinese AI high-frequency word lists, colloquial blacklist and 9-dimension scanning methodology. Our rewrite engine follows its rules exactly, insisting "de-AI-ing ≠ colloquializing", with the formal academic register as a hard floor.
+- **[cnki-aigc---skill](https://github.com/qingshanliuci/cnki-aigc---skill)** (qingshanliuci/cnki-aigc---skill): a real-world method based on CNKI's "5 language patterns" (measured 20.6% -> 10.1%). Our diagnosis engine follows its patterns.
+
+Thanks to both authors and their communities for making the full detect → diagnose → treat flow possible.
 
 ## Support & Donate
 
@@ -104,6 +157,8 @@ The prebuilt exe / APK contains the author's **view key** (only for viewing this
 
 - UI: Python + PySide6 (glassmorphism)
 - Detection: transformers (SimpleAI Chinese classifier / perplexity detection)
+- Diagnosis: local rule engine (9-dimension scan + CNKI 5 language patterns + 11 deep AI patterns, paragraph-level JSON)
+- Treatment: three-round protocol (deterministic rewriting + protected spans + register guard, fully offline)
 - Multi-device: multi-GPU parallelism + LAN master/worker (UDP auto-discovery + TCP task dispatch)
 - Statistics: anonymous telemetry (PostHog, one-click disable) + local run logs (exportable)
 - Packing: small installer; the runtime downloads on demand (checks first, installs what's missing, with a progress bar)

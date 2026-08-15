@@ -1,9 +1,9 @@
 from html import escape
 
-from core.i18n import tr
+from core.i18n import get_lang, tr
 
 
-def build_report(paragraphs, probs, ratio, file_name, engine_name, threshold=0.5):
+def build_report(paragraphs, probs, ratio, file_name, engine_name, threshold=0.5, diagnosis=None):
     rows = []
     for i, (para, prob) in enumerate(zip(paragraphs, probs), 1):
         suspicious = prob >= threshold
@@ -25,4 +25,26 @@ def build_report(paragraphs, probs, ratio, file_name, engine_name, threshold=0.5
         "".join(rows),
         "</table>",
     ]
+    if diagnosis:
+        s = diagnosis.get("summary", {})
+        high = s.get("high_risk_paras", 0)
+        medium = s.get("medium_risk_paras", 0)
+        top = s.get("top_patterns", [])[:4]
+        footer = [
+            "<p style='margin-top:14px;font-size:14px;color:#1d4ed8;font-weight:700;'>%s</p>"
+            % tr("report_diag_footer") % (high, medium),
+        ]
+        if top:
+            names = []
+            for t in top:
+                names.append("%s×%d" % (t["zh"] if get_lang() == "zh" else t["en"], t["count"]))
+            footer.append(
+                "<p style='font-size:13px;color:#475569;'>%s</p>"
+                % tr("report_diag_top") % "、".join(names)
+            )
+        footer.append(
+            "<p style='font-size:13px;color:#475569;'>%s</p>"
+            % tr("report_diag_hint")
+        )
+        html += footer
     return "".join(html)

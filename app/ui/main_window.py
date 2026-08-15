@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 from core.about_text import ABOUT_TEXT, ABOUT_TEXT_EN
 from core.cluster import ClusterMaster, ClusterWorker
 from core.detector import detect_local, detect_with_cluster
+from core.diagnosis import diagnose
 from core.doc_reader import extract_text, split_paragraphs
 from core.engines import EngineManager, create_engine
 from core.i18n import get_lang, set_lang, tr
@@ -37,6 +38,7 @@ from core.settings import Settings
 from core.telemetry import Telemetry
 from ui.engine_dialog import EngineDialog
 from ui.glass import GlassButton, GlassPanel, TitleBar
+from ui.rewrite_dialog import RewriteDialog
 
 
 if getattr(sys, "frozen", False):
@@ -145,6 +147,10 @@ class MainWindow(QMainWindow):
         self.worker_node = None
         self.worker_thread = None
         self.file_path = None
+        self.last_paras = None
+        self.last_probs = None
+        self.last_ratio = 0.0
+        self.last_diag = None
         self._build_ui()
         self._apply_params_from_settings()
         self.heartbeat_timer = QTimer(self)
@@ -232,6 +238,18 @@ class MainWindow(QMainWindow):
         thr_row.addWidget(self.thr_slider, 1)
         thr_row.addWidget(self.thr_spin)
         lay.addLayout(thr_row)
+
+        sug_row = QHBoxLayout()
+        sug_row.addWidget(QLabel(tr("label_rewrite_suggest")))
+        self.suggest_thr = QSpinBox()
+        self.suggest_thr.setRange(10, 90)
+        self.suggest_thr.setSuffix("%")
+        self.suggest_thr.setValue(int(
+            self.settings.get("rewrite", "suggest_threshold", default=0.30) * 100
+        ))
+        sug_row.addWidget(self.suggest_thr)
+        sug_row.addStretch()
+        lay.addLayout(sug_row)
 
         p_row = QHBoxLayout()
         p_row.addWidget(QLabel(tr("label_min_len")))
@@ -331,6 +349,11 @@ class MainWindow(QMainWindow):
         self.btn_start.setEnabled(False)
         self.btn_start.clicked.connect(self.start_detect)
         lay.addWidget(self.btn_start)
+
+        self.btn_rewrite = GlassButton(tr("btn_start_rewrite"))
+        self.btn_rewrite.setEnabled(False)
+        self.btn_rewrite.clicked.connect(self.start_rewrite)
+        lay.addWidget(self.btn_rewrite)
         lay.addStretch()
         return panel
 
@@ -387,6 +410,7 @@ class MainWindow(QMainWindow):
         self.file_path = path
         self.file_label.setText(os.path.basename(path))
         self.btn_start.setEnabled(True)
+        self.btn_rewrite.setEnabled(True)
 
     def dragEnterEvent(self, e):
         if e.mimeData().hasUrls():
@@ -404,6 +428,7 @@ class MainWindow(QMainWindow):
         return {
             "engine": self.engine_combo.currentData(),
             "threshold": self.thr_slider.value() / 100.0,
+            "suggest_threshold": self.suggest_thr.value() / 100.0,
             "min_para_len": self.min_len.value(),
             "max_len": self.settings.get("detect", "max_len", default=500),
             "use_gpu": self.chk_gpu.isChecked(),
@@ -414,6 +439,9 @@ class MainWindow(QMainWindow):
     def _apply_params_from_settings(self):
         d = self.settings.get("detect", default={})
         self.thr_slider.setValue(int(d.get("threshold", 0.5) * 100))
+        self.suggest_thr.setValue(int(
+            self.settings.get("rewrite", "suggest_threshold", default=0.30) * 100
+        ))
         self.min_len.setValue(d.get("min_para_len", 20))
         self.workers.setValue(d.get("max_workers", 0))
         self.chk_gpu.setChecked(d.get("use_gpu", True))
@@ -435,6 +463,8 @@ class MainWindow(QMainWindow):
             return
         p = self.settings.load_preset(name)
         self.thr_slider.setValue(int(p.get("threshold", 0.5) * 100))
+        if p.get("suggest_threshold") is not None:
+            self.suggest_thr.setValue(int(p["suggest_threshold"] * 100))
         self.min_len.setValue(p.get("min_para_len", 20))
         self.workers.setValue(p.get("max_workers", 0))
         self.chk_gpu.setChecked(p.get("use_gpu", True))
@@ -623,6 +653,9 @@ class MainWindow(QMainWindow):
         if not self.file_path:
             return
         params = self._collect_params()
+        self.settings.set(
+            params.get("suggest_threshold", 0.30), "rewrite", "suggest_threshold"
+        )
         for k, v in params.items():
             self.settings.set(v, "detect", k)
         self.settings.save()
@@ -655,6 +688,14 @@ class MainWindow(QMainWindow):
     def on_done(self, paras, probs, ratio, name, engine_name):
         self.progress.setValue(100)
         self.result_label.setText("AI 生成占比：%.1f%%" % (ratio * 100))
+        threshold = self.thr_slider.value() / 100.0
+        try:
+            self.last_diag = diagnose(paras, probs, threshold)
+        except Exception:
+            self.last_diag = None
+        self.last_paras = paras
+        self.last_probs = probs
+        self.last_ratio = ratio
         self.report.setHtml(
             build_report(
                 paras,
@@ -662,18 +703,70 @@ class MainWindow(QMainWindow):
                 ratio,
                 name,
                 engine_name,
-                self.thr_slider.value() / 100.0,
+                threshold,
+                self.last_diag,
             )
         )
         self.btn_start.setEnabled(True)
         self.btn_open.setEnabled(True)
+        self.btn_rewrite.setEnabled(True)
         self.title_bar.title.setText("%s  v%s" % (tr("app_name"), APP_VERSION))
+
+        suggest = self.suggest_thr.value() / 100.0
+        if self.last_diag and ratio > suggest:
+            ret = QMessageBox.question(
+                self,
+                tr("rewrite_suggest_title"),
+                tr("rewrite_suggest_body") % (ratio * 100, suggest * 100),
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
+            )
+            if ret == QMessageBox.Yes:
+                self.start_rewrite()
 
     def on_failed(self, msg):
         self.btn_start.setEnabled(True)
         self.btn_open.setEnabled(True)
         self.title_bar.title.setText("%s  v%s" % (tr("app_name"), APP_VERSION))
         QMessageBox.warning(self, tr("detect_fail_title"), msg)
+
+    # ---- 降重（检测 → 诊断 → 治疗） ----
+    def start_rewrite(self):
+        if self.last_paras is None:
+            if not self.file_path:
+                return
+            # 还没检测过：先读文档做纯规则诊断
+            try:
+                text = extract_text(self.file_path)
+                paras = split_paragraphs(
+                    text, self.min_len.value()
+                )
+                self.last_paras = paras
+                self.last_probs = None
+                self.last_diag = diagnose(paras, None, self.thr_slider.value() / 100.0)
+            except Exception as e:
+                QMessageBox.warning(self, tr("detect_fail_title"), str(e))
+                return
+        if self.last_diag is None:
+            self.last_diag = diagnose(
+                self.last_paras, self.last_probs, self.thr_slider.value() / 100.0
+            )
+        if self.tel:
+            self.tel.track(
+                "rewrite_open",
+                paras=len(self.last_paras),
+                high=self.last_diag.get("summary", {}).get("high_risk_paras", 0),
+            )
+        dlg = RewriteDialog(
+            self.last_paras,
+            self.last_probs,
+            self.last_diag,
+            self.base_dir,
+            self.settings,
+            tel=self.tel,
+            parent=self,
+        )
+        dlg.exec()
 
     def closeEvent(self, e):
         self.tel.track(
