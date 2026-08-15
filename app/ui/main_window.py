@@ -434,6 +434,7 @@ class MainWindow(QMainWindow):
             "use_gpu": self.chk_gpu.isChecked(),
             "max_workers": self.workers.value(),
             "use_cluster": self.chk_cluster.isChecked(),
+            "rewrite": dict(self.settings.get("rewrite", default={})),
         }
 
     def _apply_params_from_settings(self):
@@ -472,6 +473,10 @@ class MainWindow(QMainWindow):
         idx = self.engine_combo.findData(p.get("engine"))
         if idx >= 0:
             self.engine_combo.setCurrentIndex(idx)
+        rw = p.get("rewrite")
+        if isinstance(rw, dict):
+            for k, v in rw.items():
+                self.settings.set(v, "rewrite", k)
 
     def export_presets(self):
         path, _ = QFileDialog.getSaveFileName(self, tr("btn_export_presets"), "presets.json", "JSON (*.json)")
@@ -657,6 +662,8 @@ class MainWindow(QMainWindow):
             params.get("suggest_threshold", 0.30), "rewrite", "suggest_threshold"
         )
         for k, v in params.items():
+            if k == "rewrite":
+                continue
             self.settings.set(v, "detect", k)
         self.settings.save()
 
