@@ -22,6 +22,14 @@ SEND_HOSTS = ["https://us.posthog.com", "https://us.i.posthog.com"]
 RESULT_FILE = os.path.join(TOOLS_DIR, "test_telemetry_result.txt")
 
 
+class _LogList(list):
+    """边攒边打印：每一步进度都实时显示，避免看起来像卡住。"""
+
+    def append(self, item):
+        super().append(item)
+        print(item, flush=True)
+
+
 def load_json(p):
     try:
         with open(p, "r", encoding="utf-8") as f:
@@ -64,11 +72,12 @@ def query(hogql):
 
 
 def main():
-    lines = []
+    lines = _LogList()
     lines.append("=" * 70)
     lines.append("后台数据链路自检（发送 -> PostHog -> 看板同款查询确认）")
     lines.append("=" * 70)
     lines.append("测试标记: " + MARKER)
+    lines.append("（每一步都会实时显示进度；网络慢时请耐心等 1~3 分钟）")
     lines.append("")
 
     if not PHC or not PHX or not PID:
@@ -182,11 +191,10 @@ def main():
 
 def _finish(lines):
     text = "\n".join(lines)
-    print(text)
     try:
         with open(RESULT_FILE, "w", encoding="utf-8") as f:
             f.write(text)
-        print("\n结果已保存: " + RESULT_FILE)
+        print("\n结果已保存: " + RESULT_FILE, flush=True)
     except Exception:
         pass
 
