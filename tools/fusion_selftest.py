@@ -14,6 +14,13 @@ import json
 import os
 import sys
 
+# 控制台为 GBK 等非 UTF-8 编码时，避免 emoji/特殊字符导致 print 崩溃
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 APP_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app")
 sys.path.insert(0, APP_DIR)
 

@@ -35,7 +35,6 @@ from core.logging_setup import export_logs, setup_logging
 from core.meta import APP_NAME, APP_VERSION, AUTHOR_EMAIL
 from core.report import build_report
 from core.settings import Settings
-from core.telemetry import Telemetry
 from ui.engine_dialog import EngineDialog
 from ui.glass import GlassButton, GlassPanel, TitleBar
 from ui.rewrite_dialog import RewriteDialog
@@ -52,7 +51,7 @@ class DetectWorker(QThread):
     finished_ok = Signal(list, list, float, str, str)
     failed = Signal(str)
 
-    def __init__(self, path, engine_id, engine_name, params, base_dir, master, tel=None):
+    def __init__(self, path, engine_id, engine_name, params, base_dir, master):
         super().__init__()
         self.path = path
         self.engine_id = engine_id
@@ -60,7 +59,6 @@ class DetectWorker(QThread):
         self.params = params
         self.base_dir = base_dir
         self.master = master
-        self.tel = tel
         self.start_ts = time.time()
         self.mgr = EngineManager(base_dir)
 
@@ -72,13 +70,6 @@ class DetectWorker(QThread):
             if not paras:
                 self.failed.emit(tr("no_valid_text"))
                 return
-            if self.tel:
-                self.tel.track(
-                    "detection_start",
-                    file_type=os.path.splitext(self.path)[1].lower(),
-                    engine=self.engine_id,
-                    paras=len(paras),
-                )
 
             cfg = self.mgr.get(self.engine_id)
             if not cfg:
@@ -88,8 +79,6 @@ class DetectWorker(QThread):
             engine = create_engine(cfg, self.base_dir)
             self.step.emit(tr("preparing_model"), 4)
             engine.install(lambda pct, msg: self.step.emit(msg, 4 + int(pct * 0.10)))
-            if self.tel:
-                self.tel.track("engine_install", engine=self.engine_id)
 
             eparams = dict(cfg.get("params", {}))
             if "max_len" in self.params:
@@ -111,20 +100,10 @@ class DetectWorker(QThread):
             valid = [p for p in probs if p is not None]
             ratio = sum(valid) / len(valid) if valid else 0.0
             self.step.emit(tr("generating_report"), 99)
-            if self.tel:
-                self.tel.track(
-                    "detection_done",
-                    engine=self.engine_id,
-                    paras=len(paras),
-                    duration_sec=int(time.time() - self.start_ts),
-                    ratio=round(ratio, 3),
-                )
             self.finished_ok.emit(
                 paras, probs, ratio, os.path.basename(self.path), self.engine_name
             )
         except Exception as e:
-            if self.tel:
-                self.tel.track("detection_error", error=type(e).__name__)
             self.failed.emit(str(e))
 
 
@@ -139,8 +118,6 @@ class MainWindow(QMainWindow):
         self.settings = Settings(self.base_dir)
         set_lang(self.settings.get("ui", "language", default="zh"))
         self.log = setup_logging(self.base_dir)
-        self.tel = Telemetry(self.base_dir, self.settings)
-        self.start_time = time.time()
         self.mgr = EngineManager(self.base_dir)
         self.license = License(self.base_dir)
         self.master = ClusterMaster(on_log=self.on_cluster_log)
@@ -153,29 +130,6 @@ class MainWindow(QMainWindow):
         self.last_diag = None
         self._build_ui()
         self._apply_params_from_settings()
-        self.heartbeat_timer = QTimer(self)
-        self.heartbeat_timer.timeout.connect(self.on_heartbeat)
-        self.heartbeat_timer.start(5 * 60 * 1000)
-        self.tel.track("app_start", gpu=self._devices_text()[:80])
-
-    def showEvent(self, e):
-        super().showEvent(e)
-        QTimer.singleShot(0, self.maybe_show_consent)
-
-    def maybe_show_consent(self):
-        if self.settings.get("telemetry", "consent_shown", default=False):
-            return
-        self.settings.set(True, "telemetry", "consent_shown")
-        ret = QMessageBox.question(
-            self,
-            tr("consent_title"),
-            tr("consent_body"),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.Yes,
-        )
-        enabled = ret == QMessageBox.Yes
-        self.tel.set_enabled(enabled)
-        self.chk_telemetry.setChecked(enabled)
 
     def _build_ui(self):
         central = QWidget()
@@ -336,13 +290,9 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(QLabel(tr("label_data")))
         tel_row = QHBoxLayout()
-        self.chk_telemetry = QCheckBox(tr("chk_telemetry"))
-        self.chk_telemetry.setChecked(self.tel.enabled)
-        self.chk_telemetry.toggled.connect(self.on_telemetry_toggled)
-        tel_row.addWidget(self.chk_telemetry, 1)
         self.btn_export_log = GlassButton(tr("btn_export_log"))
         self.btn_export_log.clicked.connect(self.export_log)
-        tel_row.addWidget(self.btn_export_log)
+        tel_row.addWidget(self.btn_export_log, 1)
         lay.addLayout(tel_row)
 
         self.btn_start = GlassButton(tr("btn_start"), primary=True)
@@ -625,14 +575,6 @@ class MainWindow(QMainWindow):
             self, tr("copied_title"), tr("copied_body") % AUTHOR_EMAIL
         )
 
-    def on_telemetry_toggled(self, checked):
-        self.tel.set_enabled(checked)
-
-    def on_heartbeat(self):
-        self.tel.track(
-            "heartbeat", minutes=int((time.time() - self.start_time) / 60)
-        )
-
     def export_log(self):
         default_name = tr("log_default_name") % time.strftime("%Y%m%d_%H%M%S")
         path, _ = QFileDialog.getSaveFileName(
@@ -645,8 +587,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, tr("export_fail_title"), str(e))
             return
-        size_mb = round(os.path.getsize(path) / 1024 / 1024, 2)
-        self.tel.track("log_export", size_mb=size_mb)
         QMessageBox.information(
             self,
             tr("export_done_title"),
@@ -680,7 +620,6 @@ class MainWindow(QMainWindow):
             params,
             self.base_dir,
             self.master if params.get("use_cluster") else None,
-            self.tel,
         )
         self.worker_thread.step.connect(self.on_step)
         self.worker_thread.finished_ok.connect(self.on_done)
@@ -758,28 +697,17 @@ class MainWindow(QMainWindow):
             self.last_diag = diagnose(
                 self.last_paras, self.last_probs, self.thr_slider.value() / 100.0
             )
-        if self.tel:
-            self.tel.track(
-                "rewrite_open",
-                paras=len(self.last_paras),
-                high=self.last_diag.get("summary", {}).get("high_risk_paras", 0),
-            )
         dlg = RewriteDialog(
             self.last_paras,
             self.last_probs,
             self.last_diag,
             self.base_dir,
             self.settings,
-            tel=self.tel,
             parent=self,
         )
         dlg.exec()
 
     def closeEvent(self, e):
-        self.tel.track(
-            "app_close", duration_sec=int(time.time() - self.start_time)
-        )
-        self.tel.flush_now()
         self.master.stop()
         if self.worker_node:
             self.worker_node.stop()

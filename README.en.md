@@ -15,7 +15,7 @@ A **fully local** AIGC detection desktop tool: drag in a paper (PDF / DOCX / TXT
 - **Detect → Diagnose → Treat**: after detecting the AI ratio, a fully local rule
   engine diagnoses AI traces (paragraph-level JSON report), then applies
   deterministic rewriting that keeps the academic register
-- **Bilingual UI**: the app, installer and dashboards support one-click switching between 中文 / English
+- **Bilingual UI**: the app and installer support one-click switching between 中文 / English
 - **Free & open source**: a paid API is reserved, but the core features stay free forever
 
 ## Detect → Diagnose → Treat (new in v1.1)
@@ -112,8 +112,6 @@ If this project helped you a little, you are welcome to **buy the author a milk 
 
 <p align="center">Alipay ｜ WeChat Pay</p>
 
-**No pressure at all - give only if you want to. It is not moral coercion.** The author is still a student with a tiny allowance, but building this project is already meaningful on its own; your support is just extra encouragement.
-
 ### For international users
 
 If you don't use Alipay or WeChat Pay, you can also **gift any AI API key** (any provider is welcome) to **gxgx3456@qq.com**. Please include:
@@ -124,35 +122,6 @@ If you don't use Alipay or WeChat Pay, you can also **gift any AI API key** (any
 
 Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
 
-## Usage Dashboard (Open Source · Anyone Can View)
-
-> ⚠️ Two things to tell apart:
-> - **Main project**: the AIGC Detector Toolkit (detects AI-written text) - folders `app/`, `installer/`, installer [dist/AIGC_Toolkit_Setup.exe](dist/AIGC_Toolkit_Setup.exe)
-> - **Usage dashboard**: tools for viewing anonymous usage stats (not part of detection) - the PC / Android versions below
-
-This project also ships an **open-source usage dashboard** showing the software's anonymous usage statistics (total starts, detection count, online devices, engine/GPU distribution, GitHub download counts, etc.) - **anyone can view it**. It only contains anonymous metadata, never your paper content or personal information. The desktop detector app enables anonymous stats by default after installation (can be disabled in one click), so its usage data automatically shows up here.
-
-### PC dashboard (Windows)
-
-- Portable exe: [tools/dist/AIGC_Dashboard.exe](tools/dist/AIGC_Dashboard.exe) - **double-click and it just works** (view key built in, no config needed)
-- Source: [tools/dashboard.py](tools/dashboard.py)
-- To let phones / other devices (same Wi-Fi) view the dashboard on your PC: double-click [tools/run_dashboard_lan.bat](tools/run_dashboard_lan.bat)
-
-### Android dashboard (APK · recommended)
-
-- Installer: [tools/dist/AIGC_Dashboard_allinone_v10.apk](tools/dist/AIGC_Dashboard_allinone_v10.apk) - **install it, open it, and you can view the data directly** (view key built in)
-- The dashboard has a **中 / EN toggle button** in the top-right corner (PC and Android)
-- Source: [tools/apk_self/](tools/apk_self/) (self-packaged shell) and [tools/android_webview/](tools/android_webview/) (Android Studio project)
-
-### Phone without APK (Termux, optional)
-
-- Zip: [tools/phone/AIGC_Dashboard_phone.zip](tools/phone/AIGC_Dashboard_phone.zip) (view key built in, no config needed)
-- Usage: see [tools/phone/README-phone.txt](tools/phone/README-phone.txt)
-
-### Build your own config (fork / self-host)
-
-The prebuilt exe / APK contains the author's **view key** (only for viewing this public anonymous statistics). Key files in the source (`tools/dashboard_config.example.json`, `tools/apk_self/assets/posthog_key.txt`) stay as placeholders; **if you fork and self-host, fill in your own PostHog personal_api_key and project_id before repackaging** - do not reuse the key in the prebuilt packages.
-
 ## Tech Stack
 
 - UI: Python + PySide6 (glassmorphism)
@@ -160,7 +129,7 @@ The prebuilt exe / APK contains the author's **view key** (only for viewing this
 - Diagnosis: local rule engine (9-dimension scan + CNKI 5 language patterns + 11 deep AI patterns, paragraph-level JSON)
 - Treatment: three-round protocol (deterministic rewriting + protected spans + register guard, fully offline)
 - Multi-device: multi-GPU parallelism + LAN master/worker (UDP auto-discovery + TCP task dispatch)
-- Statistics: anonymous telemetry (PostHog, one-click disable) + local run logs (exportable)
+- Logs: local run logs (exportable; never contains paper content)
 - Packing: small installer; the runtime downloads on demand (checks first, installs what's missing, with a progress bar)
 
 ## Development Note

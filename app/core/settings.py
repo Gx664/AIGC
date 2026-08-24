@@ -25,10 +25,6 @@ DEFAULTS = {
         "split_long": True,
         "style_guard": True,
     },
-    "telemetry": {
-        "enabled": True,
-        "consent_shown": False,
-    },
     "presets": {},
 }
 
