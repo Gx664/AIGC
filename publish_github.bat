@@ -1,7 +1,13 @@
 @echo off
 title Publish to GitHub
-set "GIT=D:\DevTools\Dev\Git\cmd\git.exe"
+rem Resolve portable git dynamically (dev root folder was renamed across machines)
+set "GIT="
+for /d %%D in ("D:\*") do (
+    if exist "%%~fD\Dev\Git\cmd\git.exe" set "GIT=%%~fD\Dev\Git\cmd\git.exe"
+)
+if "%GIT%"=="" set "GIT=D:\DevTools\Dev\Git\cmd\git.exe"
 if not exist "%GIT%" set "GIT=git"
+echo Using git: %GIT%
 echo ============================================
 echo  AIGC Detector Toolkit - Publish to GitHub
 echo ============================================

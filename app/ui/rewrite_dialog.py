@@ -54,7 +54,7 @@ class RewriteWorker(QThread):
 
 
 class RewriteDialog(QDialog):
-    def __init__(self, paragraphs, probs, diagnosis, base_dir, settings, tel=None, parent=None):
+    def __init__(self, paragraphs, probs, diagnosis, base_dir, settings, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("rewrite_title"))
         self.resize(1180, 760)
@@ -63,7 +63,6 @@ class RewriteDialog(QDialog):
         self.diag = diagnosis
         self.base_dir = base_dir
         self.settings = settings
-        self.tel = tel
         self.last_result = None
         self.worker = None
         self._build_ui()
@@ -311,8 +310,6 @@ class RewriteDialog(QDialog):
         for k, v in options.items():
             self.settings.set(v, "rewrite", k)
         self.settings.save()
-        if self.tel:
-            self.tel.track("rewrite_start", paras=len(indices))
         self.btn_treat.setEnabled(False)
         self.progress.setValue(0)
         self.worker = RewriteWorker(self.paragraphs, indices, options)
@@ -324,13 +321,6 @@ class RewriteDialog(QDialog):
         self.last_result = result
         self.btn_treat.setEnabled(True)
         self.progress.setValue(100)
-        if self.tel:
-            s = result["summary"]
-            self.tel.track(
-                "rewrite_done",
-                rewritten=s["rewritten"],
-                avg_ratio=s["avg_mod_ratio"],
-            )
         # 展示第一个被改的段落
         target = next((r for r in result["paragraphs"] if r["changed"]), None)
         if target:

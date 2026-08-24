@@ -210,7 +210,7 @@ Thanks to those projects and their communities.
 UI: Python + PySide6 (glassmorphism)
 Detection: transformers (SimpleAI Chinese classifier / perplexity)
 Multi-device: multi-GPU parallelism + LAN master/worker (UDP discovery + TCP dispatch)
-Statistics: anonymous telemetry (can be disabled) + local run logs (exportable)
+Logs: local run logs (exportable; never contains paper content)
 Packing: small installer; the runtime downloads on demand
 (checks first, installs what's missing, with a progress bar)
 

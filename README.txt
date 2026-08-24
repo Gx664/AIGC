@@ -41,23 +41,6 @@ app/core/license.py 中已预留：
 七、联系方式
 作者邮箱：gxgx3456@qq.com
 
-八、遥测与日志（隐私说明）
-- 默认开启匿名使用统计：仅包含版本、系统、显卡、使用次数与时长、错误类型，
-  不含论文内容和个人信息；首次运行会弹窗说明，可随时在界面
-  "允许匿名使用统计"处关闭，关闭后立即清空本地缓存
-- 数据通过 PostHog 分析；默认未配置 Key 时不启用任何上报
-- 配置方法：在软件安装目录放 posthog_config.json，内容：
-  {"api_key": "你的 Project API Key", "host": "https://us.i.posthog.com"}
-- 运行日志保存在 logs/ 目录（滚动保留），界面点"导出日志"可打包成 zip
-  发送给作者，用于排查问题
-
-九、数据看板（怎么看统计数据）
-- 在 PostHog 后台 Settings → Personal API keys 新建一个个人 API 密钥
-- 编辑 tools/dashboard_config.json，填入 personal_api_key（和你的 github repo 可选）
-- 双击 tools/run_dashboard.bat，浏览器自动打开精美数据看板：
-  总启动/今日/周活跃/月活跃/总检测/平均时长/实时在线 + 30 天趋势、引擎/显卡/版本分布
-- 页面默认每秒自动刷新（可在 dashboard_config.json 改 refresh_seconds）
-- Windows 独立版：tools/dist/AIGC_Dashboard.exe（免安装，配置放 exe 同目录）
-- 手机查看（同一 Wi-Fi）：双击 run_dashboard_lan.bat，
-  用手机浏览器打开电脑上显示的 http://电脑IP:8765 即可，无需装 APK
-- 数据全部来自 PostHog
+八、运行日志
+- 运行日志保存在 logs/ 目录（滚动保留），界面点“导出日志”可打包成 zip
+  发送给作者，用于排查问题（不含论文内容）

@@ -1,8 +1,5 @@
 settings.json
 posthog_config.json
-tools/dashboard_config.json
-tools/test_telemetry_result.txt
-telemetry_queue.json
 license.key
 logs/
 models/
@@ -10,17 +7,6 @@ __pycache__/
 build/
 dist/*
 !dist/AIGC_Toolkit_Setup.exe
-tools/dist/*
-!tools/dist/AIGC_Dashboard.exe
-!tools/dist/AIGC_Dashboard_allinone_v10.apk
-tools/apk_build/debug.keystore
-tools/apk_build/
-tools/apk_self/base.apk
-tools/apk_self/aligned.apk
-tools/apk_self/classes/
-tools/apk_self/dex/
-tools/apk_self/res.zip
-tools/apk_self/*.idsig
-tools/apk_self/*.apk
 *.spec
 fix_umivpn_permission.bat
+telemetry_queue.json

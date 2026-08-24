@@ -1,6 +1,16 @@
 $ErrorActionPreference = 'Stop'
 $src = Join-Path $PSScriptRoot 'AIGC_Toolkit'
-$dst = 'D:\DevTools\Dev\AIGC_Detector'
+
+# Resolve dev root dynamically (folder renamed across machines; avoid non-ASCII literals)
+$devRoot = Get-ChildItem 'D:\' -Directory | Where-Object {
+    Test-Path (Join-Path $_.FullName 'Dev\Python312\python.exe')
+} | Select-Object -First 1
+if (-not $devRoot) {
+    Write-Host "ERROR: cannot locate dev root (expected <D:\?>\Dev\Python312)." -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+$dst = Join-Path $devRoot.FullName 'Dev\AIGC_Detector'
 
 if (-not (Test-Path -LiteralPath $src)) {
     Write-Host "ERROR: source not found: $src" -ForegroundColor Red

@@ -14,7 +14,7 @@
 - **多设备算力合并**：同一台机器多显卡自动并行；局域网内可把室友的电脑、Pad、手机都加入并行计算
 - **检测 → 诊断 → 治疗闭环**：检测出 AI 率后，本地规则引擎诊断 AI 痕迹（段落级 JSON 报告），
   再按“三轮降重协议”做保学术语体的确定性降重
-- **中英双语**：软件界面、安装器与数据看板均支持一键切换 中文 / English
+- **中英双语**：软件界面与安装器均支持一键切换 中文 / English
 - **免费开源**：预留收费接口，核心功能永远免费
 
 ## 检测 → 诊断 → 治疗（v1.1 新增）
@@ -98,8 +98,6 @@
 
 <p align="center">支付宝（Alipay）｜微信支付（WeChat Pay）</p>
 
-**想给就给，不想给就不给，绝非道德绑架。** 作者还是一名初中生，零花钱不多，但做这个项目本身已经很有意义，你的支持只是额外的鼓励。
-
 ### For international users
 
 If you don't use Alipay or WeChat Pay, you can also **gift any AI API key** (any provider is welcome) to **gxgx3456@qq.com**. Please include:
@@ -110,35 +108,6 @@ If you don't use Alipay or WeChat Pay, you can also **gift any AI API key** (any
 
 Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
 
-## 使用数据看板（开源 · 任何人都能看）
-
-> ⚠️ 先分清两样东西：
-> - **项目主体**：AI 检测工具箱（检测论文 AI 率）——目录 `app/`、`installer/`，安装包 [dist/AIGC_Toolkit_Setup.exe](dist/AIGC_Toolkit_Setup.exe)
-> - **数据看板**：查看匿名使用统计的工具（不参与检测）——就是下面的电脑版 / 安卓版
-
-看板展示匿名统计（总启动次数、检测次数、在线设备、引擎/显卡分布、GitHub 下载量等），**任何人都可以看**。数据仅包含匿名元数据，不含论文内容与任何个人信息。电脑版检测软件安装后默认开启匿名统计（设置里可一键关闭），使用数据会自动出现在这里。
-
-### 电脑版看板（Windows）
-
-- 免安装 exe：[tools/dist/AIGC_Dashboard.exe](tools/dist/AIGC_Dashboard.exe) —— **下载后双击即用**（已内置查看密钥，无需配置）
-- 源码：[tools/dashboard.py](tools/dashboard.py)
-- 想让手机 / 其他设备（同一 Wi-Fi）也能看电脑上的看板：双击 [tools/run_dashboard_lan.bat](tools/run_dashboard_lan.bat)
-
-### 安卓版看板（APK · 推荐）
-
-- 安装包：[tools/dist/AIGC_Dashboard_allinone_v10.apk](tools/dist/AIGC_Dashboard_allinone_v10.apk) —— **下载安装后打开即可直接看数据**（已内置查看密钥）
-- 看板页面右上角有 **中 / EN 切换按钮**，电脑版与安卓版通用
-- 源码：[tools/apk_self/](tools/apk_self/)（自打包壳）与 [tools/android_webview/](tools/android_webview/)（Android Studio 工程）
-
-### 手机免安装方案（Termux，可选）
-
-- 压缩包：[tools/phone/AIGC_Dashboard_phone.zip](tools/phone/AIGC_Dashboard_phone.zip)（已内置查看密钥，免配置）
-- 使用方法见 [tools/phone/README-phone.txt](tools/phone/README-phone.txt)
-
-### 自建配置（fork / 自托管时）
-
-预编译的 exe / APK 已内置作者项目的**查看密钥**（仅供查看这份公开的匿名统计）。源码中的密钥文件（`tools/dashboard_config.example.json`、`tools/apk_self/assets/posthog_key.txt`）保持占位符；**如果你 fork 自建，请填入你自己的 PostHog personal_api_key 与 project_id 后再打包**，不要沿用本仓库预编译包里的密钥。
-
 ## 技术架构
 
 - 界面：Python + PySide6（玻璃拟态 UI）
@@ -146,7 +115,7 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value.
 - 诊断：本地规则引擎（9 维扫描 + 知网 5 种语言模式 + 11 种深度 AI 痕迹，段落级 JSON）
 - 治疗：三轮降重协议（确定性改写 + 受保护片段 + 语体守门，完全离线）
 - 多设备：同机多卡自动并行 + 局域网主从节点（UDP 自动发现 + TCP 任务分发）
-- 统计：匿名遥测（PostHog，可一键关闭）+ 本地运行日志（可导出）
+- 日志：本地运行日志（可导出，不含论文内容）
 - 打包：小体积安装器，运行时环境按需下载（先检查、缺什么装什么、带进度条）
 
 ## 开发声明

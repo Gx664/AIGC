@@ -34,7 +34,6 @@ ZH = {
     "label_contact": "⑦ 联系作者",
     "btn_copy_email": "复制邮箱",
     "label_data": "⑧ 数据与日志",
-    "chk_telemetry": "允许匿名使用统计",
     "btn_export_log": "导出日志",
     "btn_start": "开始检测",
     "ratio_placeholder": "AI 生成占比：--",
@@ -44,10 +43,6 @@ ZH = {
     "generating_report": "生成报告...",
     "no_valid_text": "未能从文档中提取到有效文本",
     "engine_not_found": "引擎不存在：%s",
-    "consent_title": "匿名使用统计",
-    "consent_body": "是否允许本软件收集匿名使用统计？\n"
-    "（仅包含版本、系统、显卡、使用次数与时长，不含论文内容和个人信息）\n"
-    "可随时在界面关闭。",
     "activate_title": "激活专业版",
     "license_prompt": "请输入授权码：",
     "copied_title": "已复制",
@@ -216,7 +211,6 @@ EN = {
     "label_contact": "⑦ Contact",
     "btn_copy_email": "Copy email",
     "label_data": "⑧ Data & Logs",
-    "chk_telemetry": "Allow anonymous usage stats",
     "btn_export_log": "Export logs",
     "btn_start": "Start Detection",
     "ratio_placeholder": "AI ratio: --",
@@ -226,10 +220,6 @@ EN = {
     "generating_report": "Generating report...",
     "no_valid_text": "No valid text could be extracted from the document",
     "engine_not_found": "Engine not found: %s",
-    "consent_title": "Anonymous usage stats",
-    "consent_body": "Allow this software to collect anonymous usage statistics?\n"
-    "(Version, OS, GPU, usage count and duration only - never your document "
-    "content or personal info.)\nYou can turn this off anytime.",
     "activate_title": "Activate Pro",
     "license_prompt": "Enter license key:",
     "copied_title": "Copied",
