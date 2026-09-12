@@ -4,6 +4,8 @@ import threading
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
+from ..settings import models_root
+
 
 class SimpleAIEngine:
     """基于 HF 序列分类模型的中文/通用检测引擎。"""
@@ -13,7 +15,7 @@ class SimpleAIEngine:
     def __init__(self, cfg, base_dir):
         self.cfg = cfg
         self.model_id = cfg["model_id"]
-        self.model_dir = os.path.join(base_dir, "models", cfg["id"])
+        self.model_dir = os.path.join(models_root(base_dir), cfg["id"])
         self._tok = None
         self._models = {}
         self._lock = threading.Lock()

@@ -9,6 +9,7 @@ DEFAULTS = {
     "download": {
         "mirror": "hf-mirror.com",
         "hf_endpoint": "https://hf-mirror.com",
+        "models_dir": "",
     },
     "detect": {
         "engine": "simpleai",
@@ -31,6 +32,16 @@ DEFAULTS = {
     },
     "presets": {},
 }
+
+
+def models_root(base_dir):
+    """模型缓存根目录：优先用设置里的 download.models_dir，否则 <base_dir>/models。"""
+    d = ""
+    try:
+        d = Settings(base_dir).get("download", "models_dir", default="") or ""
+    except Exception:
+        pass
+    return d if d else os.path.join(base_dir, "models")
 
 
 class Settings:

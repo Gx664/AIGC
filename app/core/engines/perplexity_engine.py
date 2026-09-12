@@ -5,6 +5,8 @@ import threading
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from ..settings import models_root
+
 
 class PerplexityEngine:
     """困惑度检测引擎：语言模型算困惑度，越低越像 AI（实验性）。"""
@@ -14,7 +16,7 @@ class PerplexityEngine:
     def __init__(self, cfg, base_dir):
         self.cfg = cfg
         self.model_id = cfg["model_id"]
-        self.model_dir = os.path.join(base_dir, "models", cfg["id"])
+        self.model_dir = os.path.join(models_root(base_dir), cfg["id"])
         self._tok = None
         self._models = {}
         self._lock = threading.Lock()
