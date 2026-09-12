@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -86,6 +87,24 @@ class SettingsDialog(QDialog):
         ml.addWidget(hint)
         lay.addWidget(grp_mirror)
 
+        # 模型保存路径（可选，支持换盘）
+        grp_dir = QGroupBox(tr("settings_models_dir"))
+        dirl = QVBoxLayout(grp_dir)
+        dir_row = QHBoxLayout()
+        self.models_dir_edit = QLineEdit(self.settings.get("download", "models_dir", default=""))
+        self.models_dir_edit.setPlaceholderText(tr("settings_models_dir_ph"))
+        btn_browse = QPushButton(tr("settings_btn_browse"))
+        btn_browse.setFixedWidth(70)
+        btn_browse.clicked.connect(self._browse_models_dir)
+        dir_row.addWidget(self.models_dir_edit, 1)
+        dir_row.addWidget(btn_browse)
+        dirl.addLayout(dir_row)
+        dir_hint = QLabel(tr("settings_models_dir_hint"))
+        dir_hint.setWordWrap(True)
+        dir_hint.setStyleSheet("color: #666; font-size: 11px;")
+        dirl.addWidget(dir_hint)
+        lay.addWidget(grp_dir)
+
         grp_model = QGroupBox(tr("settings_model_group"))
         mll = QVBoxLayout(grp_model)
 
@@ -146,7 +165,14 @@ class SettingsDialog(QDialog):
         mid, _ = self._current_mirror()
         self.settings.set(mid, "download", "mirror")
         self.settings.set(mid, "download", "hf_endpoint")
+        self.settings.set(self.models_dir_edit.text().strip(), "download", "models_dir")
         self.accept()
+
+    def _browse_models_dir(self):
+        cur = self.models_dir_edit.text().strip()
+        d = QFileDialog.getExistingDirectory(self, tr("settings_models_dir"), cur)
+        if d:
+            self.models_dir_edit.setText(d)
 
     def _download(self, engine_cfg):
         if self._worker and self._worker.isRunning():
