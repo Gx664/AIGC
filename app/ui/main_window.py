@@ -38,6 +38,7 @@ from core.settings import Settings
 from ui.engine_dialog import EngineDialog
 from ui.glass import GlassButton, GlassPanel, TitleBar
 from ui.rewrite_dialog import RewriteDialog
+from ui.settings_dialog import SettingsDialog
 
 
 if getattr(sys, "frozen", False):
@@ -278,6 +279,13 @@ class MainWindow(QMainWindow):
         lic_row.addWidget(self.btn_lang)
         lay.addLayout(lic_row)
 
+        lay.addWidget(QLabel(tr("label_download")))
+        dl_row = QHBoxLayout()
+        self.btn_download_settings = GlassButton(tr("btn_download_settings"))
+        self.btn_download_settings.clicked.connect(self.open_download_settings)
+        dl_row.addWidget(self.btn_download_settings)
+        lay.addLayout(dl_row)
+
         lay.addWidget(QLabel(tr("label_contact")))
         cont_row = QHBoxLayout()
         self.author_label = QLabel(AUTHOR_EMAIL)
@@ -347,6 +355,9 @@ class MainWindow(QMainWindow):
             idx = self.engine_combo.findData(current)
             if idx >= 0:
                 self.engine_combo.setCurrentIndex(idx)
+
+    def open_download_settings(self):
+        SettingsDialog(self.settings, BASE_DIR, self).exec()
 
     # ---- 文件 ----
     def choose_file(self):

@@ -6,6 +6,10 @@ DEFAULTS = {
         "install_dir": "",
         "theme": "glass_blue",
     },
+    "download": {
+        "mirror": "hf-mirror.com",
+        "hf_endpoint": "https://hf-mirror.com",
+    },
     "detect": {
         "engine": "simpleai",
         "threshold": 0.5,
