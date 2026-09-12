@@ -251,10 +251,31 @@ class Installer(tk.Tk):
                 self.log_msg("执行: %s" % " ".join(args))
                 rc = subprocess.call(args, creationflags=CREATE_NO_WINDOW)
                 self.log_msg("退出码: %d" % rc)
+
                 if not os.path.exists(os.path.join(pydir, "python.exe")):
-                    for root, dirs, files in os.walk(os.path.join(target, "runtime")):
-                        if "python.exe" in files:
-                            self.log_msg("找到: %s" % os.path.join(root, "python.exe"))
+                    self.log_msg("TargetDir 下未找到，搜索默认安装位置...")
+                    local_appdata = os.environ.get("LOCALAPPDATA", "")
+                    default_py = os.path.join(local_appdata, "Programs", "Python", "Python312")
+                    if os.path.exists(os.path.join(default_py, "python.exe")):
+                        self.log_msg("找到默认安装: %s" % default_py)
+                        if os.path.exists(pydir):
+                            shutil.rmtree(pydir, ignore_errors=True)
+                        shutil.copytree(default_py, pydir)
+                        self.log_msg("已复制到: %s" % pydir)
+                    else:
+                        for root, dirs, files in os.walk(os.path.join(target, "runtime")):
+                            if "python.exe" in files:
+                                self.log_msg("找到: %s" % os.path.join(root, "python.exe"))
+                        for root, dirs, files in os.walk(local_appdata):
+                            if "python.exe" in files and "Python312" in root:
+                                self.log_msg("系统搜索到: %s" % os.path.join(root, "python.exe"))
+                                if os.path.exists(pydir):
+                                    shutil.rmtree(pydir, ignore_errors=True)
+                                shutil.copytree(root, pydir)
+                                self.log_msg("已复制到: %s" % pydir)
+                                break
+
+                if not os.path.exists(os.path.join(pydir, "python.exe")):
                     raise RuntimeError(tr("inst_python_inst_err") % rc)
             else:
                 self.set_status(tr("inst_python_installed"), 25)
