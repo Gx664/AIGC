@@ -34,9 +34,15 @@ class PerplexityEngine:
         if self._tok is None:
             with self._lock:
                 if self._tok is None:
-                    self._tok = AutoTokenizer.from_pretrained(
-                        self.model_id, cache_dir=self.model_dir
-                    )
+                    # Try local cache first (offline mode)
+                    try:
+                        self._tok = AutoTokenizer.from_pretrained(
+                            self.model_id, cache_dir=self.model_dir, local_files_only=True
+                        )
+                    except Exception:
+                        self._tok = AutoTokenizer.from_pretrained(
+                            self.model_id, cache_dir=self.model_dir
+                        )
                     if self._tok.pad_token is None:
                         self._tok.pad_token = self._tok.eos_token
         return self._tok
@@ -46,9 +52,15 @@ class PerplexityEngine:
             return self._models[device]
         with self._lock:
             if device not in self._models:
-                m = AutoModelForCausalLM.from_pretrained(
-                    self.model_id, cache_dir=self.model_dir
-                )
+                # Try local cache first (offline mode)
+                try:
+                    m = AutoModelForCausalLM.from_pretrained(
+                        self.model_id, cache_dir=self.model_dir, local_files_only=True
+                    )
+                except Exception:
+                    m = AutoModelForCausalLM.from_pretrained(
+                        self.model_id, cache_dir=self.model_dir
+                    )
                 m.to(device)
                 m.eval()
                 self._models[device] = m
