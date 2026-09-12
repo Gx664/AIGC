@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import traceback
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, APP_DIR)
@@ -20,6 +21,7 @@ sys.path.insert(0, os.path.join(APP_DIR, "core"))
 from core.i18n import tr  # noqa: E402
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+LOG_PATH = os.path.join(APP_DIR, "logs", "first_run.log")
 PYPI_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
 TORCH_CUDA_MIRRORS = [
     "https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/cu128",
@@ -108,11 +110,20 @@ class FirstRun:
         self.root.mainloop()
 
     # ---------- UI helpers ----------
+    def _write_log(self, msg):
+        try:
+            os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+            with open(LOG_PATH, "a", encoding="utf-8") as f:
+                f.write(msg + "\n")
+        except Exception:
+            pass
+
     def _drain(self):
         try:
             while True:
                 kind, payload = self.q.get_nowait()
                 if kind == "log":
+                    self._write_log(payload)
                     self.log.config(state="normal")
                     self.log.insert("end", payload + "\n")
                     self.log.see("end")
@@ -139,6 +150,7 @@ class FirstRun:
     # ---------- 主流程 ----------
     def main(self):
         try:
+            self._write_log("=== first_run 启动 ===")
             need = deps_missing()
             need_torch = not torch_ok()
             if not need and not need_torch:
@@ -170,6 +182,7 @@ class FirstRun:
             self.set_status(tr("fr_launching"), 100)
             self.launch()
         except Exception as e:
+            self._write_log("FATAL: %s" % traceback.format_exc())
             self.fatal(e)
 
     def phase_torch_cuda(self):
@@ -207,4 +220,13 @@ class FirstRun:
 
 
 if __name__ == "__main__":
-    FirstRun()
+    try:
+        FirstRun()
+    except Exception:
+        try:
+            os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+            with open(LOG_PATH, "a", encoding="utf-8") as f:
+                f.write("FATAL(boot): %s" % traceback.format_exc())
+        except Exception:
+            pass
+        raise
