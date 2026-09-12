@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import traceback
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -211,10 +212,16 @@ class FirstRun:
     def launch(self):
         """启动主程序并关闭引导窗口。"""
         main_py = os.path.join(APP_DIR, "main.py")
+        err_path = os.path.join(APP_DIR, "logs", "main_stderr.log")
+        os.makedirs(os.path.dirname(err_path), exist_ok=True)
+        err_f = open(err_path, "a", encoding="utf-8")
+        err_f.write("\n===== launch %s =====\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
+        err_f.flush()
         subprocess.Popen(
             [sys.executable, main_py],
             cwd=APP_DIR,
             creationflags=CREATE_NO_WINDOW,
+            stderr=err_f,
         )
         self.root.after(200, self.root.destroy)
 
