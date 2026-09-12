@@ -9,6 +9,7 @@
 A **fully local** AIGC detection desktop tool: drag in a paper (PDF / DOCX / TXT), choose a detection engine, and get the overall AI-written ratio plus a paragraph-level report.
 
 - **Fully offline inference**: the detection model is downloaded once; your paper is never uploaded to any platform
+- **Custom model storage path**: keep models on any drive (e.g. D:) so they don't eat C: space; reinstalling the app never deletes downloaded models
 - **Multiple engines**: SimpleAI Chinese detection (default), GLTR perplexity detection, Fast-DetectGPT reference implementation, and any custom HuggingFace model
 - **Highly customizable**: threshold, paragraph splitting, worker count and more; presets can be saved, exported and imported
 - **Multi-device compute pooling**: automatic multi-GPU parallelism on one machine; add roommates' PCs, Pads and phones over LAN
