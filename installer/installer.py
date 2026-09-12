@@ -17,12 +17,6 @@ PY_URLS = [
     "https://www.python.org/ftp/python/%s/%s" % (PY_VER, PY_NAME),
     "https://registry.npmmirror.com/-/binary/python/%s/%s" % (PY_VER, PY_NAME),
 ]
-TORCH_MIRRORS = [
-    "https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/cu128",
-    "https://mirror.sjtu.edu.cn/pytorch-wheels/cu128",
-    "https://download.pytorch.org/whl/cu128",
-]
-PYPI_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AUTHOR_EMAIL = "gxgx3456@qq.com"
 
@@ -169,20 +163,6 @@ class Installer(tk.Tk):
                 self.log_msg(line)
         return proc.wait()
 
-    def check_import(self, vp, code):
-        """检查环境中是否已存在某个组件（True=已存在，无需安装）。"""
-        try:
-            out = subprocess.run(
-                [vp, "-c", code],
-                capture_output=True,
-                text=True,
-                timeout=180,
-                creationflags=CREATE_NO_WINDOW,
-            )
-            return out.returncode == 0 and "TRUE" in out.stdout.upper()
-        except Exception:
-            return False
-
     def download(self, url, dest):
         self.log_msg(tr("inst_download_log") % url)
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -214,41 +194,70 @@ class Installer(tk.Tk):
             appdir = os.path.join(target, "app")
             os.makedirs(dl, exist_ok=True)
 
-            # 1. Python - 优先使用已安装的系统 Python
-            self.set_status("检测系统 Python...", 5)
-            sys_python = None
-            for cmd in ["python", "python3", "python3.12"]:
-                for ext in ["", ".exe"]:
-                    try:
-                        out = subprocess.run(
-                            [cmd + ext, "-c", "import sys; print(sys.version)"],
-                            capture_output=True, text=True, timeout=10,
-                            creationflags=CREATE_NO_WINDOW,
-                        )
-                        if out.returncode == 0 and "3.12" in out.stdout:
-                            sys_python = shutil.which(cmd + ext)
-                            self.log_msg("检测到系统 Python: %s (%s)" % (sys_python, out.stdout.strip()))
-                            break
-                    except Exception:
-                        pass
-                if sys_python:
-                    break
+            # 1. Python 运行时（优先复用已有 runtime，其次系统 Python，最后官方安装器）
+            pyexe_path = os.path.join(pydir, "python.exe")
 
-            if sys_python:
-                sys_py_dir = os.path.dirname(os.path.dirname(sys_python))
-                self.log_msg("系统 Python 目录: %s" % sys_py_dir)
-                self.log_msg("目标目录: %s" % pydir)
+            def python_ok(exe):
+                """验证 Python 能完整初始化（标准库 encodings 可用）。"""
+                try:
+                    out = subprocess.run(
+                        [exe, "-c", "import encodings, sys; print(sys.prefix)"],
+                        capture_output=True, text=True, timeout=60,
+                        creationflags=CREATE_NO_WINDOW,
+                    )
+                    return out.returncode == 0 and bool(out.stdout.strip())
+                except Exception:
+                    return False
+
+            have_runtime = os.path.exists(pyexe_path) and python_ok(pyexe_path)
+            if have_runtime:
+                self.log_msg("检测到可用的本地运行时 Python，跳过安装")
+                self.set_status(tr("inst_python_installed"), 25)
+
+            if not have_runtime:
+                # 坏的旧 runtime 一律清掉，避免半成品干扰
                 if os.path.exists(pydir):
                     shutil.rmtree(pydir, ignore_errors=True)
-                try:
-                    shutil.copytree(sys_py_dir, pydir)
-                    self.log_msg("已复制系统 Python 到目标目录")
-                    self.set_status(tr("inst_python_installed"), 25)
-                except Exception as e:
-                    self.log_msg("复制失败: %s，尝试直接使用系统 Python" % e)
-                    pydir = sys_py_dir
 
-            if not os.path.exists(os.path.join(pydir, "python.exe")):
+                sys_python = None
+                for cmd in ["python", "python3", "python3.12"]:
+                    for ext in ["", ".exe"]:
+                        try:
+                            out = subprocess.run(
+                                [cmd + ext, "-c", "import sys; print(sys.version)"],
+                                capture_output=True, text=True, timeout=10,
+                                creationflags=CREATE_NO_WINDOW,
+                            )
+                            if out.returncode == 0 and "3.12" in out.stdout:
+                                sys_python = shutil.which(cmd + ext)
+                                self.log_msg("检测到系统 Python: %s (%s)" % (sys_python, out.stdout.strip()))
+                                break
+                        except Exception:
+                            pass
+                    if sys_python:
+                        break
+
+                if sys_python:
+                    # python.exe 就在 Python 根目录，只取一层 dirname
+                    sys_py_dir = os.path.dirname(sys_python)
+                    self.log_msg("系统 Python 目录: %s" % sys_py_dir)
+                    # 只有带完整标准库的源目录才值得复制
+                    if os.path.exists(os.path.join(sys_py_dir, "Lib", "encodings")):
+                        try:
+                            shutil.copytree(sys_py_dir, pydir)
+                            self.log_msg("已复制系统 Python 到目标目录")
+                        except Exception as e:
+                            self.log_msg("复制失败: %s，改用官方安装器" % e)
+                    else:
+                        self.log_msg("系统 Python 缺少 Lib 标准库，不复制，改用官方安装器")
+                    # 复制后必须验证可用，不可用就删掉走官方安装器
+                    if os.path.exists(pyexe_path) and python_ok(pyexe_path):
+                        have_runtime = True
+                        self.set_status(tr("inst_python_installed"), 25)
+                    elif os.path.exists(pydir):
+                        shutil.rmtree(pydir, ignore_errors=True)
+
+            if not have_runtime and not os.path.exists(pyexe_path):
                 pyexe = os.path.join(dl, PY_NAME)
                 if not os.path.exists(pyexe):
                     self.set_status(tr("inst_download_python"), 3)
@@ -279,84 +288,43 @@ class Installer(tk.Tk):
                 self.log_msg("执行: %s" % " ".join(args))
                 rc = subprocess.call(args, creationflags=CREATE_NO_WINDOW)
                 self.log_msg("退出码: %d" % rc)
-                if not os.path.exists(os.path.join(pydir, "python.exe")):
+
+                # 校验：python.exe + 完整标准库 + 可初始化，缺一不可
+                def runtime_valid(d):
+                    return (
+                        os.path.exists(os.path.join(d, "python.exe"))
+                        and os.path.exists(os.path.join(d, "Lib", "encodings"))
+                        and python_ok(os.path.join(d, "python.exe"))
+                    )
+
+                if not runtime_valid(pydir):
+                    # 官方安装器可能装到默认位置（InstallAllUsers=0 忽略 TargetDir）
                     local_appdata = os.environ.get("LOCALAPPDATA", "")
                     default_py = os.path.join(local_appdata, "Programs", "Python", "Python312")
-                    if os.path.exists(os.path.join(default_py, "python.exe")):
+                    if runtime_valid(default_py):
                         self.log_msg("从默认位置复制: %s" % default_py)
-                        shutil.copytree(default_py, pydir, dirs_exist_ok=True)
-                    else:
+                        shutil.rmtree(pydir, ignore_errors=True)
+                        shutil.copytree(default_py, pydir)
+                    if not runtime_valid(pydir):
                         raise RuntimeError(tr("inst_python_inst_err") % rc)
             else:
                 self.set_status(tr("inst_python_installed"), 25)
 
             # 2. venv
             if not os.path.exists(os.path.join(venv, "Scripts", "python.exe")):
-                self.set_status(tr("inst_create_venv"), 28)
+                self.set_status(tr("inst_create_venv"), 60)
                 self.run_cmd([os.path.join(pydir, "python.exe"), "-m", "venv", venv])
             vp = os.path.join(venv, "Scripts", "python.exe")
+            if not os.path.exists(vp):
+                raise RuntimeError("虚拟环境创建失败（venv 不存在），请查看上方日志")
 
-            # 3. pip 升级（先检查版本，已较新则跳过）
-            self.set_status(tr("inst_check_pip"), 32)
-            if self.check_import(vp, "import pip; print(pip.__version__ >= '25')"):
-                self.log_msg(tr("inst_pip_skip"))
-            else:
-                self.run_cmd([vp, "-m", "pip", "install", "--upgrade", "pip"])
-
-            # 4. PyTorch CUDA（先检查是否已装 CUDA 版，避免重复下载约 3GB）
-            torch_code = (
-                "import torch, torchvision;"
-                "print(bool(torch.version.cuda and torchvision.__version__))"
-            )
-            self.set_status(tr("inst_check_torch"), 36)
-            if self.check_import(vp, torch_code):
-                self.log_msg(tr("inst_torch_installed"))
-                self.set_status(tr("inst_torch_skip"), 70)
-            else:
-                self.set_status(tr("inst_download_torch"), 36)
-                ok = False
-                for m in TORCH_MIRRORS:
-                    if self.cancel_flag:
-                        raise RuntimeError(tr("inst_cancelled"))
-                    self.log_msg(tr("inst_mirror_log") % m)
-                    rc = self.run_cmd(
-                        [vp, "-m", "pip", "install", "torch", "torchvision", "--index-url", m]
-                    )
-                    if rc == 0:
-                        ok = True
-                        break
-                if not ok:
-                    raise RuntimeError(tr("inst_torch_fail"))
-
-            # 5. 其他依赖（先检查是否已齐全）
-            deps_code = (
-                "import importlib.util as u;"
-                "mods=['PySide6','transformers','accelerate','docx','pypdf','numpy'];"
-                "print(all(u.find_spec(m) is not None for m in mods))"
-            )
-            self.set_status(tr("inst_check_deps"), 70)
-            if self.check_import(vp, deps_code):
-                self.log_msg(tr("inst_deps_skip"))
-            else:
-                self.set_status(tr("inst_install_deps"), 70)
-                rc = self.run_cmd(
-                    [
-                        vp, "-m", "pip", "install",
-                        "PySide6", "transformers", "accelerate",
-                        "python-docx", "pypdf", "numpy",
-                        "--index-url", PYPI_MIRROR,
-                    ]
-                )
-                if rc != 0:
-                    raise RuntimeError(tr("inst_deps_fail"))
-
-            # 6. 复制软件
-            self.set_status(tr("inst_copy_app"), 86)
+            # 3. 复制软件（PyTorch / PySide6 等组件由首次启动引导器下载）
+            self.set_status(tr("inst_copy_app"), 80)
             if os.path.exists(appdir):
                 shutil.rmtree(appdir)
             shutil.copytree(app_source_dir(), appdir)
 
-            # 7. 配置文件 + 快捷方式
+            # 4. 配置文件 + 快捷方式
             with open(os.path.join(target, "settings.json"), "w", encoding="utf-8") as f:
                 f.write(
                     '{"app": {"install_dir": "%s"}, "ui": {"language": "%s"}}'
@@ -365,7 +333,7 @@ class Installer(tk.Tk):
 
             self.set_status(tr("inst_create_shortcut"), 94)
             pythonw = os.path.join(venv, "Scripts", "pythonw.exe")
-            self.make_shortcut(pythonw, os.path.join(appdir, "main.py"), appdir)
+            self.make_shortcut(pythonw, os.path.join(appdir, "first_run.py"), appdir)
 
             self.set_status(tr("inst_done"), 100)
             self.log_msg(tr("inst_done_log") % APP_NAME)
