@@ -8,5 +8,6 @@ build/
 dist/*
 !dist/AIGC_Toolkit_Setup.exe
 *.spec
+.build_venv/
 fix_umivpn_permission.bat
 telemetry_queue.json
