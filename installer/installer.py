@@ -255,7 +255,9 @@ class Installer(tk.Tk):
                 if not os.path.exists(os.path.join(pydir, "python.exe")):
                     self.log_msg("TargetDir 下未找到，搜索默认安装位置...")
                     local_appdata = os.environ.get("LOCALAPPDATA", "")
+                    self.log_msg("LOCALAPPDATA=%s" % local_appdata)
                     default_py = os.path.join(local_appdata, "Programs", "Python", "Python312")
+                    self.log_msg("检查默认位置: %s" % default_py)
                     if os.path.exists(os.path.join(default_py, "python.exe")):
                         self.log_msg("找到默认安装: %s" % default_py)
                         if os.path.exists(pydir):
@@ -263,16 +265,36 @@ class Installer(tk.Tk):
                         shutil.copytree(default_py, pydir)
                         self.log_msg("已复制到: %s" % pydir)
                     else:
-                        for root, dirs, files in os.walk(os.path.join(target, "runtime")):
-                            if "python.exe" in files:
-                                self.log_msg("找到: %s" % os.path.join(root, "python.exe"))
-                        for root, dirs, files in os.walk(local_appdata):
-                            if "python.exe" in files and "Python312" in root:
-                                self.log_msg("系统搜索到: %s" % os.path.join(root, "python.exe"))
-                                if os.path.exists(pydir):
-                                    shutil.rmtree(pydir, ignore_errors=True)
-                                shutil.copytree(root, pydir)
-                                self.log_msg("已复制到: %s" % pydir)
+                        self.log_msg("默认位置也没有，全盘搜索...")
+                        search_dirs = [
+                            local_appdata,
+                            os.environ.get("PROGRAMFILES", ""),
+                            os.environ.get("PROGRAMFILES(X86)", ""),
+                            os.path.expanduser("~"),
+                        ]
+                        for sd in search_dirs:
+                            if not sd or not os.path.isdir(sd):
+                                continue
+                            self.log_msg("搜索: %s" % sd)
+                            try:
+                                for root, dirs, files in os.walk(sd):
+                                    if "python.exe" in files and "Python312" in root:
+                                        self.log_msg("找到: %s" % os.path.join(root, "python.exe"))
+                                        if os.path.exists(pydir):
+                                            shutil.rmtree(pydir, ignore_errors=True)
+                                        shutil.copytree(root, pydir)
+                                        self.log_msg("已复制到: %s" % pydir)
+                                        break
+                                    if "python.exe" in files and root.endswith("Python312"):
+                                        self.log_msg("找到: %s" % os.path.join(root, "python.exe"))
+                                        if os.path.exists(pydir):
+                                            shutil.rmtree(pydir, ignore_errors=True)
+                                        shutil.copytree(root, pydir)
+                                        self.log_msg("已复制到: %s" % pydir)
+                                        break
+                            except Exception as e:
+                                self.log_msg("搜索出错: %s" % e)
+                            if os.path.exists(os.path.join(pydir, "python.exe")):
                                 break
 
                 if not os.path.exists(os.path.join(pydir, "python.exe")):
