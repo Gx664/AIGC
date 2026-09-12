@@ -237,10 +237,11 @@ class Installer(tk.Tk):
                 self.log_msg("目标目录: %s" % pydir)
                 fsize = os.path.getsize(pyexe) // 1024 if os.path.exists(pyexe) else 0
                 self.log_msg("安装包: %s (大小: %d KB)" % (pyexe, fsize))
+                os.makedirs(pydir, exist_ok=True)
                 args = [
                     pyexe,
                     "/quiet",
-                    "InstallAllUsers=0",
+                    "InstallAllUsers=1",
                     "TargetDir=%s" % pydir,
                     "Include_pip=1",
                     "Include_launcher=0",
@@ -253,49 +254,30 @@ class Installer(tk.Tk):
                 self.log_msg("退出码: %d" % rc)
 
                 if not os.path.exists(os.path.join(pydir, "python.exe")):
-                    self.log_msg("TargetDir 下未找到，搜索默认安装位置...")
-                    local_appdata = os.environ.get("LOCALAPPDATA", "")
-                    self.log_msg("LOCALAPPDATA=%s" % local_appdata)
-                    default_py = os.path.join(local_appdata, "Programs", "Python", "Python312")
-                    self.log_msg("检查默认位置: %s" % default_py)
-                    if os.path.exists(os.path.join(default_py, "python.exe")):
-                        self.log_msg("找到默认安装: %s" % default_py)
-                        if os.path.exists(pydir):
-                            shutil.rmtree(pydir, ignore_errors=True)
-                        shutil.copytree(default_py, pydir)
-                        self.log_msg("已复制到: %s" % pydir)
-                    else:
-                        self.log_msg("默认位置也没有，全盘搜索...")
-                        search_dirs = [
-                            local_appdata,
-                            os.environ.get("PROGRAMFILES", ""),
-                            os.environ.get("PROGRAMFILES(X86)", ""),
-                            os.path.expanduser("~"),
-                        ]
-                        for sd in search_dirs:
-                            if not sd or not os.path.isdir(sd):
-                                continue
-                            self.log_msg("搜索: %s" % sd)
+                    self.log_msg("InstallAllUsers=1 失败，尝试用已安装的系统 Python...")
+                    for p in ["python", "python3", "python3.12"]:
+                        for ext in ["", ".exe"]:
                             try:
-                                for root, dirs, files in os.walk(sd):
-                                    if "python.exe" in files and "Python312" in root:
-                                        self.log_msg("找到: %s" % os.path.join(root, "python.exe"))
+                                out = subprocess.run(
+                                    [p + ext, "--version"],
+                                    capture_output=True, text=True, timeout=10,
+                                    creationflags=CREATE_NO_WINDOW,
+                                )
+                                if out.returncode == 0 and "3.12" in out.stdout:
+                                    self.log_msg("找到系统 Python: %s" % (p + ext))
+                                    sys_py = shutil.which(p + ext)
+                                    if sys_py:
+                                        sys_py_dir = os.path.dirname(os.path.dirname(sys_py))
+                                        self.log_msg("系统 Python 目录: %s" % sys_py_dir)
                                         if os.path.exists(pydir):
                                             shutil.rmtree(pydir, ignore_errors=True)
-                                        shutil.copytree(root, pydir)
+                                        shutil.copytree(sys_py_dir, pydir)
                                         self.log_msg("已复制到: %s" % pydir)
                                         break
-                                    if "python.exe" in files and root.endswith("Python312"):
-                                        self.log_msg("找到: %s" % os.path.join(root, "python.exe"))
-                                        if os.path.exists(pydir):
-                                            shutil.rmtree(pydir, ignore_errors=True)
-                                        shutil.copytree(root, pydir)
-                                        self.log_msg("已复制到: %s" % pydir)
-                                        break
-                            except Exception as e:
-                                self.log_msg("搜索出错: %s" % e)
-                            if os.path.exists(os.path.join(pydir, "python.exe")):
-                                break
+                            except Exception:
+                                pass
+                        if os.path.exists(os.path.join(pydir, "python.exe")):
+                            break
 
                 if not os.path.exists(os.path.join(pydir, "python.exe")):
                     raise RuntimeError(tr("inst_python_inst_err") % rc)
