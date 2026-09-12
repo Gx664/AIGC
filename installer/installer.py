@@ -214,51 +214,79 @@ class Installer(tk.Tk):
             appdir = os.path.join(target, "app")
             os.makedirs(dl, exist_ok=True)
 
-            # 1. Python
-            pyexe = os.path.join(dl, PY_NAME)
-            if not os.path.exists(pyexe):
-                self.set_status(tr("inst_download_python"), 3)
-                err = None
-                for u in PY_URLS:
+            # 1. Python - 优先使用已安装的系统 Python
+            self.set_status("检测系统 Python...", 5)
+            sys_python = None
+            for cmd in ["python", "python3", "python3.12"]:
+                for ext in ["", ".exe"]:
                     try:
-                        self.download(u, pyexe)
-                        err = None
-                        break
-                    except Exception as e:
-                        err = e
-                        self.log_msg(tr("inst_python_dl_fail") % e)
-                if err:
-                    raise RuntimeError(tr("inst_python_dl_err") % err)
-            else:
-                self.set_status(tr("inst_python_downloaded"), 20)
+                        out = subprocess.run(
+                            [cmd + ext, "-c", "import sys; print(sys.version)"],
+                            capture_output=True, text=True, timeout=10,
+                            creationflags=CREATE_NO_WINDOW,
+                        )
+                        if out.returncode == 0 and "3.12" in out.stdout:
+                            sys_python = shutil.which(cmd + ext)
+                            self.log_msg("检测到系统 Python: %s (%s)" % (sys_python, out.stdout.strip()))
+                            break
+                    except Exception:
+                        pass
+                if sys_python:
+                    break
+
+            if sys_python:
+                sys_py_dir = os.path.dirname(os.path.dirname(sys_python))
+                self.log_msg("系统 Python 目录: %s" % sys_py_dir)
+                self.log_msg("目标目录: %s" % pydir)
+                if os.path.exists(pydir):
+                    shutil.rmtree(pydir, ignore_errors=True)
+                try:
+                    shutil.copytree(sys_py_dir, pydir)
+                    self.log_msg("已复制系统 Python 到目标目录")
+                    self.set_status(tr("inst_python_installed"), 25)
+                except Exception as e:
+                    self.log_msg("复制失败: %s，尝试直接使用系统 Python" % e)
+                    pydir = sys_py_dir
 
             if not os.path.exists(os.path.join(pydir, "python.exe")):
+                pyexe = os.path.join(dl, PY_NAME)
+                if not os.path.exists(pyexe):
+                    self.set_status(tr("inst_download_python"), 3)
+                    err = None
+                    for u in PY_URLS:
+                        try:
+                            self.download(u, pyexe)
+                            err = None
+                            break
+                        except Exception as e:
+                            err = e
+                            self.log_msg(tr("inst_python_dl_fail") % e)
+                    if err:
+                        raise RuntimeError(tr("inst_python_dl_err") % err)
+                else:
+                    self.set_status(tr("inst_python_downloaded"), 20)
+
                 self.set_status(tr("inst_install_python"), 22)
                 self.log_msg("目标目录: %s" % pydir)
-                fsize = os.path.getsize(pyexe) // 1024 if os.path.exists(pyexe) else 0
-                self.log_msg("安装包: %s (大小: %d KB)" % (pyexe, fsize))
                 os.makedirs(pydir, exist_ok=True)
                 args = [
-                    pyexe,
-                    "/quiet",
-                    "InstallAllUsers=1",
+                    pyexe, "/quiet",
+                    "InstallAllUsers=0",
                     "TargetDir=%s" % pydir,
-                    "Include_pip=1",
-                    "Include_launcher=0",
-                    "PrependPath=0",
-                    "Shortcuts=0",
-                    "Include_test=0",
+                    "Include_pip=1", "Include_launcher=0",
+                    "PrependPath=0", "Shortcuts=0", "Include_test=0",
                 ]
                 self.log_msg("执行: %s" % " ".join(args))
                 rc = subprocess.call(args, creationflags=CREATE_NO_WINDOW)
                 self.log_msg("退出码: %d" % rc)
-
-                if rc != 0:
-                    self.log_msg("安装失败（退出码 %d），可能需要管理员权限" % rc)
-                    raise RuntimeError("Python 安装失败（退出码 %d），请右键以管理员身份运行安装器" % rc)
-
                 if not os.path.exists(os.path.join(pydir, "python.exe")):
-                    raise RuntimeError(tr("inst_python_inst_err") % rc)
+                    local_appdata = os.environ.get("LOCALAPPDATA", "")
+                    default_py = os.path.join(local_appdata, "Programs", "Python", "Python312")
+                    if os.path.exists(os.path.join(default_py, "python.exe")):
+                        self.log_msg("从默认位置复制: %s" % default_py)
+                        shutil.copytree(default_py, pydir, dirs_exist_ok=True)
+                    else:
+                        raise RuntimeError(tr("inst_python_inst_err") % rc)
             else:
                 self.set_status(tr("inst_python_installed"), 25)
 
