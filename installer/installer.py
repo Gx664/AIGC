@@ -253,31 +253,9 @@ class Installer(tk.Tk):
                 rc = subprocess.call(args, creationflags=CREATE_NO_WINDOW)
                 self.log_msg("退出码: %d" % rc)
 
-                if not os.path.exists(os.path.join(pydir, "python.exe")):
-                    self.log_msg("InstallAllUsers=1 失败，尝试用已安装的系统 Python...")
-                    for p in ["python", "python3", "python3.12"]:
-                        for ext in ["", ".exe"]:
-                            try:
-                                out = subprocess.run(
-                                    [p + ext, "--version"],
-                                    capture_output=True, text=True, timeout=10,
-                                    creationflags=CREATE_NO_WINDOW,
-                                )
-                                if out.returncode == 0 and "3.12" in out.stdout:
-                                    self.log_msg("找到系统 Python: %s" % (p + ext))
-                                    sys_py = shutil.which(p + ext)
-                                    if sys_py:
-                                        sys_py_dir = os.path.dirname(os.path.dirname(sys_py))
-                                        self.log_msg("系统 Python 目录: %s" % sys_py_dir)
-                                        if os.path.exists(pydir):
-                                            shutil.rmtree(pydir, ignore_errors=True)
-                                        shutil.copytree(sys_py_dir, pydir)
-                                        self.log_msg("已复制到: %s" % pydir)
-                                        break
-                            except Exception:
-                                pass
-                        if os.path.exists(os.path.join(pydir, "python.exe")):
-                            break
+                if rc != 0:
+                    self.log_msg("安装失败（退出码 %d），可能需要管理员权限" % rc)
+                    raise RuntimeError("Python 安装失败（退出码 %d），请右键以管理员身份运行安装器" % rc)
 
                 if not os.path.exists(os.path.join(pydir, "python.exe")):
                     raise RuntimeError(tr("inst_python_inst_err") % rc)
