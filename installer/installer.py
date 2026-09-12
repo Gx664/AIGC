@@ -234,6 +234,9 @@ class Installer(tk.Tk):
 
             if not os.path.exists(os.path.join(pydir, "python.exe")):
                 self.set_status(tr("inst_install_python"), 22)
+                self.log_msg("目标目录: %s" % pydir)
+                fsize = os.path.getsize(pyexe) // 1024 if os.path.exists(pyexe) else 0
+                self.log_msg("安装包: %s (大小: %d KB)" % (pyexe, fsize))
                 args = [
                     pyexe,
                     "/quiet",
@@ -245,8 +248,13 @@ class Installer(tk.Tk):
                     "Shortcuts=0",
                     "Include_test=0",
                 ]
+                self.log_msg("执行: %s" % " ".join(args))
                 rc = subprocess.call(args, creationflags=CREATE_NO_WINDOW)
-                if rc != 0 or not os.path.exists(os.path.join(pydir, "python.exe")):
+                self.log_msg("退出码: %d" % rc)
+                if not os.path.exists(os.path.join(pydir, "python.exe")):
+                    for root, dirs, files in os.walk(os.path.join(target, "runtime")):
+                        if "python.exe" in files:
+                            self.log_msg("找到: %s" % os.path.join(root, "python.exe"))
                     raise RuntimeError(tr("inst_python_inst_err") % rc)
             else:
                 self.set_status(tr("inst_python_installed"), 25)
