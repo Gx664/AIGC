@@ -14,8 +14,8 @@ APP_NAME = "AI 检测工具箱"
 PY_VER = "3.12.10"
 PY_NAME = "python-%s-amd64.exe" % PY_VER
 PY_URLS = [
-    "https://www.python.org/ftp/python/%s/%s" % (PY_VER, PY_NAME),
     "https://registry.npmmirror.com/-/binary/python/%s/%s" % (PY_VER, PY_NAME),
+    "https://www.python.org/ftp/python/%s/%s" % (PY_VER, PY_NAME),
 ]
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AUTHOR_EMAIL = "gxgx3456@qq.com"
@@ -48,6 +48,11 @@ class Installer(tk.Tk):
         self.after(50, self._drain_ui)
 
         pad = {"padx": 18, "pady": 6}
+        # 左上角全屏切换（安装/下载日志较长时方便查看）
+        self.btn_full = tk.Button(self, command=self.toggle_fullscreen, width=8)
+        self.btn_full.pack(anchor="w", padx=18, pady=(10, 0))
+        self.btn_full.config(text=tr("inst_fullscreen"))
+        self.bind("<Escape>", self._exit_fullscreen)
         self.title_label = tk.Label(self, font=("Microsoft YaHei UI", 16, "bold"))
         self.title_label.pack(anchor="w", **pad)
         self.desc_label = tk.Label(self, justify="left", fg="#475569")
@@ -101,6 +106,16 @@ class Installer(tk.Tk):
     def toggle_lang(self):
         set_lang("en" if get_lang() == "zh" else "zh")
         self._apply_lang()
+
+    def toggle_fullscreen(self):
+        fs = not self.attributes("-fullscreen")
+        self.attributes("-fullscreen", fs)
+        self.btn_full.config(text=tr("inst_fullscreen_exit") if fs else tr("inst_fullscreen"))
+
+    def _exit_fullscreen(self, event=None):
+        if self.attributes("-fullscreen"):
+            self.attributes("-fullscreen", False)
+            self.btn_full.config(text=tr("inst_fullscreen"))
 
     def browse(self):
         d = filedialog.askdirectory(initialdir=self.dir_var.get() or "D:\\")
@@ -288,6 +303,8 @@ class Installer(tk.Tk):
                 self.log_msg("执行: %s" % " ".join(args))
                 rc = subprocess.call(args, creationflags=CREATE_NO_WINDOW)
                 self.log_msg("退出码: %d" % rc)
+                if rc == 3010:
+                    self.log_msg("需要重启完成安装，不影响继续使用")
 
                 # 校验：python.exe + 完整标准库 + 可初始化，缺一不可
                 def runtime_valid(d):
@@ -297,14 +314,62 @@ class Installer(tk.Tk):
                         and python_ok(os.path.join(d, "python.exe"))
                     )
 
-                if not runtime_valid(pydir):
-                    # 官方安装器可能装到默认位置（InstallAllUsers=0 忽略 TargetDir）
-                    local_appdata = os.environ.get("LOCALAPPDATA", "")
-                    default_py = os.path.join(local_appdata, "Programs", "Python", "Python312")
-                    if runtime_valid(default_py):
-                        self.log_msg("从默认位置复制: %s" % default_py)
+                def find_installed_python():
+                    """机器上有旧注册记录时，官方安装器可能无视 TargetDir
+                    装到别处——从注册表找它实际安装的位置。"""
+                    try:
+                        import winreg
+                    except ImportError:
+                        return None
+                    for hive, view in (
+                        (winreg.HKEY_CURRENT_USER, 0),
+                        (winreg.HKEY_LOCAL_MACHINE, winreg.KEY_WOW64_64KEY),
+                        (winreg.HKEY_LOCAL_MACHINE, winreg.KEY_WOW64_32KEY),
+                    ):
+                        for tag in ("3.12", "3.12-32"):
+                            try:
+                                k = winreg.OpenKey(
+                                    hive,
+                                    r"Software\Python\PythonCore\%s\InstallPath" % tag,
+                                    0,
+                                    view | winreg.KEY_READ,
+                                )
+                                d = winreg.QueryValueEx(k, "")[0].rstrip("\\")
+                                self.log_msg("注册表指向的安装位置: %s" % d)
+                                if runtime_valid(d):
+                                    return d
+                            except OSError:
+                                continue
+                    return None
+
+                local_appdata = os.environ.get("LOCALAPPDATA", "")
+                default_py = os.path.join(local_appdata, "Programs", "Python", "Python312")
+
+                def recover_runtime():
+                    """TargetDir 无效时，从注册表/默认位置找回并复制。"""
+                    src = find_installed_python()
+                    if not src and runtime_valid(default_py):
+                        src = default_py
+                    if src:
+                        self.log_msg("从 %s 复制到目标目录" % src)
                         shutil.rmtree(pydir, ignore_errors=True)
-                        shutil.copytree(default_py, pydir)
+                        try:
+                            shutil.copytree(src, pydir)
+                        except Exception as e:
+                            self.log_msg("复制失败: %s" % e)
+
+                if not runtime_valid(pydir):
+                    recover_runtime()
+
+                # 仍无效：改用 /passive 可见安装重试一次（静默模式偶发被拦截/静默失败）
+                if not runtime_valid(pydir):
+                    self.log_msg("静默安装未生效，改用可见安装重试一次")
+                    args2 = list(args)
+                    args2[1] = "/passive"
+                    rc2 = subprocess.call(args2, creationflags=CREATE_NO_WINDOW)
+                    self.log_msg("重试退出码: %d" % rc2)
+                    if not runtime_valid(pydir):
+                        recover_runtime()
                     if not runtime_valid(pydir):
                         raise RuntimeError(tr("inst_python_inst_err") % rc)
             else:
