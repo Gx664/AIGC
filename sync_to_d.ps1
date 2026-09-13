@@ -1,4 +1,10 @@
 $ErrorActionPreference = 'Stop'
+
+# [2026-09-13] 已过时（DEPRECATED）：本脚本面向旧开发目录
+# (<D:\?>\Dev\Python312 / Dev\AIGC_Detector)，该目录已不存在。
+# 当前仓库即开发目录（D:\AIGC\outputs\AIGC_Toolkit），无需同步。
+# 保留仅作历史参考，直接运行会报错退出。
+
 $src = Join-Path $PSScriptRoot 'AIGC_Toolkit'
 
 # Resolve dev root dynamically (folder renamed across machines; avoid non-ASCII literals)

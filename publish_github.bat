@@ -12,11 +12,9 @@ echo ============================================
 echo  AIGC Detector Toolkit - Publish to GitHub
 echo ============================================
 echo.
-echo Step 1: Make sure UmiVPN is connected.
-echo Step 2: Create an EMPTY repo on github.com
-echo         (do NOT check README/.gitignore/LICENSE).
-echo Step 3: Paste your repo URL, for example:
-echo         https://github.com/yourname/AIGC-Detector-Toolkit.git
+echo Step 1: Make sure your VPN is connected (GitHub needs it in CN).
+echo Step 2: Default repo is preconfigured below; press Enter to accept
+echo         it, or paste another repo URL.
 echo.
 set "REPO_URL=https://github.com/Gx664/AIGC.git"
 set /p REPO_URL=Enter GitHub repo URL [%REPO_URL%]: 

@@ -2,7 +2,9 @@
 """检测 → 诊断 → 治疗 闭环自检（离线，无需联网）。
 
 用法：
-    python tools/fusion_selftest.py
+    请用已装好依赖的环境运行（应用安装目录 runtime/venv 下的 python，
+    需含 torch/transformers）：
+    <安装目录>/runtime/venv/Scripts/python.exe tools/fusion_selftest.py
 
 覆盖：
     1. 9 维扫描 + 知网 5 种语言模式 + 11 种深度 AI 痕迹 → 段落级 JSON
