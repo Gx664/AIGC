@@ -201,6 +201,9 @@ class RewriteDialog(QDialog):
         self.target_ratio.setValue(int(
             self.settings.get("rewrite", "target_ratio", default=0.40) * 100
         ))
+        self.target_ratio.setToolTip(
+            tr("rewrite_target_hint")
+        )
         opt_row.addWidget(self.target_ratio)
         lay.addLayout(opt_row)
 

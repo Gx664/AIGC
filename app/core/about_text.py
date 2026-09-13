@@ -10,6 +10,8 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 - 同机多卡自动并行；局域网可把室友电脑、Pad、手机加入并行计算
 - 检测 → 诊断 → 治疗闭环：检测出 AI 率后，本地规则引擎诊断 AI 痕迹（段落级 JSON），
   再按“三轮降重协议”做保学术语体的确定性降重
+- v1.2 新增：轻量安装器（AI 组件改为首次启动时自动下载，CPU/CUDA 自动选择）、
+  模型保存路径可自定义、内置国内镜像加速下载
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -126,6 +128,9 @@ a paragraph-level report.
 - Detect → Diagnose → Treat: after detecting the AI ratio, a fully local rule
   engine diagnoses AI traces (paragraph-level JSON), then applies deterministic
   rewriting that keeps the academic register
+- New in v1.2: lightweight installer (AI components download on first launch,
+  CUDA/CPU auto-selected), customizable model storage path, China mirror for
+  faster downloads
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis
