@@ -28,7 +28,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.diagnosis import pattern_name, risk_label
+from core.diagnosis import diagnose, pattern_name, risk_label
+from core.detector import detect_local
+from core.engines import create_engine
 from core.i18n import get_lang, tr
 from core.therapy import export_text, treat
 from ui.glass import GlassButton, GlassPanel
@@ -53,8 +55,87 @@ class RewriteWorker(QThread):
             self.failed.emit(str(e))
 
 
+class AutoWorker(QThread):
+    """自动降重闭环：规则改写 → 本地模型复检 AI 率 → 仍超标就对高危段落再改。
+
+    循环直到 AI 率达标（≤ 目标值）或达到最大轮数，防止无限循环。
+    """
+
+    round_info = Signal(int, float, int, int)  # 轮次, 该轮 AI 率, 改写段数, 总轮数
+    done = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, paragraphs, indices, options, engine_cfg, base_dir,
+                 detect_params, target_ai, max_rounds, detect_threshold=0.5):
+        super().__init__()
+        self.paragraphs = paragraphs
+        self.indices = indices
+        self.options = options
+        self.engine_cfg = engine_cfg
+        self.base_dir = base_dir
+        self.detect_params = detect_params
+        self.target_ai = target_ai
+        self.max_rounds = max_rounds
+        self.detect_threshold = detect_threshold
+
+    def _recheck(self, paras):
+        cfg = self.engine_cfg
+        engine = create_engine(cfg, self.base_dir)
+        engine.install(None)  # 已装好的模型这里直接通过
+        run_params = dict(self.detect_params)
+        run_params.update(cfg.get("params", {}))
+        return detect_local(cfg, self.base_dir, paras, run_params)
+
+    def run(self):
+        try:
+            paras = list(self.paragraphs)
+            cur = list(self.indices)
+            history = []
+            last_probs = None
+            last_treat = None
+            for rnd in range(1, self.max_rounds + 1):
+                if not cur:
+                    break
+                last_treat = treat(paras, cur, self.options)
+                for r in last_treat["paragraphs"]:
+                    if r["changed"]:
+                        paras[r["index"] - 1] = r["revised"]
+                last_probs = self._recheck(paras)
+                valid = [p for p in last_probs if p is not None]
+                ratio = sum(valid) / len(valid) if valid else 0.0
+                history.append({
+                    "round": rnd,
+                    "ai_ratio": ratio,
+                    "rewritten": last_treat["summary"]["rewritten"],
+                    "selected": len(cur),
+                })
+                self.round_info.emit(
+                    rnd, ratio, last_treat["summary"]["rewritten"], self.max_rounds
+                )
+                if ratio <= self.target_ai:
+                    break
+                # 下一轮只处理仍高于目标线的段落
+                cur = [
+                    i + 1 for i, p in enumerate(last_probs)
+                    if p is not None and p > self.target_ai
+                ]
+            diag = diagnose(paras, last_probs, self.detect_threshold)
+            self.done.emit({
+                "paragraphs": paras,
+                "probs": last_probs,
+                "ai_ratio": history[-1]["ai_ratio"] if history else 0.0,
+                "history": history,
+                "diag": diag,
+                "treat": last_treat,
+            })
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
 class RewriteDialog(QDialog):
-    def __init__(self, paragraphs, probs, diagnosis, base_dir, settings, parent=None):
+    def __init__(self, paragraphs, probs, diagnosis, base_dir, settings,
+                 parent=None, engine_cfg=None, detect_params=None,
+                 detect_threshold=0.5):
         super().__init__(parent)
         self.setWindowTitle(tr("rewrite_title"))
         self.resize(1180, 760)
@@ -63,6 +144,9 @@ class RewriteDialog(QDialog):
         self.diag = diagnosis
         self.base_dir = base_dir
         self.settings = settings
+        self.engine_cfg = engine_cfg
+        self.detect_params = detect_params or {}
+        self.detect_threshold = detect_threshold
         self.last_result = None
         self.worker = None
         self._build_ui()
@@ -181,6 +265,30 @@ class RewriteDialog(QDialog):
         panel = GlassPanel()
         lay = QVBoxLayout(panel)
         lay.setContentsMargins(12, 10, 12, 10)
+
+        # 自动降重闭环：改写 → 复检 → 循环到达标
+        auto_row = QHBoxLayout()
+        auto_row.addWidget(QLabel(tr("rewrite_auto_target")))
+        self.auto_target = QSpinBox()
+        self.auto_target.setRange(5, 60)
+        self.auto_target.setSuffix("%")
+        self.auto_target.setValue(int(
+            self.settings.get("rewrite", "auto_target_ai", default=0.25) * 100
+        ))
+        self.auto_target.setToolTip(tr("rewrite_auto_hint"))
+        auto_row.addWidget(self.auto_target)
+        auto_row.addWidget(QLabel(tr("rewrite_auto_rounds")))
+        self.auto_rounds = QSpinBox()
+        self.auto_rounds.setRange(1, 5)
+        self.auto_rounds.setValue(int(
+            self.settings.get("rewrite", "max_rounds", default=3)
+        ))
+        auto_row.addWidget(self.auto_rounds)
+        self.btn_auto = GlassButton(tr("rewrite_auto_btn"))
+        self.btn_auto.clicked.connect(self.run_auto)
+        auto_row.addStretch()
+        auto_row.addWidget(self.btn_auto)
+        lay.addLayout(auto_row)
 
         opt_row = QHBoxLayout()
         self.chk_word = QCheckBox(tr("rewrite_opt_word"))
@@ -338,6 +446,103 @@ class RewriteDialog(QDialog):
         self.btn_treat.setEnabled(True)
         QMessageBox.warning(self, tr("rewrite_fail_title"), msg)
 
+    # ---- 自动降重闭环 ----
+    def run_auto(self):
+        indices = self._selected_indices()
+        if not indices:
+            QMessageBox.information(self, tr("notice"), tr("rewrite_none_selected"))
+            return
+        if not self.engine_cfg:
+            QMessageBox.warning(self, tr("rewrite_fail_title"), tr("rewrite_auto_no_engine"))
+            return
+        options = self._collect_options()
+        for k, v in options.items():
+            self.settings.set(v, "rewrite", k)
+        target_ai = self.auto_target.value() / 100.0
+        max_rounds = self.auto_rounds.value()
+        self.settings.set(target_ai, "rewrite", "auto_target_ai")
+        self.settings.set(max_rounds, "rewrite", "max_rounds")
+        self.settings.save()
+        self.btn_treat.setEnabled(False)
+        self.btn_auto.setEnabled(False)
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        self.change_text.setPlainText("")
+        self.tabs.setCurrentIndex(1)
+        self.auto_worker = AutoWorker(
+            self.paragraphs,
+            indices,
+            options,
+            self.engine_cfg,
+            self.base_dir,
+            self.detect_params,
+            target_ai,
+            max_rounds,
+            self.detect_threshold,
+        )
+        self.auto_worker.round_info.connect(self.on_auto_round)
+        self.auto_worker.done.connect(self.on_auto_done)
+        self.auto_worker.failed.connect(self.on_auto_failed)
+        self.auto_worker.start()
+
+    def on_auto_round(self, rnd, ratio, rewritten, max_rounds):
+        self.progress.setValue(min(int(rnd * 100.0 / max_rounds), 99))
+        cur = self.change_text.toPlainText()
+        line = tr("rewrite_auto_round_log") % (rnd, rewritten, ratio * 100)
+        self.change_text.setPlainText((cur + "\n" if cur else "") + line)
+
+    def on_auto_done(self, result):
+        self.btn_treat.setEnabled(True)
+        self.btn_auto.setEnabled(True)
+        self.progress.setValue(100)
+        # 用最终结果刷新界面数据
+        self.paragraphs = result["paragraphs"]
+        self.probs = result["probs"] or []
+        self.diag = result["diag"]
+        self.last_result = result["treat"]
+        self._refresh_summary()
+        self._fill_list()
+        target = next((r for r in (self.last_result or {}).get("paragraphs", []) if r["changed"]), None)
+        if target:
+            self._show_para_result(target)
+        # 汇总报告
+        hist_lines = []
+        for h in result["history"]:
+            hist_lines.append(
+                tr("rewrite_auto_round_log") % (h["round"], h["rewritten"], h["ai_ratio"] * 100)
+            )
+        verdict = (
+            tr("rewrite_auto_reached")
+            if result["ai_ratio"] <= self.auto_target.value() / 100.0
+            else tr("rewrite_auto_not_reached")
+        )
+        msg = "%s\n\n%s\n\n%s %.1f%%" % (
+            tr("rewrite_auto_done_rounds") % len(result["history"]),
+            "\n".join(hist_lines),
+            tr("rewrite_auto_final_ratio"),
+            result["ai_ratio"] * 100,
+        )
+        if verdict:
+            msg += "\n" + verdict
+        QMessageBox.information(self, tr("rewrite_auto_done_title"), msg)
+
+    def on_auto_failed(self, msg):
+        self.btn_treat.setEnabled(True)
+        self.btn_auto.setEnabled(True)
+        QMessageBox.warning(self, tr("rewrite_fail_title"), msg)
+
+    def _refresh_summary(self):
+        s = self.diag.get("summary", {})
+        self.summary_label.setText(
+            tr("rewrite_summary")
+            % (
+                risk_label(s.get("overall_risk", "low"), get_lang()),
+                s.get("high_risk_paras", 0),
+                s.get("medium_risk_paras", 0),
+                s.get("total_paragraphs", 0),
+            )
+        )
+
     def _show_para_result(self, r):
         self.orig_text.setPlainText(r["original"])
         self.rev_text.setPlainText(r["revised"])
@@ -377,6 +582,7 @@ class RewriteDialog(QDialog):
         QMessageBox.information(self, tr("rewrite_export_ok"), path)
 
     def closeEvent(self, e):
-        if self.worker and self.worker.isRunning():
-            self.worker.wait(3000)
+        for w in (self.worker, getattr(self, "auto_worker", None)):
+            if w and w.isRunning():
+                w.wait(3000)
         e.accept()

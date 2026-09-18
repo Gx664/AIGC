@@ -131,6 +131,9 @@ a paragraph-level report.
 - New in v1.2: lightweight installer (AI components download on first launch,
   CUDA/CPU auto-selected), customizable model storage path, China mirror for
   faster downloads
+- New in v1.2.3: auto-rewrite loop (rewrite → re-check AI ratio with the local
+  model → retry over-threshold paragraphs until target or max rounds);
+  installer multi-mirror download with curl fallback and local-installer picker
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis

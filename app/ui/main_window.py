@@ -708,6 +708,8 @@ class MainWindow(QMainWindow):
             self.last_diag = diagnose(
                 self.last_paras, self.last_probs, self.thr_slider.value() / 100.0
             )
+        engine_id = self.engine_combo.currentData()
+        engine_cfg = self.mgr.get(engine_id) if engine_id else None
         dlg = RewriteDialog(
             self.last_paras,
             self.last_probs,
@@ -715,6 +717,9 @@ class MainWindow(QMainWindow):
             self.base_dir,
             self.settings,
             parent=self,
+            engine_cfg=engine_cfg,
+            detect_params=self._collect_params(),
+            detect_threshold=self.thr_slider.value() / 100.0,
         )
         dlg.exec()
 

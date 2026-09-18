@@ -13,10 +13,14 @@ from tkinter import filedialog, messagebox, ttk
 APP_NAME = "AI 检测工具箱"
 PY_VER = "3.12.10"
 PY_NAME = "python-%s-amd64.exe" % PY_VER
+# 国内镜像优先（无需 VPN，均已实测可用），官方源排最后兜底
+# 注：阿里云镜像站不收录 Windows 版安装包，故不放进来
 PY_URLS = [
     "https://registry.npmmirror.com/-/binary/python/%s/%s" % (PY_VER, PY_NAME),
+    "https://mirrors.huaweicloud.com/python/%s/%s" % (PY_VER, PY_NAME),
     "https://www.python.org/ftp/python/%s/%s" % (PY_VER, PY_NAME),
 ]
+MIN_PY_SIZE = 5 * 1024 * 1024  # 安装包体积下限，防止下到错误页/半截包
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AUTHOR_EMAIL = "gxgx3456@qq.com"
 
@@ -155,6 +159,25 @@ class Installer(tk.Tk):
         self.cancel_flag = True
         self.set_status(tr("inst_cancelling"))
 
+    def ask_manual_file(self):
+        """所有源下载失败时，让用户选择本地已下载的 Python 安装包。"""
+        box = {"path": None}
+        ev = threading.Event()
+
+        def ask():
+            p, _ = filedialog.askopenfilename(
+                title=tr("inst_manual_pick_title"),
+                filetypes=[("Python 安装包", PY_NAME), ("所有文件", "*.*")],
+            )
+            box["path"] = p or None
+            ev.set()
+
+        self._ui(ask)
+        while not ev.wait(0.2):
+            if self.cancel_flag:
+                return None
+        return box["path"]
+
     def start(self):
         self.cancel_flag = False
         self.btn_start.config(state="disabled")
@@ -178,7 +201,20 @@ class Installer(tk.Tk):
                 self.log_msg(line)
         return proc.wait()
 
-    def download(self, url, dest):
+    def _cleanup_partial(self, dest):
+        for p in (dest + ".part", dest):
+            try:
+                if os.path.exists(p):
+                    os.remove(p)
+            except OSError:
+                pass
+
+    def _validate_dl(self, dest):
+        """下载结果体积校验，防止拿到错误页/半截包。"""
+        if not os.path.exists(dest) or os.path.getsize(dest) < MIN_PY_SIZE:
+            raise RuntimeError(tr("inst_size_bad"))
+
+    def _fetch_urllib(self, url, dest):
         self.log_msg(tr("inst_download_log") % url)
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         tmp = dest + ".part"
@@ -198,6 +234,45 @@ class Installer(tk.Tk):
                     if self.cancel_flag:
                         raise RuntimeError(tr("inst_cancelled"))
         os.replace(tmp, dest)
+
+    def _fetch_curl(self, url, dest):
+        """系统 curl 兜底（Win10 自带）：独立网络栈，能绕开 Python 网络层的问题。"""
+        curl = shutil.which("curl")
+        if not curl:
+            raise RuntimeError(tr("inst_no_curl"))
+        self.log_msg(tr("inst_download_curl") % url)
+        tmp = dest + ".part"
+        self.set_status(tr("inst_download_curl_run"), 4)
+        rc = subprocess.call(
+            [curl, "-L", "--fail", "-sS", "--retry", "2",
+             "--connect-timeout", "15", "--speed-time", "30",
+             "--speed-limit", "1024", "-o", tmp, url],
+            creationflags=CREATE_NO_WINDOW,
+        )
+        if rc != 0:
+            if os.path.exists(tmp):
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+            raise RuntimeError(tr("inst_curl_rc") % rc)
+        os.replace(tmp, dest)
+
+    def download(self, url, dest):
+        """单个源：先 urllib，失败再 curl，成功后做体积校验。"""
+        try:
+            self._fetch_urllib(url, dest)
+        except Exception as e1:
+            if self.cancel_flag:
+                raise
+            self.log_msg(tr("inst_python_dl_fail") % e1)
+            try:
+                if os.path.exists(dest + ".part"):
+                    os.remove(dest + ".part")
+            except OSError:
+                pass
+            self._fetch_curl(url, dest)
+        self._validate_dl(dest)
 
     def run_install(self):
         try:
@@ -285,8 +360,18 @@ class Installer(tk.Tk):
                         except Exception as e:
                             err = e
                             self.log_msg(tr("inst_python_dl_fail") % e)
+                            self._cleanup_partial(pyexe)
+                            if self.cancel_flag:
+                                raise RuntimeError(tr("inst_cancelled"))
                     if err:
-                        raise RuntimeError(tr("inst_python_dl_err") % err)
+                        # 全部源失败：允许手动指定本地已下载的安装包
+                        self.log_msg(tr("inst_all_dl_fail") % err)
+                        manual = self.ask_manual_file()
+                        if manual:
+                            self.log_msg("使用本地安装包: %s" % manual)
+                            shutil.copyfile(manual, pyexe)
+                        else:
+                            raise RuntimeError(tr("inst_python_dl_err") % err)
                 else:
                     self.set_status(tr("inst_python_downloaded"), 20)
 
