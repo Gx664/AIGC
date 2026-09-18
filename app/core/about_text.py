@@ -12,6 +12,10 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
   再按“三轮降重协议”做保学术语体的确定性降重
 - v1.2 新增：轻量安装器（AI 组件改为首次启动时自动下载，CPU/CUDA 自动选择）、
   模型保存路径可自定义、内置国内镜像加速下载
+- v1.2.3 新增：自动降重闭环（改写 → 本地模型复检 AI 率 → 超标段落循环再改，
+  直到达标或最大轮数）；安装器下载多镜像 + curl 兜底 + 支持手动选择本地安装包
+- v1.2.4 新增：支持在 Windows「设置 > 应用 / 控制面板」卸载（含 bug 反馈邮箱）、
+  安装时可勾选桌面快捷方式与完成后立即运行、安装器全屏按钮移至右上角
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -134,6 +138,9 @@ a paragraph-level report.
 - New in v1.2.3: auto-rewrite loop (rewrite → re-check AI ratio with the local
   model → retry over-threshold paragraphs until target or max rounds);
   installer multi-mirror download with curl fallback and local-installer picker
+- New in v1.2.4: uninstall entry in Windows Settings > Apps / Control Panel
+  (with bug-report email), installer options for desktop shortcut and
+  launch-after-install, fullscreen button moved to the top-right corner
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis

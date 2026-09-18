@@ -11,8 +11,10 @@ import urllib.request
 from tkinter import filedialog, messagebox, ttk
 
 APP_NAME = "AI 检测工具箱"
+APP_VER = "1.2.4"
 PY_VER = "3.12.10"
 PY_NAME = "python-%s-amd64.exe" % PY_VER
+UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"
 # 国内镜像优先（无需 VPN，均已实测可用），官方源排最后兜底
 # 注：阿里云镜像站不收录 Windows 版安装包，故不放进来
 PY_URLS = [
@@ -23,6 +25,62 @@ PY_URLS = [
 MIN_PY_SIZE = 5 * 1024 * 1024  # 安装包体积下限，防止下到错误页/半截包
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AUTHOR_EMAIL = "gxgx3456@qq.com"
+
+# 卸载器由安装器生成到安装目录；自删用延迟 rd，避开运行中 python.exe 的文件锁
+UNINSTALLER_TEMPLATE = '''# -*- coding: utf-8 -*-
+"""AI 检测工具箱 卸载器（由安装器自动生成，勿手改）。"""
+import os
+import subprocess
+import tkinter as tk
+from tkinter import messagebox
+
+TARGET = r"@TARGET@"
+EMAIL = "@EMAIL@"
+CREATE_NO_WINDOW = 0x08000000
+
+
+def main():
+    root = tk.Tk()
+    root.withdraw()
+    ok = messagebox.askyesno(
+        "卸载 / Uninstall",
+        "确定要卸载 AI 检测工具箱吗？\\nUninstall AI Detector Toolkit?\\n\\n"
+        "将删除以下目录（含模型文件）：\\n%s\\n\\n"
+        "遇到 Bug？欢迎先邮件反馈，很多问题都能修：\\n%s\\n"
+        "(Found a bug? Email us first - we can probably fix it)" % (TARGET, EMAIL),
+    )
+    if not ok:
+        return
+    try:
+        import winreg
+
+        winreg.DeleteKey(winreg.HKEY_CURRENT_USER,
+                         r"Software\\Microsoft\\Windows\\CurrentVersion"
+                         r"\\Uninstall\\AIGC_Toolkit")
+    except OSError:
+        pass
+    try:
+        lnk = os.path.join(os.path.expanduser("~"), "Desktop",
+                           "AI 检测工具箱.lnk")
+        if os.path.exists(lnk):
+            os.remove(lnk)
+    except OSError:
+        pass
+    # 等本进程退出后再删整个目录（python.exe 运行中无法删除自身）
+    subprocess.Popen(
+        'cmd /c ping 127.0.0.1 -n 4 > nul & rd /s /q "%s"' % TARGET,
+        creationflags=CREATE_NO_WINDOW,
+    )
+    messagebox.showinfo(
+        "完成 / Done",
+        "AI 检测工具箱 已卸载，感谢使用。\\nUninstalled.\\n\\n"
+        "有 Bug 或建议随时邮件：\\n%s" % EMAIL,
+    )
+    root.destroy()
+
+
+main()
+'''
 
 
 def app_source_dir():
@@ -52,9 +110,16 @@ class Installer(tk.Tk):
         self.after(50, self._drain_ui)
 
         pad = {"padx": 18, "pady": 6}
-        # 左上角全屏切换（安装/下载日志较长时方便查看）
-        self.btn_full = tk.Button(self, command=self.toggle_fullscreen, width=8)
-        self.btn_full.pack(anchor="w", padx=18, pady=(10, 0))
+        # 右上角全屏切换（系统按钮风格，安装/下载日志较长时方便查看）
+        top_row = tk.Frame(self)
+        top_row.pack(fill="x")
+        self.btn_full = tk.Button(
+            top_row, command=self.toggle_fullscreen,
+            relief="flat", bd=0, fg="#475569",
+            activeforeground="#1d4ed8", cursor="hand2",
+            font=("Microsoft YaHei UI", 9),
+        )
+        self.btn_full.pack(side="right", padx=14, pady=(8, 0))
         self.btn_full.config(text=tr("inst_fullscreen"))
         self.bind("<Escape>", self._exit_fullscreen)
         self.title_label = tk.Label(self, font=("Microsoft YaHei UI", 16, "bold"))
@@ -71,6 +136,16 @@ class Installer(tk.Tk):
         self.dir_entry.pack(side="left", fill="x", expand=True, padx=6)
         self.btn_browse = tk.Button(row, command=self.browse)
         self.btn_browse.pack(side="left")
+
+        # 安装选项（均默认勾选）
+        opt_row = tk.Frame(self)
+        opt_row.pack(fill="x", **pad)
+        self.chk_shortcut = tk.BooleanVar(value=True)
+        self.chk_launch = tk.BooleanVar(value=True)
+        self.cb_shortcut = tk.Checkbutton(opt_row, variable=self.chk_shortcut)
+        self.cb_shortcut.pack(side="left")
+        self.cb_launch = tk.Checkbutton(opt_row, variable=self.chk_launch)
+        self.cb_launch.pack(side="left", padx=(14, 0))
 
         self.progress = ttk.Progressbar(self, maximum=100, length=560)
         self.progress.pack(fill="x", **pad)
@@ -99,6 +174,8 @@ class Installer(tk.Tk):
         self.title_label.config(text=tr("inst_heading") % APP_NAME)
         self.desc_label.config(text=tr("inst_desc"))
         self.dir_label.config(text=tr("inst_dir_label"))
+        self.cb_shortcut.config(text=tr("inst_opt_shortcut"))
+        self.cb_launch.config(text=tr("inst_opt_launch"))
         self.btn_browse.config(text=tr("inst_browse"))
         self.btn_start.config(text=tr("inst_start"))
         self.btn_cancel.config(text=tr("inst_cancel"))
@@ -481,9 +558,26 @@ class Installer(tk.Tk):
                     % (target.replace("\\", "\\\\"), get_lang())
                 )
 
+            self.set_status(tr("inst_register_uninstall"), 90)
+            pythonw_runtime = os.path.join(pydir, "pythonw.exe")
+            self.register_uninstall(target, pythonw_runtime)
+
             self.set_status(tr("inst_create_shortcut"), 94)
             pythonw = os.path.join(venv, "Scripts", "pythonw.exe")
-            self.make_shortcut(pythonw, os.path.join(appdir, "first_run.py"), appdir)
+            if self.chk_shortcut.get():
+                self.make_shortcut(pythonw, os.path.join(appdir, "first_run.py"), appdir)
+            else:
+                self.log_msg(tr("inst_skip_shortcut"))
+
+            if self.chk_launch.get():
+                try:
+                    subprocess.Popen(
+                        [pythonw, os.path.join(appdir, "first_run.py")],
+                        cwd=appdir, creationflags=CREATE_NO_WINDOW,
+                    )
+                    self.log_msg(tr("inst_launching"))
+                except Exception as e:
+                    self.log_msg(tr("inst_launch_fail") % e)
 
             self.set_status(tr("inst_done"), 100)
             self.log_msg(tr("inst_done_log") % APP_NAME)
@@ -500,6 +594,46 @@ class Installer(tk.Tk):
         finally:
             self.btn_start.config(state="normal")
             self.btn_cancel.config(state="disabled")
+
+    def register_uninstall(self, target, pythonw_runtime):
+        """写入卸载器并注册到 Windows「设置 > 应用 / 控制面板卸载程序」。"""
+        unw = os.path.join(target, "uninstall.pyw")
+        try:
+            with open(unw, "w", encoding="utf-8") as f:
+                f.write(
+                    UNINSTALLER_TEMPLATE
+                    .replace("@TARGET@", target)
+                    .replace("@EMAIL@", AUTHOR_EMAIL)
+                )
+        except OSError as e:
+            self.log_msg("写入卸载器失败: %s" % e)
+            return
+        try:
+            import winreg
+
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, UNINSTALL_KEY)
+            vals = [
+                ("DisplayName", APP_NAME),
+                ("DisplayVersion", APP_VER),
+                ("Publisher", "gxgx3456"),
+                ("DisplayIcon", pythonw_runtime),
+                ("InstallLocation", target),
+                ("UninstallString", '"%s" "%s"' % (pythonw_runtime, unw)),
+                ("HelpLink", "mailto:%s" % AUTHOR_EMAIL),
+                ("Contact", AUTHOR_EMAIL),
+                ("Comments", "遇到 Bug 请邮件反馈 / Report bugs: %s" % AUTHOR_EMAIL),
+                ("NoModify", 1),
+                ("NoRepair", 1),
+            ]
+            for name, value in vals:
+                if isinstance(value, int):
+                    winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
+                else:
+                    winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+            winreg.CloseKey(key)
+            self.log_msg(tr("inst_uninstall_registered"))
+        except OSError as e:
+            self.log_msg(tr("inst_uninstall_reg_fail") % e)
 
     @staticmethod
     def make_shortcut(target, args, workdir):
