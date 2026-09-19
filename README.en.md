@@ -20,7 +20,9 @@
 | **Paragraph-level pinpointing** | Per-paragraph AI probability, with the most suspicious paragraphs highlighted in red |
 | **Detect → diagnose → rewrite loop** | Diagnoses 11 kinds of AI traces (paragraph-level JSON report), then rewrites deterministically via a "three-round protocol" — **de-AI-ing ≠ colloquializing**, formal academic register preserved |
 | **Automatic rewriting** | Re-checks locally after each pass and keeps rewriting until the target AI ratio is reached |
-| **Multiple engines** | SimpleAI Chinese detection (default), GLTR perplexity, Fast-DetectGPT reference implementation, or any HuggingFace model |
+| **5 detection engines** | SimpleAI Chinese (default), GLTR perplexity, Fast-DetectGPT, DetectGPT, Binoculars — or any HuggingFace model |
+| **Models on demand** | No model is bundled; download only what you use, then work fully offline |
+| **Benchmarks** | RAID / MGTBench built in: measure accuracy, false-positive rate and a per-generator breakdown on labelled samples; import official dataset subsets |
 | **Fully offline** | All inference runs locally; your paper is never uploaded. After the one-time model download it works with no internet |
 | **LAN compute pooling** | Auto-parallel across multiple GPUs; add your roommate's PC, tablet or phone on the LAN to the pool |
 | **Custom model path** | Store models on any drive (e.g. D:) so they don't eat C: space; reinstalling keeps them |
@@ -33,7 +35,9 @@ A **fully local** AIGC detection desktop tool: drag in a paper (PDF / DOCX / TXT
 
 - **Fully offline inference**: the detection model is downloaded once; your paper is never uploaded to any platform
 - **Custom model storage path**: keep models on any drive (e.g. D:) so they don't eat C: space; reinstalling the app never deletes downloaded models
-- **Multiple engines**: SimpleAI Chinese detection (default), GLTR perplexity detection, Fast-DetectGPT reference implementation, and any custom HuggingFace model
+- **5 detection engines**: SimpleAI Chinese (default), GLTR perplexity, Fast-DetectGPT, DetectGPT, Binoculars — plus any custom HuggingFace model
+- **Models downloaded on demand**: nothing is bundled; grab what you need and stay offline afterwards
+- **Benchmarks**: RAID / MGTBench built in, so you can audit your own detection results (accuracy, false-positive rate, per-generator breakdown)
 - **Highly customizable**: threshold, paragraph splitting, worker count and more; presets can be saved, exported and imported
 - **Multi-device compute pooling**: automatic multi-GPU parallelism on one machine; add roommates' PCs, Pads and phones over LAN
 - **Detect → Diagnose → Treat**: after detecting the AI ratio, a fully local rule
@@ -89,23 +93,49 @@ His graduation thesis had to be **re-checked for AI-written ratio again and agai
 
 So this project was born: bringing thesis detection **back to local, free and controllable**.
 
-## Why You Can Trust It
+## The 9 integrated methods (all implemented, not just cited)
 
-This project does **not invent its own algorithms** - it integrates the following **peer-reviewed** open-source methods and papers:
+This project does **not invent its own algorithms** - it implements the following **peer-reviewed** methods as runnable engines or benchmark modules, grouped into Detectors / Rewriters / Benchmarks. No model is bundled; download what you use.
 
-| Project / Paper | Evidence | Links |
+### Detectors (5) - is this text AI-written?
+
+| Project / Paper | How it is implemented here | Links |
 |---|---|---|
-| **SimpleAI / HC3** (default Chinese engine) | Paper "How Close is ChatGPT to Human Experts? Comparison Corpus, Evaluation, and Detection", arXiv:2301.07597; dataset, code and models are fully public and widely cited | [arXiv](https://arxiv.org/abs/2301.07597) · [GitHub](https://github.com/Hello-SimpleAI/chatgpt-comparison-detection) |
-| **Fast-DetectGPT** (reference implementation) | Paper "Fast-DetectGPT: Efficient Zero-Shot Detection of Machine-Generated Text via Conditional Probability Curvature", arXiv:2310.05130, published at **ICLR 2024** (top AI conference) | [arXiv](https://arxiv.org/abs/2310.05130) · [GitHub](https://github.com/baoguangsheng/fast-detect-gpt) |
-| **GLTR** (statistical detection method) | Paper "GLTR: Statistical Detection and Visualization of Generated Text", arXiv:1906.04043, from **MIT**, published at **NeurIPS 2019** (top conference) | [arXiv](https://arxiv.org/abs/1906.04043) · [GitHub](https://github.com/HendrikStrobelt/GLTR) |
-| **DetectGPT** (zero-shot detection) | Paper "DetectGPT: Zero-Shot Machine-Generated Text Detection using Probability Curvature", arXiv:2301.11305, published at **ICML 2023** (top ML conference, Oral), from Stanford; zero-shot detection without training data | [arXiv](https://arxiv.org/abs/2301.11305) · [GitHub](https://github.com/ericmitchell/DetectGPT) |
-| **Binoculars** (zero-shot detection) | Paper "Spotting LLMs With Binoculars: Zero-Shot Detection of Machine-Generated Text", arXiv:2401.12070, published at **ICML 2024** (top ML conference), state-of-the-art accuracy, open source | [arXiv](https://arxiv.org/abs/2401.12070) · [GitHub](https://github.com/AHans30/Binoculars) |
-| **RAID** (benchmark) | Paper "RAID: A Shared Benchmark for Robust Evaluation of Machine-Generated Text Detectors", arXiv:2401.09985, published at **ACL 2024** (top NLP conference); the largest and most comprehensive benchmark for AI-text detectors (6M+ texts) for fair evaluation | [arXiv](https://arxiv.org/abs/2401.09985) · [ACL](https://aclanthology.org/2024.acl-long.674/) · [GitHub](https://github.com/liamdugan/raid) |
-| **MGTBench** (benchmark) | Paper "MGTBench: Benchmarking Machine-Generated Text Detection", arXiv:2303.14822; the first benchmarking framework for machine-generated text detection against LLMs | [arXiv](https://arxiv.org/abs/2303.14822) · [GitHub](https://github.com/xinleihe/MGTBench) |
-| **aigc-reduce** (rewrite rules reference) | Implemented from the detection principles of CNKI 3.0 (98.6% accuracy, 1.2% false-positive rate), Wanfang, PaperPass and PaperPure; deep AI patterns originate from Wikipedia's "Signs of AI writing" (WikiProject AI Cleanup) and the Humanizer skill; MIT | [GitHub](https://github.com/xiaofenggan01/aigc-reduce) |
-| **cnki-aigc---skill** (diagnosis patterns reference) | Real-world method based on CNKI's "5 language patterns": overall AI ratio 20.6% -> 10.1% (-10.5 points), all red segments dropped to suspicious; MIT | [GitHub](https://github.com/qingshanliuci/cnki-aigc---skill) |
+| **SimpleAI / HC3** (default Chinese engine) | RoBERTa sequence classifier, per-paragraph AI probability; paper "How Close is ChatGPT to Human Experts?" | [arXiv](https://arxiv.org/abs/2301.07597) · [GitHub](https://github.com/Hello-SimpleAI/chatgpt-comparison-detection) |
+| **GLTR** | Language-model perplexity: PPL ≤ low → 0.85, ≥ high → 0.15, linear in between; from MIT, NeurIPS 2019 | [arXiv](https://arxiv.org/abs/1906.04043) · [GitHub](https://github.com/HendrikStrobelt/GLTR) |
+| **Fast-DetectGPT** | **Implemented per the paper's conditional probability curvature**: the scoring model samples its own perturbations x̃, then we compare `logP(x) − E[logP(x̃)]`; ICLR 2024 | [arXiv](https://arxiv.org/abs/2310.05130) · [GitHub](https://github.com/baoguangsheng/fast-detect-gpt) |
+| **DetectGPT** | **Implemented per the paper's masked perturbation**: T5 refills randomly removed spans to build x̃, then we compare log-probability curvature; zero-shot, Stanford, ICML 2023 (Oral) | [arXiv](https://arxiv.org/abs/2301.11305) · [GitHub](https://github.com/ericmitchell/DetectGPT) |
+| **Binoculars** | Cross-perplexity ratio of two same-tokenizer models, `B = logPPL_observer / crossPPL_performer`; lower B means more AI-like; ratio-based, no threshold tuning; ICML 2024 | [arXiv](https://arxiv.org/abs/2401.12070) · [GitHub](https://github.com/AHans30/Binoculars) |
 
+### Rewriters (2) - diagnose & reduce, built-in rules, no model download
+
+| Project | How it is implemented here | Links |
+|---|---|---|
+| **aigc-reduce** | The three-round rewrite protocol, implemented in full: 9-dimension scan + AI-frequent word table + colloquial blacklist + protected spans, deterministic rewriting with a register guard. Rules follow the detection principles of CNKI 3.0 / Wanfang / PaperPass / PaperPure | [GitHub](https://github.com/xiaofenggan01/aigc-reduce) |
+| **cnki-aigc---skill** | CNKI's 5 language patterns (rhythm / density / term position / connective function / template blocks) as a paragraph-level diagnosis with structured JSON output; that method measured 20.6% → 10.1% | [GitHub](https://github.com/qingshanliuci/cnki-aigc---skill) |
+
+### Benchmarks (2) - audit a detector
+
+| Project / Paper | How it is implemented here | Links |
+|---|---|---|
+| **RAID** | A runnable benchmark module: accuracy, **false-positive rate** (human text flagged as AI), false-negative rate, and a per-generator breakdown; ACL 2024, 6M+ texts | [arXiv](https://arxiv.org/abs/2401.09985) · [ACL](https://aclanthology.org/2024.acl-long.674/) · [GitHub](https://github.com/liamdugan/raid) |
+| **MGTBench** | Precision / recall / F1 over the same labelled set, so detectors can be compared head to head; the first detection benchmark framework for LLMs | [arXiv](https://arxiv.org/abs/2303.14822) · [GitHub](https://github.com/xinleihe/MGTBench) |
+
+Both benchmarks can **import a subset of the official datasets** (CSV / JSONL) for real evaluation, and export a Markdown report.
+The 15 built-in samples are a hand-written smoke test by the author - they are not an official score.
+
+> Separately, the "deep AI patterns" list originates from Wikipedia's "Signs of AI writing" (WikiProject AI Cleanup), localized by aigc-reduce.
+>
 > Disclaimer: results depend on the model and text type. They are for self-checking only and are not the verdict of any authority - the official judgement of your school / journal always wins.
+
+## Extending: swap models / add engines (no rebuild needed)
+
+1. **Swap a model**: create `engines_catalog.json` in the install directory and override just the field you want - e.g. move Binoculars to the Falcon pair:
+   ```json
+   [{"id": "binoculars", "models": [{"repo": "tiiuae/falcon-7b"}, {"repo": "tiiuae/falcon-7b-instruct"}]}]
+   ```
+2. **Add an algorithm**: drop a `.py` into `engines_plugins/`, declare it with `@register("my_impl")` and implement `predict_paragraphs()` - it is discovered at startup.
+3. **Remote list**: Engine manager → "Check for updates" → paste the URL of an `engines_manifest.json`; new engines / models arrive without upgrading the app.
 
 ## Special Thanks (Compute Pooling)
 
@@ -151,11 +181,13 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. I
 ## Tech Stack
 
 - UI: Python + PySide6 (custom modern-tool UI)
-- Detection: transformers (SimpleAI Chinese classifier / perplexity detection)
+- Detection: transformers - 5 switchable engines (classifier / perplexity / probability curvature / dual model); models downloaded on demand, inference always local
 - Diagnosis: local rule engine (9-dimension scan + CNKI 5 language patterns + 11 deep AI patterns, paragraph-level JSON)
 - Treatment: three-round protocol (deterministic rewriting + protected spans + register guard, fully offline)
+- Benchmarks: RAID / MGTBench metrics (accuracy / FPR / FNR / F1, per generator)
+- Extension: engine plugin folder (`engines_plugins/*.py`) + a remotely updatable engine list
 - Multi-device: multi-GPU parallelism + LAN master/worker (UDP auto-discovery + TCP task dispatch)
-- Logs: local run logs (exportable; never contains paper content)
+- Logs: local run logs only (exportable; never contains paper content); **no telemetry is uploaded**
 - Packing: small installer; the runtime downloads on demand (checks first, installs what's missing, with a progress bar)
 
 ## Development Note

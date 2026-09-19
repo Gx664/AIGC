@@ -1,0 +1,79 @@
+{
+  "version": "1.0",
+  "updated": "2026-09-19",
+  "note": "可选引擎清单。软件里「引擎管理 → 检查更新」填本文件的地址，即可把这些条目合并进引擎列表；不需要升级软件。模型仍需自行下载。",
+  "engines": [
+    {
+      "id": "openai_detector",
+      "name": "OpenAI RoBERTa 英文检测",
+      "name_en": "OpenAI RoBERTa (English)",
+      "category": "detect",
+      "impl": "classifier",
+      "model_id": "openai-community/roberta-base-openai-detector",
+      "models": [
+        {
+          "repo": "openai-community/roberta-base-openai-detector",
+          "size": "约 500MB",
+          "role": "英文 GPT-2 输出检测器",
+          "role_en": "English GPT-2 output detector"
+        }
+      ],
+      "size_hint": "约 500MB",
+      "paper": "OpenAI GPT-2 Output Detector",
+      "venue": "HuggingFace 公开模型",
+      "desc": "OpenAI 发布的 RoBERTa 检测器，对英文新闻 / 说明文效果好；中文请用默认的 SimpleAI 引擎。",
+      "desc_en": "OpenAI's RoBERTa detector, strong on English news/essay text. For Chinese, use the default SimpleAI engine.",
+      "tags": ["英文", "轻量"],
+      "params": { "max_len": 500 },
+      "update_channel": "models"
+    },
+    {
+      "id": "simpleai_en",
+      "name": "SimpleAI 英文检测（HC3 英文版）",
+      "name_en": "SimpleAI English (HC3-English)",
+      "category": "detect",
+      "impl": "classifier",
+      "model_id": "Hello-SimpleAI/chatgpt-detector-roberta",
+      "models": [
+        {
+          "repo": "Hello-SimpleAI/chatgpt-detector-roberta",
+          "size": "约 500MB",
+          "role": "英文判别模型",
+          "role_en": "English classifier"
+        }
+      ],
+      "size_hint": "约 500MB",
+      "paper": "arXiv:2301.07597",
+      "venue": "HC3 英文版",
+      "desc": "同一个 HC3 系列的英文模型，和默认中文引擎互为补充：英文论文建议用这个。",
+      "desc_en": "The English sibling of the default Chinese detector; recommended for English papers.",
+      "tags": ["英文", "CPU 可跑"],
+      "params": { "max_len": 500 },
+      "update_channel": "models"
+    },
+    {
+      "id": "zh_perplexity",
+      "name": "中文困惑度检测（GPT2-Chinese）",
+      "name_en": "Chinese perplexity (GPT2-Chinese)",
+      "category": "detect",
+      "impl": "perplexity",
+      "model_id": "uer/gpt2-chinese-cluecorpussmall",
+      "models": [
+        {
+          "repo": "uer/gpt2-chinese-cluecorpussmall",
+          "size": "约 400MB",
+          "role": "中文困惑度打分模型",
+          "role_en": "Chinese perplexity scoring LM"
+        }
+      ],
+      "size_hint": "约 400MB",
+      "paper": "uer/gpt2-chinese-cluecorpussmall",
+      "venue": "中文 GPT-2（CLUECorpusSmall 训练）",
+      "desc": "把 GLTR 的困惑度方法用到中文语料模型上，作为中文文本的统计派参考。阈值已按中文调整（PPL 20~45）。",
+      "desc_en": "GLTR's perplexity method on a Chinese LM. Thresholds adjusted for Chinese (PPL 20-45).",
+      "tags": ["中文", "统计派"],
+      "params": { "ppl_high": 45.0, "ppl_low": 20.0 },
+      "update_channel": "models"
+    }
+  ]
+}

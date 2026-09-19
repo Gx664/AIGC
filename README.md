@@ -20,7 +20,9 @@
 | **段落级定位** | 逐段输出 AI 概率，红色高亮最可疑的段落，照着改就行 |
 | **检测 → 诊断 → 降重闭环** | 先诊断 11 种 AI 痕迹（段落级 JSON 报告），再按「三轮降重协议」做确定性改写，**降重 ≠ 口语化**，守住学术书面语体 |
 | **自动降重** | 改写后本地复检，没降到目标 AI 率就继续改，循环到达标为止 |
-| **多引擎可选** | SimpleAI 中文检测（默认）、GLTR 困惑度、Fast-DetectGPT 参考实现，也可接入任意 HuggingFace 模型 |
+| **5 个检测引擎** | SimpleAI 中文（默认）、GLTR 困惑度、Fast-DetectGPT、DetectGPT、Binoculars；也可接入任意 HuggingFace 模型 |
+| **模型按需下载** | 软件不预置模型，用哪个下哪个；下载一次后完全离线运行 |
+| **评测基准** | 内置 RAID / MGTBench：用带标注样本测出准确率、假阳性率、按生成模型分项；可导入官方数据集子集 |
 | **全程离线** | 推理全在本机跑，论文不上传任何平台；模型下载一次后就断网可用 |
 | **多设备算力合并** | 同机多显卡自动并行；局域网内可把室友的电脑、Pad、手机并入并行计算 |
 | **模型路径可自定义** | 模型可放任意磁盘（如 D 盘），装在 C 盘也不占空间，重装软件不影响已下载的模型 |
@@ -33,7 +35,9 @@
 
 - **全程离线推理**：检测模型本地下载一次，论文内容不会上传给任何平台，保护隐私
 - **模型保存路径可自定义**：模型可存到任意磁盘（如 D 盘），装在 C 盘也不怕占空间；重装软件不影响已下载的模型
-- **多引擎可选**：SimpleAI 中文检测（默认）、GLTR 困惑度检测、Fast-DetectGPT 参考实现、以及可自定义的任意 HuggingFace 模型
+- **5 个检测引擎**：SimpleAI 中文（默认）、GLTR 困惑度、Fast-DetectGPT、DetectGPT、Binoculars，也支持任意 HuggingFace 模型
+- **模型按需下载**：软件不预置模型，用哪个下哪个，下载一次后完全离线可用
+- **评测基准**：内置 RAID / MGTBench，用带标注样本给自己的检测结果做体检（准确率、假阳性率、按生成模型分项）
 - **参数高度自定义**：判定阈值、段落切分、并行数等均可调整，预设可存档、导出、导入
 - **多设备算力合并**：同一台机器多显卡自动并行；局域网内可把室友的电脑、Pad、手机都加入并行计算
 - **检测 → 诊断 → 治疗闭环**：检测出 AI 率后，本地规则引擎诊断 AI 痕迹（段落级 JSON 报告），
@@ -75,23 +79,49 @@
 
 于是就有了这个项目：让论文检测**回归本地、免费、可控**。
 
-## 权威性依据（为什么可信）
+## 集成的 9 项方法（全部已实现，不是纸面引用）
 
-本项目**不是自创检测算法**，而是把以下经过**学术评审**的开源方法与论文落地集成：
+本项目**不是自创检测算法**，而是把以下经过**学术评审**的方法**全部落地成可运行的引擎或评测模块**，分「检查 / 修复 / 评测」三类。模型不预置，用到哪个下哪个。
 
-| 项目 / 论文 | 权威性证据 | 链接 |
+### 检查引擎（5 个 · 判断文本是否 AI 生成）
+
+| 项目 / 论文 | 在本项目里怎么实现的 | 链接 |
 |---|---|---|
-| **SimpleAI / HC3**（默认中文引擎） | 论文《How Close is ChatGPT to Human Experts? Comparison Corpus, Evaluation, and Detection》，arXiv:2301.07597；数据集、代码、模型全部公开，被大量研究引用 | [arXiv](https://arxiv.org/abs/2301.07597) · [GitHub](https://github.com/Hello-SimpleAI/chatgpt-comparison-detection) |
-| **Fast-DetectGPT**（参考实现） | 论文《Fast-DetectGPT: Efficient Zero-Shot Detection of Machine-Generated Text via Conditional Probability Curvature》，arXiv:2310.05130，发表于 **ICLR 2024**（国际学习表征会议，AI 领域顶级会议） | [arXiv](https://arxiv.org/abs/2310.05130) · [GitHub](https://github.com/baoguangsheng/fast-detect-gpt) |
-| **GLTR**（统计检测方法） | 论文《GLTR: Statistical Detection and Visualization of Generated Text》，arXiv:1906.04043，来自 **MIT**，发表于 **NeurIPS 2019**（神经信息处理系统顶级会议） | [arXiv](https://arxiv.org/abs/1906.04043) · [GitHub](https://github.com/HendrikStrobelt/GLTR) |
-| **DetectGPT**（零样本检测） | 论文《DetectGPT: Zero-Shot Machine-Generated Text Detection using Probability Curvature》，arXiv:2301.11305，发表于 **ICML 2023**（机器学习顶级会议，Oral 论文），来自斯坦福大学；无需训练数据即可零样本检测 | [arXiv](https://arxiv.org/abs/2301.11305) · [GitHub](https://github.com/ericmitchell/DetectGPT) |
-| **Binoculars**（零样本检测） | 论文《Spotting LLMs With Binoculars: Zero-Shot Detection of Machine-Generated Text》，arXiv:2401.12070，发表于 **ICML 2024**（机器学习顶级会议），检测准确率领先，代码开源 | [arXiv](https://arxiv.org/abs/2401.12070) · [GitHub](https://github.com/AHans30/Binoculars) |
-| **RAID**（评测基准） | 论文《RAID: A Shared Benchmark for Robust Evaluation of Machine-Generated Text Detectors》，arXiv:2401.09985，发表于 **ACL 2024**（计算语言学顶级会议）；目前最大、最全面的 AI 文本检测评测基准（600 万+ 条文本），用于公平评估各类检测器 | [arXiv](https://arxiv.org/abs/2401.09985) · [ACL](https://aclanthology.org/2024.acl-long.674/) · [GitHub](https://github.com/liamdugan/raid) |
-| **MGTBench**（评测基准） | 论文《MGTBench: Benchmarking Machine-Generated Text Detection》，arXiv:2303.14822；首个面向大语言模型（LLM）的机器生成文本检测基准框架 | [arXiv](https://arxiv.org/abs/2303.14822) · [GitHub](https://github.com/xinleihe/MGTBench) |
-| **aigc-reduce**（降重规则参考） | 基于知网 3.0（综合准确率 98.6%、假阳性率 1.2%）、万方、PaperPass、PaperPure 的检测原理实现；深度 AI 痕迹模式源自 Wikipedia “Signs of AI writing”（WikiProject AI Cleanup 维护）与 Humanizer skill；MIT 协议 | [GitHub](https://github.com/xiaofenggan01/aigc-reduce) |
-| **cnki-aigc---skill**（诊断模式参考） | 基于知网 AIGC 检测器“5 种语言模式”的实战方法：总 AI 率 20.6% → 10.1%（净降 10.5 个点），全文红色显著片段全部降为疑似；MIT 协议 | [GitHub](https://github.com/qingshanliuci/cnki-aigc---skill) |
+| **SimpleAI / HC3**（默认中文引擎） | RoBERTa 序列分类模型，逐段输出 AI 概率；论文《How Close is ChatGPT to Human Experts?》 | [arXiv](https://arxiv.org/abs/2301.07597) · [GitHub](https://github.com/Hello-SimpleAI/chatgpt-comparison-detection) |
+| **GLTR** | 语言模型困惑度：PPL ≤ 低阈值判 0.85、≥ 高阈值判 0.15，中间线性插值；MIT 出品，NeurIPS 2019 | [arXiv](https://arxiv.org/abs/1906.04043) · [GitHub](https://github.com/HendrikStrobelt/GLTR) |
+| **Fast-DetectGPT** | **按论文的条件概率曲率实现**：用打分模型自身采样构造扰动样本 x̃，比较 `logP(x) − E[logP(x̃)]`；ICLR 2024 | [arXiv](https://arxiv.org/abs/2310.05130) · [GitHub](https://github.com/baoguangsheng/fast-detect-gpt) |
+| **DetectGPT** | **按论文的掩码扰动实现**：T5 补全随机挖掉的片段得到 x̃，比较对数概率曲率；零样本，斯坦福，ICML 2023 (Oral) | [arXiv](https://arxiv.org/abs/2301.11305) · [GitHub](https://github.com/ericmitchell/DetectGPT) |
+| **Binoculars** | 同词表双模型交叉困惑度比 `B = logPPL_observer / crossPPL_performer`，B 越小越像 AI；只看比值，免调阈值；ICML 2024 | [arXiv](https://arxiv.org/abs/2401.12070) · [GitHub](https://github.com/AHans30/Binoculars) |
 
+### 修复引擎（2 个 · 诊断 + 降重 · 内置规则，不需要下载模型）
+
+| 项目 | 在本项目里怎么实现的 | 链接 |
+|---|---|---|
+| **aigc-reduce** | 三轮降重协议完整落地：9 维扫描 + AI 高频词替换表 + 口语化负面清单 + 受保护片段，确定性改写、语体守门。规则来自知网 3.0 / 万方 / PaperPass / PaperPure 的检测原理 | [GitHub](https://github.com/xiaofenggan01/aigc-reduce) |
+| **cnki-aigc---skill** | 知网 5 种语言模式（句法节奏 / 信息密度 / 术语句法位置 / 连接词功能 / 模板段功能）落地为段落级诊断，输出结构化 JSON；该做法实测 20.6% → 10.1% | [GitHub](https://github.com/qingshanliuci/cnki-aigc---skill) |
+
+### 评测基准（2 个 · 给检测器做体检）
+
+| 项目 / 论文 | 在本项目里怎么实现的 | 链接 |
+|---|---|---|
+| **RAID** | 可运行的评测模块：拿带标注样本跑出准确率、**假阳性率**（人类文章被判成 AI 的比例）、假阴性率，并按生成模型分项；ACL 2024，600 万+ 条文本 | [arXiv](https://arxiv.org/abs/2401.09985) · [ACL](https://aclanthology.org/2024.acl-long.674/) · [GitHub](https://github.com/liamdugan/raid) |
+| **MGTBench** | 同一套样本上算精确率 / 召回率 / F1，横向比较不同检测器；首个面向 LLM 的检测基准框架 | [arXiv](https://arxiv.org/abs/2303.14822) · [GitHub](https://github.com/xinleihe/MGTBench) |
+
+两个基准都支持**导入官方数据集子集**（CSV / JSONL）跑真实评测，也能导出 Markdown 报告。
+内置那 15 条只是作者手写的快速自检集，不代表官方成绩。
+
+> 另外，「深度 AI 痕迹」清单源自 Wikipedia “Signs of AI writing”（WikiProject AI Cleanup 维护），经 aigc-reduce 本地化适配。
+>
 > 声明：检测效果受模型与文本类型影响，结果仅供自测参考，不代表任何权威机构结论；请以学校 / 期刊官方认定为准。
+
+## 扩展：换模型 / 加新引擎（不用重新打包）
+
+1. **换模型**：安装目录下建 `engines_catalog.json`，写你要覆盖的字段即可，例如把 Binoculars 换成 Falcon 组合：
+   ```json
+   [{"id": "binoculars", "models": [{"repo": "tiiuae/falcon-7b"}, {"repo": "tiiuae/falcon-7b-instruct"}]}]
+   ```
+2. **加新算法**：往 `engines_plugins/` 丢一个 `.py`，用 `@register("my_impl")` 声明并实现 `predict_paragraphs()`，启动时自动发现。
+3. **远端清单**：引擎管理 →「检查更新」→ 填 `engines_manifest.json` 的地址，以后有新引擎 / 新模型直接拉取，无需升级软件。
 
 ## 特别感谢（算力合并）
 
@@ -137,11 +167,13 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value.
 ## 技术架构
 
 - 界面：Python + PySide6（自绘现代工具风 UI）
-- 检测引擎：transformers（SimpleAI 中文分类 / 困惑度检测）
+- 检测引擎：transformers —— 5 个可切换引擎（分类 / 困惑度 / 概率曲率 / 双模型），模型按需下载、全程离线推理
 - 诊断：本地规则引擎（9 维扫描 + 知网 5 种语言模式 + 11 种深度 AI 痕迹，段落级 JSON）
 - 治疗：三轮降重协议（确定性改写 + 受保护片段 + 语体守门，完全离线）
+- 评测：RAID / MGTBench 指标（准确率 / 假阳性率 / 假阴性率 / F1，按生成模型分项）
+- 扩展：引擎插件目录（`engines_plugins/*.py`）+ 可远端更新的引擎清单
 - 多设备：同机多卡自动并行 + 局域网主从节点（UDP 自动发现 + TCP 任务分发）
-- 日志：本地运行日志（可导出，不含论文内容）
+- 日志：本地运行日志（可导出，不含论文内容）；**不含任何遥测上报**
 - 打包：小体积安装器，运行时环境按需下载（先检查、缺什么装什么、带进度条）
 
 ## 开发声明

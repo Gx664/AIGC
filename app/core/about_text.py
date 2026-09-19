@@ -5,11 +5,15 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 一款本地运行的 AIGC 检测桌面工具：拖入论文（PDF/DOCX/TXT），
 选择检测引擎，得到整篇 AI 生成占比与段落级报告。
 - 全程离线推理：论文内容不上传任何平台，保护隐私
-- 多引擎：SimpleAI 中文检测（默认）、GLTR 困惑度、Fast-DetectGPT 参考实现、可自定义模型
+- 5 个可切换检测引擎：SimpleAI 中文检测（默认）、GLTR 困惑度、
+  Fast-DetectGPT、DetectGPT、Binoculars，也可接入任意 HuggingFace 模型
+- 模型不预置、按需下载：用到哪个下哪个，下载一次之后完全离线可用
 - 参数可自定义并存档
 - 同机多卡自动并行；局域网可把室友电脑、Pad、手机加入并行计算
 - 检测 → 诊断 → 治疗闭环：检测出 AI 率后，本地规则引擎诊断 AI 痕迹（段落级 JSON），
   再按“三轮降重协议”做保学术语体的确定性降重
+- 附带 RAID / MGTBench 评测基准：用带标注的样本给自己的检测结果做体检
+  （准确率、假阳性率、按生成模型分项），可导入官方数据集子集
 - v1.2 新增：轻量安装器（AI 组件改为首次启动时自动下载，CPU/CUDA 自动选择）、
   模型保存路径可自定义、内置国内镜像加速下载
 - v1.2.3 新增：自动降重闭环（改写 → 本地模型复检 AI 率 → 超标段落循环再改，
@@ -23,6 +27,13 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
      彻底解决「静默安装退出码 0 却没装上」「卸载/修复报 1603」
   ② 新增网络自愈：VPN 常把系统代理设成 socks://，Python 的 urllib/pip 不支持 →
      自动改直连；下载链路升级为 urllib → 直连 → 系统 curl 三段兜底
+- v1.2.8 新增（9 个引擎全部落地 + 插件化）：
+  ① 检查引擎补齐到 5 个（SimpleAI / GLTR / Fast-DetectGPT / DetectGPT / Binoculars），
+     Fast-DetectGPT 改为按论文的条件概率曲率实现，DetectGPT 按论文的掩码扰动实现；
+  ② RAID / MGTBench 变成可运行的评测模块，不再是纸面引用；
+  ③ 引擎管理按「检查 / 修复 / 评测」三类分组展示，模型一律按需下载；
+  ④ 预留扩展接口：新增算法只要丢一个 .py 进 engines_plugins/，或填写引擎清单
+     地址点「检查更新」，都不需要重新打包软件
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -43,32 +54,45 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 一张卡不够还能用数据线/局域网连室友的电脑，甚至 Pad、手机也能加入算力。
 于是就有了这个免费、本地、可控的项目。
 
-【权威性依据（为什么可信）】
-本项目不是自创算法，而是落地集成了经过学术评审的开源方法与论文：
-1) SimpleAI / HC3（默认中文引擎）
-   论文：How Close is ChatGPT to Human Experts?（arXiv:2301.07597）
+【集成的方法与落地状态（v1.2.8 起 9 项全部可运行）】
+本项目不是自创算法：9 项经过学术评审的方法全部落地成可运行的引擎或评测模块，
+分「检查」「修复」「评测」三类。模型不预置，用到哪个下哪个。
+
+■ 检查引擎（5 个 · 判断文本是否 AI 生成）
+1) SimpleAI / HC3（默认中文引擎）· arXiv:2301.07597
    数据集、代码、模型全部公开，被大量研究引用。
-2) Fast-DetectGPT（参考实现）
-   论文：arXiv:2310.05130，发表于 ICLR 2024（AI 顶级会议）。
-3) GLTR（统计检测方法）
-   论文：arXiv:1906.04043，来自 MIT，发表于 NeurIPS 2019（顶级会议）。
-4) DetectGPT（零样本检测）
-   论文：arXiv:2301.11305，发表于 ICML 2023（顶级会议，Oral），来自斯坦福大学；
-   无需训练数据即可零样本检测。
-5) Binoculars（零样本检测）
-   论文：arXiv:2401.12070，发表于 ICML 2024（顶级会议），检测准确率领先，代码开源。
-6) RAID（评测基准）
-   论文：arXiv:2401.09985，发表于 ACL 2024（计算语言学顶级会议）；
-   目前最大、最全面的 AI 文本检测评测基准（600 万+ 条文本）。
-7) MGTBench（评测基准）
-   论文：arXiv:2303.14822；首个面向大语言模型（LLM）的机器生成文本检测基准框架。
-8) 知网 3.0 检测原理（诊断/降重规则参考）
-   数据来源：aigc-reduce 引用的《论文AIGC查重检测方法与原理深度研究报告》，
-   知网 3.0 综合准确率 98.6%、假阳性率 1.2%；降重规则按知网/万方/PaperPass/PaperPure
-   的检测原理实现。
-9) Wikipedia “Signs of AI writing” + Humanizer skill
-   深度 AI 痕迹模式清单源自 Wikipedia WikiProject AI Cleanup 维护的指南，
-   经 aigc-reduce 本地化适配。
+2) GLTR（统计检测）· arXiv:1906.04043，来自 MIT，NeurIPS 2019
+   语言模型困惑度，越低越像机器写的。
+3) Fast-DetectGPT · arXiv:2310.05130，ICLR 2024
+   按论文的采样近似实现：用打分模型自身采样构造扰动样本，
+   比较条件概率曲率。模型较大，建议独立显卡。
+4) DetectGPT · arXiv:2301.11305，斯坦福，ICML 2023（Oral）
+   按论文的掩码扰动实现：用 T5 补全随机挖掉的片段，比较对数概率曲率。
+   零样本，无需训练数据。
+5) Binoculars · arXiv:2401.12070，ICML 2024
+   同词表双模型交叉困惑度比，只看比值不看绝对值，免调阈值。
+   （以上引擎用哪个 HuggingFace 模型由引擎清单声明，换模型不必改代码）
+
+■ 修复引擎（2 个 · 诊断 + 降重 · 内置规则，无需下载模型）
+6) aigc-reduce 三轮降重协议（MIT 开源项目）
+   9 维扫描 + AI 高频词替换表 + 口语化负面清单 + 受保护片段，
+   三轮确定性改写，坚持「降重 ≠ 口语化」。
+7) 知网 5 种语言模式诊断（MIT 开源项目 cnki-aigc---skill）
+   句法节奏 / 信息密度 / 术语句法位置 / 连接词功能 / 模板段功能，
+   该做法实测总 AI 率 20.6% → 10.1%。
+
+■ 评测基准（2 个 · 给检测器做体检）
+8) RAID · arXiv:2401.09985，ACL 2024（600 万+ 条文本）
+   输出准确率、假阳性率（人类文章被判成 AI 的比例）、假阴性率，
+   并按生成模型分项。
+9) MGTBench · arXiv:2303.14822（首个面向 LLM 的检测基准框架）
+   精确率 / 召回率 / F1，用于横向比较不同检测器。
+   两个基准都支持导入官方数据集子集（CSV / JSONL）；
+   内置样本是作者手写的快速自检集，不代表官方成绩。
+
+另外，「深度 AI 痕迹」清单源自 Wikipedia “Signs of AI writing”
+（WikiProject AI Cleanup 维护），经 aigc-reduce 本地化适配。
+
 声明：检测结果受模型与文本类型影响，仅供自测参考，
 请以学校/期刊官方认定为准。
 
@@ -90,10 +114,13 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
   红色显著片段全部降为疑似），本项目诊断引擎按其模式实现。
 
 【技术架构】
-界面：Python + PySide6（玻璃拟态 UI）
-检测：transformers（SimpleAI 中文分类 / 困惑度）
+界面：Python + PySide6（自绘现代工具风 UI）
+检测：transformers（5 个可切换引擎，模型按需下载、全程离线推理）
+修复：本地规则引擎（9 维扫描 + 知网 5 种语言模式 + 11 种深度 AI 痕迹，段落级 JSON）
+评测：RAID / MGTBench 指标（准确率 / 假阳性率 / 假阴性率 / F1，按生成模型分项）
+扩展：引擎插件目录（engines_plugins/*.py）+ 可远端更新的引擎清单
 多设备：同机多卡自动并行 + 局域网主从节点（UDP 发现 + TCP 分发）
-统计：匿名遥测（可关闭）+ 本地运行日志（可导出）
+统计：仅本地运行日志（可导出）；不含任何遥测上报
 打包：小体积安装器，环境按需下载（先检查、缺什么装什么、带进度条）
 
 【开发声明】
@@ -131,14 +158,18 @@ A local AIGC detection desktop tool: drop in a paper (PDF/DOCX/TXT),
 choose a detection engine, and get the overall AI-written ratio plus
 a paragraph-level report.
 - Fully offline inference: your paper never leaves your computer
-- Multiple engines: SimpleAI Chinese detection (default), GLTR perplexity,
-  Fast-DetectGPT reference implementation, and custom models
+- 5 switchable detectors: SimpleAI Chinese (default), GLTR perplexity,
+  Fast-DetectGPT, DetectGPT and Binoculars - or any HuggingFace model you like
+- Models are never bundled: download only the ones you use, then work offline
 - Highly customizable parameters, with savable presets
 - Automatic multi-GPU parallelism on one machine; LAN cluster lets you add
   roommates' PCs, Pads and phones to the compute pool
 - Detect → Diagnose → Treat: after detecting the AI ratio, a fully local rule
   engine diagnoses AI traces (paragraph-level JSON), then applies deterministic
   rewriting that keeps the academic register
+- RAID / MGTBench benchmarks included: audit your own detection results on
+  labelled samples (accuracy, false-positive rate, per-generator breakdown);
+  import a subset of the official datasets any time
 - New in v1.2: lightweight installer (AI components download on first launch,
   CUDA/CPU auto-selected), customizable model storage path, China mirror for
   faster downloads
@@ -159,6 +190,15 @@ a paragraph-level report.
   2) network self-heal: VPN clients often set a socks:// system proxy which
      Python's urllib/pip cannot use - now auto-switched to direct connection;
      download chain is urllib -> direct -> system curl
+- New in v1.2.8 (all 9 methods live + pluggable engines):
+  1) detectors completed to 5 (SimpleAI / GLTR / Fast-DetectGPT / DetectGPT /
+     Binoculars). Fast-DetectGPT now follows the paper's conditional probability
+     curvature, DetectGPT follows the paper's masked perturbation;
+  2) RAID / MGTBench became runnable benchmark modules instead of paper citations;
+  3) the engine manager groups everything into Detectors / Rewriters / Benchmarks,
+     and every model is downloaded on demand;
+  4) extension points: drop a .py into engines_plugins/, or point the engine-list
+     URL and hit "Check for updates" - neither needs a rebuild
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis
@@ -187,37 +227,48 @@ detection; if one GPU is not enough, you can link roommates' computers over
 Ethernet/LAN, or even add Pads and phones. So this free, local, controllable
 project was born.
 
-[Why you can trust it]
-This project does not invent algorithms; it integrates open-source methods
-and papers that have been peer reviewed:
-1) SimpleAI / HC3 (default Chinese engine)
-   Paper: "How Close is ChatGPT to Human Experts?" (arXiv:2301.07597).
+[Integrated methods & implementation status (all 9 live since v1.2.8)]
+This project does not invent algorithms: 9 peer-reviewed methods are all
+implemented as runnable engines or benchmark modules, grouped into
+Detectors / Rewriters / Benchmarks. No model is bundled; download what you use.
+
+-- Detectors (5) - is this text AI-written? --
+1) SimpleAI / HC3 (default Chinese engine) - arXiv:2301.07597
    Dataset, code and models are fully public and widely cited.
-2) Fast-DetectGPT (reference implementation)
-   Paper: arXiv:2310.05130, published at ICLR 2024 (top AI conference).
-3) GLTR (statistical detection method)
-   Paper: arXiv:1906.04043, from MIT, published at NeurIPS 2019 (top conference).
-4) DetectGPT (zero-shot detection)
-   Paper: arXiv:2301.11305, published at ICML 2023 (top conference, Oral),
-   from Stanford; zero-shot detection without any training data.
-5) Binoculars (zero-shot detection)
-   Paper: arXiv:2401.12070, published at ICML 2024 (top conference);
-   state-of-the-art accuracy, open source.
-6) RAID (benchmark)
-   Paper: arXiv:2401.09985, published at ACL 2024 (top NLP conference);
-   the largest and most comprehensive benchmark for AI-text detectors (6M+ texts).
-7) MGTBench (benchmark)
-   Paper: arXiv:2303.14822; the first benchmarking framework for machine-generated
-   text detection against large language models.
-8) CNKI 3.0 detection principles (reference for diagnosis/rewrite rules)
-   Source: "In-depth Research Report on AIGC Detection Methods and Principles"
-   cited by aigc-reduce; CNKI 3.0 reports 98.6% accuracy and 1.2% false-positive
-   rate. The rewrite rules follow the detection principles of CNKI/Wanfang/
-   PaperPass/PaperPure.
-9) Wikipedia "Signs of AI writing" + Humanizer skill
-   The deep AI-pattern list (significance inflation, synonym cycling, rule of
-   three, etc.) originates from Wikipedia's WikiProject AI Cleanup guide,
-   localized by aigc-reduce.
+2) GLTR (statistical detection) - arXiv:1906.04043, MIT, NeurIPS 2019
+   Language-model perplexity: the lower, the more machine-like.
+3) Fast-DetectGPT - arXiv:2310.05130, ICLR 2024
+   Sampling approximation of the paper: the scoring model samples its own
+   perturbations, then we compare conditional probability curvature. Large
+   model; a discrete GPU is recommended.
+4) DetectGPT - arXiv:2301.11305, Stanford, ICML 2023 (Oral)
+   Masked-perturbation implementation: T5 refills randomly removed spans and we
+   compare log-probability curvature. Zero-shot, no training data needed.
+5) Binoculars - arXiv:2401.12070, ICML 2024
+   Two same-tokenizer models scored cross-wise; a ratio, so no threshold
+   tuning per domain. (Which HuggingFace model each engine uses is declared in
+   the engine list, so swapping models never requires code changes.)
+
+-- Rewriters (2) - diagnose & reduce, built-in rules, no model download --
+6) aigc-reduce three-round rewrite protocol (MIT project)
+   9-dimension scan + AI-frequent word table + colloquial blacklist +
+   protected spans; deterministic rewriting that keeps the academic register.
+7) CNKI 5-language-pattern diagnosis (MIT project cnki-aigc---skill)
+   Sentence rhythm / information density / term position / connective function /
+   template blocks; that method measured 20.6% -> 10.1% in practice.
+
+-- Benchmarks (2) - audit a detector --
+8) RAID - arXiv:2401.09985, ACL 2024 (6M+ texts)
+   Accuracy, false-positive rate (human text flagged as AI), false-negative
+   rate, and a per-generator breakdown.
+9) MGTBench - arXiv:2303.14822 (first detection benchmark framework for LLMs)
+   Precision / recall / F1 for comparing detectors head to head.
+   Both accept a subset of the official datasets (CSV / JSONL); the built-in
+   set is a hand-written smoke test, not an official score.
+
+Separately, the "deep AI patterns" list originates from Wikipedia's
+"Signs of AI writing" (WikiProject AI Cleanup), localized by aigc-reduce.
+
 Disclaimer: results depend on the model and text type. Use them for
 self-checking only - the official verdict of your school/journal always wins.
 
@@ -240,10 +291,16 @@ Thanks to those projects and their communities.
   segments dropped to suspicious); our diagnosis engine follows its patterns.
 
 [Tech Stack]
-UI: Python + PySide6 (glassmorphism)
-Detection: transformers (SimpleAI Chinese classifier / perplexity)
+UI: Python + PySide6 (custom modern-tool UI)
+Detection: transformers (5 switchable engines; models downloaded on demand,
+          inference always local)
+Rewrite: local rule engine (9-dimension scan + CNKI 5 patterns + 11 deep AI
+         patterns, paragraph-level JSON)
+Benchmarks: RAID / MGTBench metrics (accuracy / FPR / FNR / F1, per generator)
+Extension: engine plugin folder (engines_plugins/*.py) + remotely updatable
+           engine list
 Multi-device: multi-GPU parallelism + LAN master/worker (UDP discovery + TCP dispatch)
-Logs: local run logs (exportable; never contains paper content)
+Logs: local run logs only (exportable); no telemetry is uploaded
 Packing: small installer; the runtime downloads on demand
 (checks first, installs what's missing, with a progress bar)
 

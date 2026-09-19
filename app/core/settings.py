@@ -11,6 +11,15 @@ DEFAULTS = {
         "hf_endpoint": "https://hf-mirror.com",
         "models_dir": "",
     },
+    "engines": {
+        # 引擎清单更新地址：从这里可以拉到新引擎 / 新模型条目，无需升级软件
+        "manifest_url": "https://raw.githubusercontent.com/Gx664/AIGC/main/engines_manifest.json",
+        "plugins_dir": "",
+    },
+    "benchmark": {
+        "threshold": 0.5,
+        "max_samples": 200,
+    },
     "detect": {
         "engine": "simpleai",
         "threshold": 0.5,

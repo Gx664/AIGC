@@ -306,6 +306,9 @@ class MainWindow(QMainWindow):
         self.btn_download_settings = GlassButton(tr("btn_download_settings"))
         self.btn_download_settings.clicked.connect(self.open_download_settings)
         dl_row.addWidget(self.btn_download_settings)
+        self.btn_benchmark = GlassButton(tr("btn_benchmark"))
+        self.btn_benchmark.clicked.connect(self.open_benchmark)
+        dl_row.addWidget(self.btn_benchmark)
         lay.addLayout(dl_row)
 
         lay.addWidget(self._section(tr("label_contact")))
@@ -365,21 +368,39 @@ class MainWindow(QMainWindow):
 
     # ---- 引擎 ----
     def _reload_engines(self):
+        """检测引擎下拉只列「检查」类；修复 / 评测类在引擎管理里单独入口。"""
         self.engine_combo.clear()
-        for e in self.mgr.all():
+        for e in self.mgr.runnable():
             self.engine_combo.addItem(e["name"], e["id"])
         idx = self.engine_combo.findData(self.settings.get("detect", "engine", default="simpleai"))
         if idx >= 0:
             self.engine_combo.setCurrentIndex(idx)
 
     def open_engine_dialog(self):
-        EngineDialog(self.mgr, self).exec()
+        EngineDialog(self.mgr, BASE_DIR, self.settings, self).exec()
         current = self.engine_combo.currentData()
         self._reload_engines()
         if current is not None:
             idx = self.engine_combo.findData(current)
             if idx >= 0:
                 self.engine_combo.setCurrentIndex(idx)
+
+    def open_benchmark(self):
+        """打开评测基准（RAID / MGTBench）。"""
+        benches = self.mgr.by_category("benchmark")
+        if not benches:
+            QMessageBox.information(self, tr("notice"), tr("bench_none"))
+            return
+        names = [b.get("name", b["id"]) for b in benches]
+        choice, ok = QInputDialog.getItem(
+            self, tr("btn_benchmark"), tr("bench_pick_title"), names, 0, False
+        )
+        if not ok:
+            return
+        bench = benches[names.index(choice)]
+        from ui.benchmark_dialog import BenchmarkDialog
+
+        BenchmarkDialog(self.mgr, BASE_DIR, self.settings, bench["id"], self).exec()
 
     def open_download_settings(self):
         SettingsDialog(self.settings, BASE_DIR, self).exec()

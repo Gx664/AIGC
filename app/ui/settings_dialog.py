@@ -111,15 +111,21 @@ class SettingsDialog(QDialog):
         grp_model = QGroupBox(tr("settings_model_group"))
         mll = QVBoxLayout(grp_model)
 
-        from core.engines.manager import BUILTIN_ENGINES
+        from core.engines import EngineManager
+        from ui.engine_dialog import model_state
 
+        mgr = EngineManager(self.base_dir)
         self._model_rows = []
-        for eng in BUILTIN_ENGINES:
+        for eng in mgr.all():
+            if not eng.get("models"):
+                continue  # 内置规则引擎 / 评测基准不需要下载
             row = QHBoxLayout()
             name_lbl = QLabel(eng["name"])
-            name_lbl.setMinimumWidth(200)
+            name_lbl.setMinimumWidth(190)
             size_lbl = QLabel(eng.get("size_hint", ""))
-            size_lbl.setMinimumWidth(60)
+            size_lbl.setMinimumWidth(80)
+            state_lbl = QLabel(tr("engine_status_" + model_state(self.base_dir, eng)))
+            state_lbl.setMinimumWidth(70)
             btn_dl = QPushButton(tr("settings_btn_download"))
             btn_dl.setMinimumWidth(btn_dl.sizeHint().width())
             btn_del = QPushButton(tr("settings_btn_delete"))
@@ -128,6 +134,7 @@ class SettingsDialog(QDialog):
             btn_del.clicked.connect(lambda _, e=eng: self._delete(e))
             row.addWidget(name_lbl)
             row.addWidget(size_lbl)
+            row.addWidget(state_lbl)
             row.addWidget(btn_dl)
             row.addWidget(btn_del)
             mll.addLayout(row)
@@ -206,7 +213,9 @@ class SettingsDialog(QDialog):
             self.progress_label.setText(tr("settings_download_fail") % err[:80])
 
     def _delete(self, engine_cfg):
-        model_dir = os.path.join(self.base_dir, "models", engine_cfg["id"])
+        from core.settings import models_root
+
+        model_dir = os.path.join(models_root(self.base_dir), engine_cfg["id"])
         if not os.path.exists(model_dir):
             QMessageBox.information(self, tr("notice"), tr("settings_no_model"))
             return
