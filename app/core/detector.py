@@ -1,6 +1,13 @@
 import concurrent.futures
 
-from .engines import create_engine
+from .engines import TORCH_OK, create_engine
+from .i18n import tr
+
+
+def _torch_error():
+    from . import engines
+
+    return getattr(engines, "TORCH_ERROR", "")
 
 
 def _devices(params):
@@ -20,6 +27,8 @@ def _run_one_device(engine_cfg, base_dir, paragraphs, device, params, progress_c
 
 def detect_local(engine_cfg, base_dir, paragraphs, params, progress_cb=None):
     """本地检测：多张显卡时按段落分片并行，单卡/CPU 直接跑。"""
+    if not TORCH_OK:
+        raise RuntimeError(tr("torch_unavailable") % _torch_error())
     devices = _devices(params)
     if len(devices) == 1:
         return _run_one_device(engine_cfg, base_dir, paragraphs, devices[0], params)

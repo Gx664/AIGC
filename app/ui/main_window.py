@@ -135,8 +135,8 @@ class MainWindow(QMainWindow):
     def _build_ui(self):
         central = QWidget()
         central.setStyleSheet(
-            "QWidget#root{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-            "stop:0 #dbeafe, stop:0.5 #ede9fe, stop:1 #fce7f3);}"
+            "QWidget#root{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+            "stop:0 #f8fafc, stop:1 #edf0f5);}"
         )
         central.setObjectName("root")
         root = QVBoxLayout(central)
@@ -165,7 +165,7 @@ class MainWindow(QMainWindow):
         self.btn_open.clicked.connect(self.choose_file)
         row.addWidget(self.btn_open)
         self.file_label = QLabel(tr("file_not_selected"))
-        self.file_label.setStyleSheet("color:#475569;")
+        self.file_label.setStyleSheet("color:#64748b;")
         row.addWidget(self.file_label, 1)
         lay.addLayout(row)
 
@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(QLabel(tr("label_contact")))
         cont_row = QHBoxLayout()
         self.author_label = QLabel(AUTHOR_EMAIL)
-        self.author_label.setStyleSheet("color:#475569;")
+        self.author_label.setStyleSheet("color:#64748b;")
         cont_row.addWidget(self.author_label, 1)
         self.btn_copy_mail = GlassButton(tr("btn_copy_email"))
         self.btn_copy_mail.clicked.connect(self.copy_author_email)
@@ -326,13 +326,13 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.progress)
         self.result_label = QLabel(tr("ratio_placeholder"))
         self.result_label.setStyleSheet(
-            "font-size:24px;font-weight:800;color:#1d4ed8;background:transparent;"
+            "font-size:26px;font-weight:800;color:#2563eb;background:transparent;"
         )
         lay.addWidget(self.result_label)
         self.report = QTextEdit()
         self.report.setReadOnly(True)
         self.report.setStyleSheet(
-            "QTextEdit{background:rgba(255,255,255,190);border:none;border-radius:12px;"
+            "QTextEdit{background:rgba(255,255,255,230);border:1px solid rgba(15,23,42,20);border-radius:12px;"
             "font-size:13px;}"
         )
         lay.addWidget(self.report, 1)
@@ -563,7 +563,7 @@ class MainWindow(QMainWindow):
             cell.addWidget(img_label)
             cap = QLabel(caption)
             cap.setAlignment(Qt.AlignCenter)
-            cap.setStyleSheet("color:#475569;font-weight:600;")
+            cap.setStyleSheet("color:#64748b;font-weight:600;")
             cell.addWidget(cap)
             qr_row.addLayout(cell)
         box.addLayout(qr_row)
