@@ -1,5 +1,9 @@
 # AI 检测工具箱（AIGC Detector Toolkit）
 
+<p align="center">
+  <img src="docs/icon_256.png" width="120" alt="AI 检测工具箱">
+</p>
+
 <p align="center"><b>中文</b> | <a href="README.en.md">English</a></p>
 
 > 免费的本地 AI 率检测 —— 宿舍算力也能跑，论文不上传，结果在自己手里。

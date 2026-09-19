@@ -115,6 +115,18 @@ def run_pip(args, on_line):
     return proc.wait()
 
 
+def icon_path():
+    """应用图标路径；源码运行时在 app/assets，打包后在 _MEIPASS/app/assets。"""
+    for p in (
+        os.path.join(RESOURCE_DIR, "app", "assets", "icon.ico"),
+        os.path.join(APP_DIR, "assets", "icon.ico"),
+        os.path.join(RESOURCE_DIR, "assets", "icon.ico"),
+    ):
+        if os.path.exists(p):
+            return p
+    return ""
+
+
 class FirstRun:
     def __init__(self):
         import tkinter as tk
@@ -123,6 +135,16 @@ class FirstRun:
         self.tk, self.ttk = tk, ttk
         self.root = tk.Tk()
         self.root.title(tr("fr_title"))
+        # 窗口 / 任务栏图标（打包进 exe 的资源，缺了也不影响功能）
+        _ico = icon_path()
+        if _ico:
+            try:
+                self.root.iconbitmap(default=_ico)
+            except Exception:
+                try:
+                    self.root.iconbitmap(_ico)
+                except Exception:
+                    pass
         self.root.geometry("620x420")
         self.root.resizable(False, False)
 

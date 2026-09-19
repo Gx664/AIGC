@@ -26,7 +26,7 @@ except ImportError:  # pragma: no cover
     tk = filedialog = messagebox = ttk = None
 
 APP_NAME = "AI 检测工具箱"
-APP_VER = "1.2.8"
+APP_VER = "1.3.0"
 PY_VER = "3.12.10"
 PY_EMBED_NAME = "python-%s-embed-amd64.zip" % PY_VER
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"
@@ -498,20 +498,33 @@ def _write_launchers(target, appdir, pydir, log):
         log("启动脚本写入失败(不影响使用): %s" % e)
 
 
-def make_shortcut(target, args, workdir, log=print):
-    """在桌面创建快捷方式（args 为 None 时不带参数）。"""
+def app_icon(appdir):
+    """程序图标路径（安装目录 app/assets/icon.ico）；没有就返回空串。"""
+    p = os.path.join(appdir, "assets", "icon.ico")
+    return p if os.path.exists(p) else ""
+
+
+def make_shortcut(target, args, workdir, log=print, icon=""):
+    """在桌面创建快捷方式（args 为 None 时不带参数）。
+
+    注意：`CreateShortcut` 会**加载已存在的 .lnk**，脚本里没赋值的字段会保留旧值 ——
+    比如从 pythonw+脚本 的旧快捷方式升级上来时，旧的 Arguments 会残留。
+    所以 Arguments 必须无条件写入（空字符串也要写）。
+    """
     desktop = os.path.join(os.path.expanduser("~"), "Desktop")
     lnk = os.path.join(desktop, "%s.lnk" % APP_NAME)
     ps = (
         "$ws = New-Object -ComObject WScript.Shell;"
         "$s = $ws.CreateShortcut('%s');"
         "$s.TargetPath = '%s';"
-        "%s"
+        "$s.Arguments = '%s';"
         "$s.WorkingDirectory = '%s';"
+        "$s.IconLocation = '%s';"
         "$s.Save()" % (
             lnk, target,
-            ("$s.Arguments = '%s';" % args) if args else "",
+            args if args else "",
             workdir,
+            icon if icon else target,
         )
     )
     subprocess.call(
@@ -537,12 +550,16 @@ def register_uninstall(target, pythonw_runtime, log=print):
     try:
         import winreg
 
+        # 卸载项图标也用程序自己的图标（原来是 pythonw.exe 的 Python 图标，很难看）
+        _ico = os.path.join(target, "app", "assets", "icon.ico")
+        display_icon = _ico if os.path.exists(_ico) else pythonw_runtime
+
         key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, UNINSTALL_KEY)
         vals = [
             ("DisplayName", APP_NAME),
             ("DisplayVersion", APP_VER),
             ("Publisher", "gxgx3456"),
-            ("DisplayIcon", pythonw_runtime),
+            ("DisplayIcon", display_icon),
             ("InstallLocation", target),
             ("UninstallString", '"%s" "%s"' % (pythonw_runtime, unw)),
             ("HelpLink", "mailto:%s" % AUTHOR_EMAIL),
@@ -612,7 +629,10 @@ def perform_install(target, log=None, status=None, cancelled=None, ask_manual=No
     status(tr("inst_create_shortcut"), 94)
     launch_target, launch_args = launcher_cmd(appdir, pydir)
     if opt_shortcut:
-        make_shortcut(launch_target, launch_args, appdir, log)
+        make_shortcut(
+            launch_target, launch_args, appdir, log,
+            icon=app_icon(appdir) or launch_target,
+        )
     else:
         log(tr("inst_skip_shortcut"))
 

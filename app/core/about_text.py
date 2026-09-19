@@ -34,6 +34,10 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
   ③ 引擎管理按「检查 / 修复 / 评测」三类分组展示，模型一律按需下载；
   ④ 预留扩展接口：新增算法只要丢一个 .py 进 engines_plugins/，或填写引擎清单
      地址点「检查更新」，都不需要重新打包软件
+- v1.3.0 新增 / 修复：
+  ① 全新应用图标（程序、任务栏、安装器、桌面快捷方式、卸载列表统一，透明底无白框）；
+  ② 修复全屏时按钮文字被裁（小屏 1440×900 上左侧面板被 Qt 等比压扁所致，
+     现在改成滚动 + 按钮最小高度锁定，并统一限制窗口不超出屏幕）
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -199,6 +203,12 @@ a paragraph-level report.
      and every model is downloaded on demand;
   4) extension points: drop a .py into engines_plugins/, or point the engine-list
      URL and hit "Check for updates" - neither needs a rebuild
+- New / fixed in v1.3.0:
+  1) brand new app icon (window, taskbar, installer, desktop shortcut, uninstall
+     entry all share it; transparent background, no white box);
+  2) fixed clipped button text in fullscreen on small screens (1440x900): the left
+     panel is ~1082px tall so Qt squeezed every widget; it now scrolls instead,
+     buttons cannot shrink below their text, and windows are clamped to the screen
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis

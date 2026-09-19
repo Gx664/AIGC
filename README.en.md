@@ -1,5 +1,9 @@
 # AIGC Detector Toolkit
 
+<p align="center">
+  <img src="docs/icon_256.png" width="120" alt="AIGC Detector Toolkit">
+</p>
+
 > Free local AI-written ratio detection - dorm PCs can run it, your paper never leaves your computer, and the results stay in your hands.
 
 <p align="center"><a href="README.md">中文</a> | <b>English</b></p>
