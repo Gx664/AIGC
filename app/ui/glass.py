@@ -1,28 +1,101 @@
+import os
+
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QApplication,
     QWidget,
 )
 
-# ---- 设计令牌（现代工具风：单色系 + 发丝边框 + 克制阴影）----
+# ---- 设计令牌（浅色 Modern Tool：单色系 + 发丝边框，无阴影）----
 C_TEXT = "#0f172a"          # 主文字
 C_TEXT_2 = "#64748b"        # 次级文字
+C_TEXT_3 = "#334155"        # 控件文字 / 节标题
 C_ACCENT = "#2563eb"        # 唯一强调色
 C_ACCENT_HOVER = "#1d4ed8"
 C_DANGER = "#ef4444"        # 仅关闭按钮悬停
-C_BORDER = "rgba(15,23,42,30)"       # 发丝边框
+C_BORDER = "rgba(15,23,42,28)"       # 发丝边框
 C_BORDER_HOVER = "rgba(15,23,42,70)"
-SURFACE = "rgba(255,255,255,215)"    # 面板表面
-SURFACE_HOVER = "rgba(255,255,255,245)"
-R_PANEL = 16
-R_CTRL = 10
+SURFACE = "#ffffff"                  # 面板表面（纯白，不发花）
+SURFACE_HOVER = "#f8fafc"
+R_PANEL = 16    # 大面板
+R_BTN = 10      # 按钮（中等）
+R_CTRL = 6      # 输入控件（小）
+SP = (4, 8, 12, 16, 24)              # 间距刻度
+
+_ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets").replace("\\", "/")
+
+
+def design_stylesheet():
+    """全局设计系统样式（QApplication 级），覆盖所有原生控件。"""
+    down = _ASSETS + "/combo_down.svg"
+    up = _ASSETS + "/combo_up.svg"
+    check = _ASSETS + "/check.svg"
+    return """
+QLabel { color:%(text)s; background:transparent; }
+QLabel#sectionHeader { color:%(text3)s; font-size:12px; font-weight:700; margin-top:6px; }
+QLabel#mutedLabel { color:%(text2)s; }
+
+QComboBox, QSpinBox, QDoubleSpinBox, QLineEdit {
+    background:#ffffff; border:1px solid %(border)s; border-radius:%(rc)dpx;
+    padding:4px 10px; color:%(text)s;
+}
+QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover, QLineEdit:hover { border:1px solid %(border_h)s; }
+QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QLineEdit:focus { border:1px solid %(accent)s; }
+QComboBox::drop-down { border:none; width:24px; }
+QComboBox::down-arrow { image:url(%(down)s); width:10px; height:6px; margin-right:6px; }
+QComboBox QAbstractItemView {
+    background:#ffffff; border:1px solid %(border)s; border-radius:6px;
+    selection-background-color:#eff6ff; selection-color:%(text)s; outline:none; padding:4px;
+}
+QSpinBox::up-button, QDoubleSpinBox::up-button,
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    border:none; background:transparent; width:16px; margin-right:3px;
+}
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover { background:#f1f5f9; border-radius:4px; }
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow { image:url(%(up)s); width:8px; height:5px; }
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow { image:url(%(down)s); width:8px; height:5px; }
+
+QCheckBox { color:%(text3)s; spacing:8px; background:transparent; }
+QCheckBox::indicator {
+    width:18px; height:18px; border-radius:5px;
+    border:1px solid rgba(15,23,42,60); background:#ffffff;
+}
+QCheckBox::indicator:hover { border:1px solid %(accent)s; }
+QCheckBox::indicator:checked { background:%(accent)s; border:1px solid %(accent)s; image:url(%(check)s); }
+
+QSlider::groove:horizontal { height:4px; background:rgba(15,23,42,25); border-radius:2px; }
+QSlider::sub-page:horizontal { background:%(accent)s; border-radius:2px; }
+QSlider::handle:horizontal {
+    width:16px; height:16px; margin:-6px 0; border-radius:8px;
+    background:#ffffff; border:1px solid %(border_h)s;
+}
+QSlider::handle:horizontal:hover { border:1px solid %(accent)s; }
+
+QProgressBar { background:rgba(15,23,42,18); border:none; border-radius:4px; min-height:8px; max-height:8px; }
+QProgressBar::chunk { background:%(accent)s; border-radius:4px; }
+
+QTextEdit, QPlainTextEdit {
+    background:#ffffff; border:1px solid %(border)s; border-radius:8px;
+    color:%(text)s; selection-background-color:%(accent)s;
+}
+""" % dict(
+        text=C_TEXT, text2=C_TEXT_2, text3=C_TEXT_3, accent=C_ACCENT,
+        border=C_BORDER, border_h=C_BORDER_HOVER, rc=R_CTRL,
+        down=down, up=up, check=check,
+    )
+
+
+def apply_design_system(app):
+    app.setStyleSheet(design_stylesheet())
 
 
 class GlassPanel(QFrame):
-    """浅色圆角面板（发丝边框，不用图形阴影——阴影在分数缩放下会导致花字）。"""
+    """白色圆角面板（发丝边框，不用图形阴影——阴影在分数缩放下会导致花字）。"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -47,17 +120,17 @@ class GlassButton(QPushButton):
                 "QPushButton:hover{background:%s;}"
                 "QPushButton:pressed{background:#1e40af;}"
                 "QPushButton:disabled{background:rgba(148,163,184,140);color:rgba(255,255,255,190);}"
-                % (C_ACCENT, R_CTRL, C_ACCENT_HOVER)
+                % (C_ACCENT, R_BTN, C_ACCENT_HOVER)
             )
         else:
             ss = (
-                "QPushButton{background:rgba(255,255,255,225);color:#334155;"
+                "QPushButton{background:#ffffff;color:%s;"
                 "border:1px solid %s;border-radius:%dpx;"
-                "padding:7px 12px;font-size:13px;}"
+                "padding:8px 14px;font-size:13px;}"
                 "QPushButton:hover{background:%s;border:1px solid %s;}"
-                "QPushButton:pressed{background:rgba(241,245,249,240);}"
+                "QPushButton:pressed{background:#f1f5f9;}"
                 "QPushButton:disabled{color:#9ca3af;background:rgba(255,255,255,120);border:1px solid rgba(15,23,42,15);}"
-                % (C_BORDER, R_CTRL, SURFACE_HOVER, C_BORDER_HOVER)
+                % (C_TEXT_3, C_BORDER, R_BTN, SURFACE_HOVER, C_BORDER_HOVER)
             )
         self.setStyleSheet(ss)
 
@@ -71,6 +144,7 @@ class TitleBar(QWidget):
         self.setFixedHeight(46)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(18, 0, 10, 0)
+        lay.setSpacing(4)
         self.title = QLabel(title)
         self.title.setStyleSheet(
             "font-size:15px;font-weight:700;color:%s;background:transparent;" % C_TEXT

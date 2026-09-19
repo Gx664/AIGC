@@ -152,13 +152,18 @@ class MainWindow(QMainWindow):
         root.addLayout(body, 1)
         self.setCentralWidget(central)
 
+    def _section(self, text):
+        lbl = QLabel(text)
+        lbl.setObjectName("sectionHeader")
+        return lbl
+
     def _build_left(self):
         panel = GlassPanel()
         lay = QVBoxLayout(panel)
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(10)
 
-        lay.addWidget(QLabel("① " + tr("btn_select_file")))
+        lay.addWidget(self._section("① " + tr("btn_select_file")))
         row = QHBoxLayout()
         self.btn_open = GlassButton(tr("btn_select_file"))
         self.btn_open.clicked.connect(self.choose_file)
@@ -168,7 +173,7 @@ class MainWindow(QMainWindow):
         row.addWidget(self.file_label, 1)
         lay.addLayout(row)
 
-        lay.addWidget(QLabel(tr("label_engine")))
+        lay.addWidget(self._section(tr("label_engine")))
         row2 = QHBoxLayout()
         self.engine_combo = QComboBox()
         self._reload_engines()
@@ -178,7 +183,7 @@ class MainWindow(QMainWindow):
         row2.addWidget(self.btn_engine)
         lay.addLayout(row2)
 
-        lay.addWidget(QLabel(tr("label_params")))
+        lay.addWidget(self._section(tr("label_params")))
         thr_row = QHBoxLayout()
         thr_row.addWidget(QLabel(tr("label_threshold")))
         self.thr_slider = QSlider(Qt.Horizontal)
@@ -226,7 +231,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(self.chk_gpu)
         lay.addWidget(self.chk_cluster)
 
-        lay.addWidget(QLabel(tr("label_presets")))
+        lay.addWidget(self._section(tr("label_presets")))
         pre_row = QHBoxLayout()
         self.preset_combo = QComboBox()
         self._reload_presets()
@@ -248,7 +253,7 @@ class MainWindow(QMainWindow):
         exp_row.addWidget(b_imp)
         lay.addLayout(exp_row)
 
-        lay.addWidget(QLabel(tr("label_cluster")))
+        lay.addWidget(self._section(tr("label_cluster")))
         self.device_label = QLabel(tr("device_loading"))
         self.device_label.setWordWrap(True)
         lay.addWidget(self.device_label)
@@ -261,7 +266,7 @@ class MainWindow(QMainWindow):
         clu_row.addWidget(self.btn_worker)
         lay.addLayout(clu_row)
 
-        lay.addWidget(QLabel(tr("label_version")))
+        lay.addWidget(self._section(tr("label_version")))
         lic_row = QHBoxLayout()
         self.lic_label = QLabel(
             self.license.current_tier() == "pro" and tr("tier_pro") or tr("tier_free")
@@ -278,14 +283,14 @@ class MainWindow(QMainWindow):
         lic_row.addWidget(self.btn_lang)
         lay.addLayout(lic_row)
 
-        lay.addWidget(QLabel(tr("label_download")))
+        lay.addWidget(self._section(tr("label_download")))
         dl_row = QHBoxLayout()
         self.btn_download_settings = GlassButton(tr("btn_download_settings"))
         self.btn_download_settings.clicked.connect(self.open_download_settings)
         dl_row.addWidget(self.btn_download_settings)
         lay.addLayout(dl_row)
 
-        lay.addWidget(QLabel(tr("label_contact")))
+        lay.addWidget(self._section(tr("label_contact")))
         cont_row = QHBoxLayout()
         self.author_label = QLabel(AUTHOR_EMAIL)
         self.author_label.setStyleSheet("color:#64748b;")
@@ -295,7 +300,7 @@ class MainWindow(QMainWindow):
         cont_row.addWidget(self.btn_copy_mail)
         lay.addLayout(cont_row)
 
-        lay.addWidget(QLabel(tr("label_data")))
+        lay.addWidget(self._section(tr("label_data")))
         tel_row = QHBoxLayout()
         self.btn_export_log = GlassButton(tr("btn_export_log"))
         self.btn_export_log.clicked.connect(self.export_log)
@@ -321,7 +326,7 @@ class MainWindow(QMainWindow):
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
-        self.progress.setTextVisible(True)
+        self.progress.setTextVisible(False)
         lay.addWidget(self.progress)
         self.result_label = QLabel(tr("ratio_placeholder"))
         self.result_label.setStyleSheet(

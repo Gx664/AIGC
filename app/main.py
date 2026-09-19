@@ -13,6 +13,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
 from ui.main_window import MainWindow
+from ui.glass import apply_design_system
 
 
 def main():
@@ -20,6 +21,7 @@ def main():
     app.setStyle("Fusion")
     # 显式指定中文字体，避免不同系统默认字体导致的渲染异常
     app.setFont(QFont("Microsoft YaHei UI", 9))
+    apply_design_system(app)
     win = MainWindow()
     win.show()
     sys.exit(app.exec())
