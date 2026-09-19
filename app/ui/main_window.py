@@ -10,12 +10,14 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QInputDialog,
     QLabel,
     QMainWindow,
     QMessageBox,
     QProgressBar,
+    QScrollArea,
     QSlider,
     QSpinBox,
     QTextEdit,
@@ -36,7 +38,7 @@ from core.meta import APP_NAME, APP_VERSION, AUTHOR_EMAIL
 from core.report import build_report
 from core.settings import Settings
 from ui.engine_dialog import EngineDialog
-from ui.glass import GlassButton, GlassPanel, TitleBar
+from ui.glass import GlassButton, GlassPanel, TitleBar, fit_to_screen
 from ui.rewrite_dialog import RewriteDialog
 from ui.settings_dialog import SettingsDialog
 
@@ -113,7 +115,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setWindowTitle(APP_NAME)
-        self.resize(1120, 780)
+        # 初始尺寸按屏幕可用区域收敛，避免小屏（如 1440x900）上一开窗就超出屏幕底部
+        fit_to_screen(self, 1120, 780)
         self.base_dir = BASE_DIR
         self.settings = Settings(self.base_dir)
         set_lang(self.settings.get("ui", "language", default="zh"))
@@ -158,10 +161,25 @@ class MainWindow(QMainWindow):
         return lbl
 
     def _build_left(self):
+        # 外层保留白色圆角卡片，卡片内部滚动；这样屏幕不够高时滚动条出现在卡片内，
+        # 而不是让 Qt 把按钮等比压扁（压扁 = 按钮文字上下被裁）。
         panel = GlassPanel()
-        lay = QVBoxLayout(panel)
-        lay.setContentsMargins(16, 16, 16, 16)
-        lay.setSpacing(10)
+        outer = QVBoxLayout(panel)
+        outer.setContentsMargins(6, 6, 4, 6)
+        outer.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.viewport().setStyleSheet("background:transparent;")
+
+        content = QWidget()
+        content.setStyleSheet("background:transparent;")
+        lay = QVBoxLayout(content)
+        lay.setContentsMargins(10, 10, 10, 10)
+        lay.setSpacing(8)
 
         lay.addWidget(self._section("① " + tr("btn_select_file")))
         row = QHBoxLayout()
@@ -317,6 +335,9 @@ class MainWindow(QMainWindow):
         self.btn_rewrite.clicked.connect(self.start_rewrite)
         lay.addWidget(self.btn_rewrite)
         lay.addStretch()
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll)
         return panel
 
     def _build_right(self):
@@ -535,7 +556,7 @@ class MainWindow(QMainWindow):
     def show_about(self):
         dlg = QDialog(self)
         dlg.setWindowTitle(tr("about_title"))
-        dlg.resize(760, 720)
+        fit_to_screen(dlg, 760, 720)
         box = QVBoxLayout(dlg)
         box.setContentsMargins(16, 16, 16, 16)
         text = QTextEdit()

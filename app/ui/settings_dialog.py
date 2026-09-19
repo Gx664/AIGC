@@ -3,6 +3,7 @@ import os
 import shutil
 
 from core.i18n import tr
+from ui.glass import fit_to_screen
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -60,7 +61,8 @@ class SettingsDialog(QDialog):
     def __init__(self, settings, base_dir, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("settings_title"))
-        self.resize(520, 480)
+        # 内容最小高度约 620px，给足高度避免布局把控件压扁
+        fit_to_screen(self, 560, 660, min_w=460, min_h=420)
         self.settings = settings
         self.base_dir = base_dir
         self._worker = None
@@ -94,7 +96,8 @@ class SettingsDialog(QDialog):
         self.models_dir_edit = QLineEdit(self.settings.get("download", "models_dir", default=""))
         self.models_dir_edit.setPlaceholderText(tr("settings_models_dir_ph"))
         btn_browse = QPushButton(tr("settings_btn_browse"))
-        btn_browse.setFixedWidth(70)
+        # 不写死宽度：按文字实际宽度自适应，避免不同字体/语言下文字被裁
+        btn_browse.setMinimumWidth(btn_browse.sizeHint().width())
         btn_browse.clicked.connect(self._browse_models_dir)
         dir_row.addWidget(self.models_dir_edit, 1)
         dir_row.addWidget(btn_browse)
@@ -118,9 +121,9 @@ class SettingsDialog(QDialog):
             size_lbl = QLabel(eng.get("size_hint", ""))
             size_lbl.setMinimumWidth(60)
             btn_dl = QPushButton(tr("settings_btn_download"))
-            btn_dl.setFixedWidth(80)
+            btn_dl.setMinimumWidth(btn_dl.sizeHint().width())
             btn_del = QPushButton(tr("settings_btn_delete"))
-            btn_del.setFixedWidth(60)
+            btn_del.setMinimumWidth(btn_del.sizeHint().width())
             btn_dl.clicked.connect(lambda _, e=eng: self._download(e))
             btn_del.clicked.connect(lambda _, e=eng: self._delete(e))
             row.addWidget(name_lbl)

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSizePolicy,
     QApplication,
     QWidget,
 )
@@ -27,6 +28,21 @@ R_CTRL = 6      # 输入控件（小）
 SP = (4, 8, 12, 16, 24)              # 间距刻度
 
 _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets").replace("\\", "/")
+
+
+def fit_to_screen(widget, w, h, margin=40, min_w=560, min_h=420):
+    """把窗口尺寸收敛到屏幕可用区域内。
+
+    小屏（如 1440x900）上如果窗口比屏幕高，Qt 会把内容等比压扁，
+    按钮文字上下被裁（花字）。所有顶层窗口都应先过这个函数。
+    """
+    scr = QApplication.primaryScreen()
+    avail = scr.availableGeometry() if scr else None
+    if avail:
+        w = max(min_w, min(w, avail.width() - margin))
+        h = max(min_h, min(h, avail.height() - margin))
+    widget.resize(w, h)
+    return widget
 
 
 def design_stylesheet():
@@ -83,6 +99,24 @@ QTextEdit, QPlainTextEdit {
     background:#ffffff; border:1px solid %(border)s; border-radius:8px;
     color:%(text)s; selection-background-color:%(accent)s;
 }
+
+/* 细滚动条（左侧参数面板内容高于屏幕时滚动，而不是把控件压扁） */
+QScrollArea { background:transparent; border:none; }
+QScrollBar:vertical {
+    background:transparent; width:10px; margin:0; border:none;
+}
+QScrollBar::handle:vertical {
+    background:rgba(15,23,42,55); border-radius:5px; min-height:36px;
+}
+QScrollBar::handle:vertical:hover { background:rgba(15,23,42,105); }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; border:none; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background:transparent; }
+QScrollBar:horizontal { background:transparent; height:10px; margin:0; border:none; }
+QScrollBar::handle:horizontal {
+    background:rgba(15,23,42,55); border-radius:5px; min-width:36px;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width:0; border:none; }
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background:transparent; }
 """ % dict(
         text=C_TEXT, text2=C_TEXT_2, text3=C_TEXT_3, accent=C_ACCENT,
         border=C_BORDER, border_h=C_BORDER_HOVER, rc=R_CTRL,
@@ -116,6 +150,7 @@ class GlassButton(QPushButton):
             ss = (
                 "QPushButton{background:%s;color:white;"
                 "border:none;border-radius:%dpx;padding:10px 18px;"
+                "min-height:18px;"
                 "font-size:14px;font-weight:600;}"
                 "QPushButton:hover{background:%s;}"
                 "QPushButton:pressed{background:#1e40af;}"
@@ -126,13 +161,16 @@ class GlassButton(QPushButton):
             ss = (
                 "QPushButton{background:#ffffff;color:%s;"
                 "border:1px solid %s;border-radius:%dpx;"
-                "padding:8px 14px;font-size:13px;}"
+                "padding:8px 14px;min-height:18px;font-size:13px;}"
                 "QPushButton:hover{background:%s;border:1px solid %s;}"
                 "QPushButton:pressed{background:#f1f5f9;}"
                 "QPushButton:disabled{color:#9ca3af;background:rgba(255,255,255,120);border:1px solid rgba(15,23,42,15);}"
                 % (C_TEXT_3, C_BORDER, R_BTN, SURFACE_HOVER, C_BORDER_HOVER)
             )
         self.setStyleSheet(ss)
+        # 高度兜底：QSS 的 min-height 只管内容区，这里再钉死总高，
+        # 保证任何窗口尺寸下按钮都不会被布局压扁（否则文字上下被裁 = 花字）。
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
 
 class TitleBar(QWidget):

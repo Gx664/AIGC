@@ -1,6 +1,7 @@
 import json
 
 from core.i18n import tr
+from ui.glass import fit_to_screen
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -23,7 +24,7 @@ class EngineDialog(QDialog):
     def __init__(self, mgr, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("engine_mgr_title"))
-        self.resize(560, 460)
+        fit_to_screen(self, 560, 460, min_w=460, min_h=340)
         self.mgr = mgr
 
         lay = QVBoxLayout(self)

@@ -33,7 +33,7 @@ from core.detector import detect_local
 from core.engines import create_engine
 from core.i18n import get_lang, tr
 from core.therapy import export_text, treat
-from ui.glass import GlassButton, GlassPanel
+from ui.glass import GlassButton, GlassPanel, fit_to_screen
 
 
 class RewriteWorker(QThread):
@@ -138,7 +138,7 @@ class RewriteDialog(QDialog):
                  detect_threshold=0.5):
         super().__init__(parent)
         self.setWindowTitle(tr("rewrite_title"))
-        self.resize(1180, 760)
+        fit_to_screen(self, 1180, 760, min_w=820, min_h=560)
         self.paragraphs = paragraphs
         self.probs = probs or []
         self.diag = diagnosis
