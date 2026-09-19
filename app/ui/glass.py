@@ -1,8 +1,6 @@
 from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
-    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -24,7 +22,7 @@ R_CTRL = 10
 
 
 class GlassPanel(QFrame):
-    """半透明圆角面板。"""
+    """浅色圆角面板（发丝边框，不用图形阴影——阴影在分数缩放下会导致花字）。"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -35,11 +33,6 @@ class GlassPanel(QFrame):
             "border:1px solid %s;"
             "border-radius:%dpx;}" % (SURFACE, C_BORDER, R_PANEL)
         )
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(24)
-        shadow.setOffset(0, 4)
-        shadow.setColor(QColor(15, 23, 42, 28))
-        self.setGraphicsEffect(shadow)
 
 
 class GlassButton(QPushButton):

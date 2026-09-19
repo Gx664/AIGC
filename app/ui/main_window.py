@@ -112,7 +112,6 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
-        self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowTitle(APP_NAME)
         self.resize(1120, 780)
         self.base_dir = BASE_DIR
