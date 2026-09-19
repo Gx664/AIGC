@@ -19,3 +19,11 @@ dist_first/
 tools/ui_verify_*.png
 app/logs/
 tools/screen_*.png
+
+# 本地构建 / 同步辅助脚本（自己留着用，不放到 GitHub 上）
+build_installer.bat
+build_installer.ps1
+run_dev.bat
+publish_github.bat
+sync_to_d.bat
+sync_to_d.ps1

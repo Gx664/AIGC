@@ -12,6 +12,21 @@
 - 📝 **[更新日志 CHANGELOG.md](CHANGELOG.md)** —— 每个版本改了什么
 - ❓ 遇到的问题手册里没写？见文末 [Bug 反馈](#bug-反馈)，直接发邮件
 
+## ✨ 功能介绍
+
+| 能力 | 说明 |
+|---|---|
+| **整篇 AI 率检测** | 拖入 PDF / DOCX / TXT 论文，直接给出整篇 AI 生成占比 |
+| **段落级定位** | 逐段输出 AI 概率，红色高亮最可疑的段落，照着改就行 |
+| **检测 → 诊断 → 降重闭环** | 先诊断 11 种 AI 痕迹（段落级 JSON 报告），再按「三轮降重协议」做确定性改写，**降重 ≠ 口语化**，守住学术书面语体 |
+| **自动降重** | 改写后本地复检，没降到目标 AI 率就继续改，循环到达标为止 |
+| **多引擎可选** | SimpleAI 中文检测（默认）、GLTR 困惑度、Fast-DetectGPT 参考实现，也可接入任意 HuggingFace 模型 |
+| **全程离线** | 推理全在本机跑，论文不上传任何平台；模型下载一次后就断网可用 |
+| **多设备算力合并** | 同机多显卡自动并行；局域网内可把室友的电脑、Pad、手机并入并行计算 |
+| **模型路径可自定义** | 模型可放任意磁盘（如 D 盘），装在 C 盘也不占空间，重装软件不影响已下载的模型 |
+| **参数高度自定义** | 判定阈值、段落切分、并行数等均可调；预设可存档、导出、导入 |
+| **中英双语** | 软件界面与安装器均支持一键切换 中文 / English |
+
 ## 简介
 
 一款**本地运行**的 AIGC 检测桌面工具：拖入论文（PDF / DOCX / TXT），选择检测引擎，即可得到整篇 AI 生成占比与段落级报告。
@@ -98,28 +113,23 @@
 
 ## 支持与赞赏 · Support
 
-如果这个项目对你有一点帮助，可以**请作者喝杯奶茶**，支持继续开发：
+这个项目是完全免费开源的。如果你觉得它有一点帮助，**把项目分享给需要的同学**、或者点个 ⭐ **Star**，就是最好的支持。
 
-<p align="center">
-  <img src="docs/donate/alipay.jpg" width="220" alt="支付宝赞赏码 / Alipay" title="支付宝 / Alipay">
-  <img src="docs/donate/wechat_pay.jpg" width="220" alt="微信支付赞赏码 / WeChat Pay" title="微信支付 / WeChat Pay">
-</p>
-
-<p align="center">支付宝（Alipay）｜微信支付（WeChat Pay）</p>
+想直接鼓励作者的话，发邮件到 **gxgx3456@qq.com** 说声加油也很开心（赞赏二维码已从仓库移除，如需可邮件索取）。
 
 ### For international users
 
-If you don't use Alipay or WeChat Pay, you can also **gift any AI API key** (any provider is welcome) to **gxgx3456@qq.com**. Please include:
+You can also **gift an AI API key** (any provider is welcome) to **gxgx3456@qq.com**. Please include:
 
 - Model name (模型型号)
 - API / model URL and port (模型地址与端口)
 - If you'd like to be credited, mark it as "特别感谢 / Special Thanks"
 
-Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
+Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice.
 
 ## 技术架构
 
-- 界面：Python + PySide6（玻璃拟态 UI）
+- 界面：Python + PySide6（自绘现代工具风 UI）
 - 检测引擎：transformers（SimpleAI 中文分类 / 困惑度检测）
 - 诊断：本地规则引擎（9 维扫描 + 知网 5 种语言模式 + 11 种深度 AI 痕迹，段落级 JSON）
 - 治疗：三轮降重协议（确定性改写 + 受保护片段 + 语体守门，完全离线）

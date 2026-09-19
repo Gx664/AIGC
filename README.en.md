@@ -12,6 +12,21 @@
 - 📝 **[Changelog CHANGELOG.md](CHANGELOG.md)** — what changed in each version
 - ❓ Something not covered? See [Bug Reports](#bug-reports) at the end, just send an email
 
+## ✨ Features
+
+| Feature | What it does |
+|---|---|
+| **Whole-document AI ratio** | Drop in a PDF / DOCX / TXT paper and get the overall AI-generated percentage |
+| **Paragraph-level pinpointing** | Per-paragraph AI probability, with the most suspicious paragraphs highlighted in red |
+| **Detect → diagnose → rewrite loop** | Diagnoses 11 kinds of AI traces (paragraph-level JSON report), then rewrites deterministically via a "three-round protocol" — **de-AI-ing ≠ colloquializing**, formal academic register preserved |
+| **Automatic rewriting** | Re-checks locally after each pass and keeps rewriting until the target AI ratio is reached |
+| **Multiple engines** | SimpleAI Chinese detection (default), GLTR perplexity, Fast-DetectGPT reference implementation, or any HuggingFace model |
+| **Fully offline** | All inference runs locally; your paper is never uploaded. After the one-time model download it works with no internet |
+| **LAN compute pooling** | Auto-parallel across multiple GPUs; add your roommate's PC, tablet or phone on the LAN to the pool |
+| **Custom model path** | Store models on any drive (e.g. D:) so they don't eat C: space; reinstalling keeps them |
+| **Highly customizable** | Threshold, paragraph splitting, worker count and more; presets can be saved, exported and imported |
+| **Bilingual** | The app UI and the installer both switch between 中文 / English |
+
 ## Introduction
 
 A **fully local** AIGC detection desktop tool: drag in a paper (PDF / DOCX / TXT), choose a detection engine, and get the overall AI-written ratio plus a paragraph-level report.
@@ -112,28 +127,23 @@ Thanks to both authors and their communities for making the full detect → diag
 
 ## Support & Donate
 
-If this project helped you a little, you are welcome to **buy the author a milk tea** to support further development:
+This project is completely free and open source. If it helped you, the best way to support it is to **share it with someone who needs it** or give it a ⭐ **Star**.
 
-<p align="center">
-  <img src="docs/donate/alipay.jpg" width="220" alt="Alipay QR code" title="Alipay">
-  <img src="docs/donate/wechat_pay.jpg" width="220" alt="WeChat Pay QR code" title="WeChat Pay">
-</p>
-
-<p align="center">Alipay ｜ WeChat Pay</p>
+You're also welcome to just drop a line to **gxgx3456@qq.com** (the donation QR codes have been removed from this repo; email me if you'd like them).
 
 ### For international users
 
-If you don't use Alipay or WeChat Pay, you can also **gift any AI API key** (any provider is welcome) to **gxgx3456@qq.com**. Please include:
+You can also **gift an AI API key** (any provider is welcome) to **gxgx3456@qq.com**. Please include:
 
 - Model name
 - API / model URL and port
 - If you'd like to be credited, mark it as "特别感谢 / Special Thanks"
 
-Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
+Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice.
 
 ## Tech Stack
 
-- UI: Python + PySide6 (glassmorphism)
+- UI: Python + PySide6 (custom modern-tool UI)
 - Detection: transformers (SimpleAI Chinese classifier / perplexity detection)
 - Diagnosis: local rule engine (9-dimension scan + CNKI 5 language patterns + 11 deep AI patterns, paragraph-level JSON)
 - Treatment: three-round protocol (deterministic rewriting + protected spans + register guard, fully offline)
