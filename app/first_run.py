@@ -1,8 +1,12 @@
 """首次启动引导器：缺什么装什么，装完自动进主界面。
 
-设计：安装器只负责 Python 运行时 + venv + 程序本体；PyTorch / PySide6 /
-transformers 等组件在本窗口（tkinter，随官方 Python 自带）里带进度下载，
-AI 检测模型则由主程序在首次检测时按所选镜像下载。
+设计：安装器只负责 Python 便携运行时（embeddable）+ 程序本体；PyTorch /
+PySide6 / transformers 等组件在本引导器里带进度下载安装，AI 检测模型则由
+主程序在首次检测时按所选镜像下载。
+
+可独立运行（源码模式，用当前解释器），也可由 PyInstaller 打包成
+first_run_gui.exe（自带 tkinter 界面，因为 embeddable Python 没有 tkinter），
+此时所有检测/pip/启动动作都指向安装目录的 runtime\\python。
 """
 
 import importlib.util
@@ -15,13 +19,26 @@ import threading
 import time
 import traceback
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, APP_DIR)
-sys.path.insert(0, os.path.join(APP_DIR, "core"))
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+if getattr(sys, "frozen", False):
+    # first_run_gui.exe：资源在 _MEIPASS，工作目录在 exe 所在的 app 目录
+    RESOURCE_DIR = sys._MEIPASS
+    APP_DIR = os.path.dirname(sys.executable)
+else:
+    RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
+    APP_DIR = RESOURCE_DIR
+
+# runtime\python\python.exe：真正的目标解释器（依赖装在这里、主程序由它启动）
+_runtime_py = os.path.join(os.path.dirname(APP_DIR), "runtime", "python", "python.exe")
+RUNTIME_PY = _runtime_py if os.path.exists(_runtime_py) else sys.executable
+
+sys.path.insert(0, RESOURCE_DIR)
+sys.path.insert(0, os.path.join(RESOURCE_DIR, "core"))
 
 from core.i18n import tr  # noqa: E402
+from core.netfix import apply_env_fix, sanitize_env  # noqa: E402
 
-CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 LOG_PATH = os.path.join(APP_DIR, "logs", "first_run.log")
 PYPI_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
 TORCH_CUDA_MIRRORS = [
@@ -34,6 +51,23 @@ AUTHOR_EMAIL = "gxgx3456@qq.com"
 
 
 def module_ok(name):
+    """在目标解释器（runtime python）里检查模块是否存在（find_spec 不执行代码，快）。"""
+    if os.path.normcase(os.path.abspath(RUNTIME_PY)) != os.path.normcase(
+        os.path.abspath(sys.executable)
+    ):
+        try:
+            out = subprocess.run(
+                [
+                    RUNTIME_PY, "-c",
+                    "import importlib.util as u,sys;"
+                    "sys.exit(0 if u.find_spec(%r) else 1)" % name,
+                ],
+                capture_output=True, timeout=60,
+                creationflags=CREATE_NO_WINDOW,
+            )
+            return out.returncode == 0
+        except Exception:
+            return False
     try:
         return importlib.util.find_spec(name) is not None
     except Exception:
@@ -56,11 +90,15 @@ def has_nvidia():
 
 
 def run_pip(args, on_line):
-    """执行 pip 命令，逐行回调输出，返回退出码。"""
-    env = dict(os.environ)
+    """执行 pip 命令，逐行回调输出，返回退出码。
+
+    注意：必须用 RUNTIME_PY 而不是 sys.executable —— 打包成 first_run_gui.exe 后
+    sys.executable 指向 exe 自身，拿它跑 pip 会直接失败。
+    """
+    env = sanitize_env()
     env["PYTHONUNBUFFERED"] = "1"
     proc = subprocess.Popen(
-        [sys.executable, "-m", "pip", "install", "--progress-bar", "off"] + args,
+        [RUNTIME_PY, "-m", "pip", "install", "--progress-bar", "off"] + args,
         cwd=APP_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -152,6 +190,13 @@ class FirstRun:
     def main(self):
         try:
             self._write_log("=== first_run 启动 ===")
+            self._write_log("RUNTIME_PY = %s" % RUNTIME_PY)
+            apply_env_fix(self.log_line)  # socks 系统代理会让 pip 直接报 SOCKS 错
+            if getattr(sys, "frozen", False) and os.path.normcase(
+                os.path.abspath(RUNTIME_PY)
+            ) == os.path.normcase(os.path.abspath(sys.executable)):
+                # 打包成 exe 却没找到 runtime\python：说明安装不完整，别硬跑
+                raise RuntimeError(tr("fr_no_runtime") % AUTHOR_EMAIL)
             need = deps_missing()
             need_torch = not torch_ok()
             if not need and not need_torch:
@@ -218,7 +263,7 @@ class FirstRun:
         err_f.write("\n===== launch %s =====\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
         err_f.flush()
         subprocess.Popen(
-            [sys.executable, main_py],
+            [RUNTIME_PY, main_py],
             cwd=APP_DIR,
             creationflags=CREATE_NO_WINDOW,
             stderr=err_f,

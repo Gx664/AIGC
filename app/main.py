@@ -4,6 +4,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.settings import Settings
+from core.netfix import apply_env_fix
+
+# 系统代理若是 socks（VPN 客户端常见写法），Python 侧一律走直连，否则模型下载必挂
+apply_env_fix()
 
 _settings = Settings(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 _mirror = _settings.get("download", "hf_endpoint", default="https://hf-mirror.com")

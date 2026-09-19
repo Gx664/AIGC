@@ -1,4 +1,14 @@
-"""AI 检测工具箱 安装器（不打包 AI 环境，运行时下载）。"""
+"""AI 检测工具箱 安装器（不打包 AI 环境，运行时下载）。
+
+架构：安装器只负责
+  1) Python 便携运行时（官方 embeddable zip：解压即用，无注册表 / 无 UAC）
+  2) 程序本体 + 卸载注册 + 桌面快捷方式
+PyTorch / PySide6 等重依赖由首次启动引导器 first_run_gui.exe 按需下载。
+
+安装逻辑全部落在模块级函数（perform_install / install_embed_runtime）里，
+GUI 只是薄薄一层壳 —— 这样既可以用 `installer.py --cli D:\\目标` 无界面安装
+（也方便自测），又避免"把逻辑写在 Tk 回调里没法验证"的老问题。
+"""
 
 import os
 import queue
@@ -6,25 +16,38 @@ import shutil
 import subprocess
 import sys
 import threading
-import tkinter as tk
 import urllib.request
-from tkinter import filedialog, messagebox, ttk
+import zipfile
+
+try:  # 无 tkinter 的精简解释器下，CLI 模式（--cli）依然要能用
+    import tkinter as tk
+    from tkinter import filedialog, messagebox, ttk
+except ImportError:  # pragma: no cover
+    tk = filedialog = messagebox = ttk = None
 
 APP_NAME = "AI 检测工具箱"
-APP_VER = "1.2.4"
+APP_VER = "1.2.7"
 PY_VER = "3.12.10"
-PY_NAME = "python-%s-amd64.exe" % PY_VER
+PY_EMBED_NAME = "python-%s-embed-amd64.zip" % PY_VER
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"
-# 国内镜像优先（无需 VPN，均已实测可用），官方源排最后兜底
-# 注：阿里云镜像站不收录 Windows 版安装包，故不放进来
-PY_URLS = [
-    "https://registry.npmmirror.com/-/binary/python/%s/%s" % (PY_VER, PY_NAME),
-    "https://mirrors.huaweicloud.com/python/%s/%s" % (PY_VER, PY_NAME),
-    "https://www.python.org/ftp/python/%s/%s" % (PY_VER, PY_NAME),
+# embeddable 便携包：解压即用，无安装器 / 无注册表 / 无 UAC —— 从根上规避官方 exe 安装器的
+# MSI 孤儿注册问题（用户删目录后重装：静默安装被"已注册"骗过返回 0、卸载/修复全 1603）。
+# 国内镜像优先（无需 VPN，均已实测可下），官方源排最后兜底
+PY_EMBED_URLS = [
+    "https://registry.npmmirror.com/-/binary/python/%s/%s" % (PY_VER, PY_EMBED_NAME),
+    "https://mirrors.huaweicloud.com/python/%s/%s" % (PY_VER, PY_EMBED_NAME),
+    "https://www.python.org/ftp/python/%s/%s" % (PY_VER, PY_EMBED_NAME),
 ]
-MIN_PY_SIZE = 5 * 1024 * 1024  # 安装包体积下限，防止下到错误页/半截包
+GET_PIP_URLS = [
+    "https://bootstrap.pypa.io/get-pip.py",
+    "https://mirrors.aliyun.com/pypi/get-pip.py",
+]
+PYPI_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
+MIN_DL_SIZE = 2 * 1024 * 1024   # Python 便携包 ~11MB
+GETPIP_MIN_SIZE = 200 * 1024    # get-pip.py 各镜像 1.9~2.3MB，下限放宽
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AUTHOR_EMAIL = "gxgx3456@qq.com"
+PY_NAME = ("Python 便携包 (*.zip)", "*.zip")
 
 # 卸载器由安装器生成到安装目录；自删用延迟 rd，避开运行中 python.exe 的文件锁
 UNINSTALLER_TEMPLATE = '''# -*- coding: utf-8 -*-
@@ -83,6 +106,63 @@ main()
 '''
 
 
+class Cancelled(RuntimeError):
+    """用户点了取消 —— 单独一个类型，避免被下载兜底逻辑当成"换个源再试"。"""
+
+
+# 写进便携运行时的 Lib\site-packages\sitecustomize.py：解释器一启动就生效，
+# 这样哪怕用户/别的工具手动用 runtime python 跑 pip，也不会被 socks 系统代理坑死。
+# 逻辑与 app/core/netfix.py 保持一致（那边是源码侧的唯一真源）。
+SITECUSTOMIZE = '''# -*- coding: utf-8 -*-
+"""安装器自动写入，勿手改。让便携 Python 绕开"socks 系统代理"。
+
+VPN / 加速器常把 Windows 系统代理写成 socks://127.0.0.1:66，而 Python 的
+urllib / requests / pip 都不支持 socks（除非另装 PySocks），于是报
+BadStatusLine 或 "Missing dependencies for SOCKS support"，下载全挂。
+对应的源码侧实现：app/core/netfix.py
+"""
+import os
+
+_VARS = ("ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy",
+         "HTTPS_PROXY", "https_proxy")
+_KEY = r"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"
+
+
+def _is_socks(value):
+    if not value:
+        return False
+    scheme = value.split("=")[-1].split(":", 1)[0].strip().lower()
+    return scheme in ("socks", "socks4", "socks5", "socks5h")
+
+
+def _apply():
+    bad = None
+    for name in _VARS:
+        if _is_socks(os.environ.get(name)):
+            os.environ.pop(name, None)
+    if os.name == "nt":
+        try:
+            import winreg
+
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _KEY) as key:
+                if winreg.QueryValueEx(key, "ProxyEnable")[0]:
+                    server = winreg.QueryValueEx(key, "ProxyServer")[0] or ""
+                    if _is_socks(server):
+                        bad = server
+        except OSError:
+            pass
+    if bad:
+        os.environ["NO_PROXY"] = "*"
+        os.environ["no_proxy"] = "*"
+
+
+_apply()
+'''
+
+
+# --------------------------------------------------------------------------
+# 路径 / i18n
+# --------------------------------------------------------------------------
 def app_source_dir():
     if getattr(sys, "frozen", False):
         return os.path.join(sys._MEIPASS, "app")
@@ -97,9 +177,464 @@ def _i18n_dir():
 
 sys.path.insert(0, _i18n_dir())
 from i18n import get_lang, set_lang, tr  # noqa: E402
+from netfix import apply_env_fix, sanitize_env, unusable_system_proxy  # noqa: E402
 
 
-class Installer(tk.Tk):
+# --------------------------------------------------------------------------
+# 下载（urllib -> 系统 curl 兜底 -> 多镜像 -> 手动选包）
+# --------------------------------------------------------------------------
+def _err_text(e):
+    """异常转成纯 ASCII，避免个别网络库抛出的非 UTF-8 消息在界面上显示成乱码（如 'ÿ'）。"""
+    return ("%s: %s" % (type(e).__name__, e)).encode("ascii", "replace").decode("ascii")
+
+
+def _cleanup_partial(dest):
+    for p in (dest + ".part", dest):
+        try:
+            if os.path.exists(p):
+                os.remove(p)
+        except OSError:
+            pass
+
+
+def _validate_dl(dest, minimum=MIN_DL_SIZE, magic=None):
+    """体积 + 文件头校验，防止把错误页 / 半截包当成安装包。"""
+    if not os.path.exists(dest) or os.path.getsize(dest) < minimum:
+        raise RuntimeError(tr("inst_size_bad"))
+    if magic:
+        with open(dest, "rb") as f:
+            head = f.read(len(magic))
+        if head != magic:
+            raise RuntimeError(tr("inst_size_bad"))
+
+
+def _fetch_urllib(url, dest, log, status, cancelled, direct=False):
+    log(tr("inst_download_log") % url)
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    tmp = dest + ".part"
+    # 系统代理是 socks（VPN 常见）时直接用无代理 opener —— 否则 urllib 会把它当
+    # HTTP 代理用，报 BadStatusLine；normalize 完仍失败则由调用方改用直连/curl
+    if direct or unusable_system_proxy():
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    else:
+        opener = urllib.request.build_opener()
+    with opener.open(req, timeout=60) as r:
+        total = int(r.headers.get("Content-Length") or 0)
+        done = 0
+        with open(tmp, "wb") as f:
+            while True:
+                chunk = r.read(256 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+                done += len(chunk)
+                if total:
+                    pct = 5 + int(15 * done / total)
+                    status(tr("inst_download_python_pct") % pct, pct)
+                if cancelled():
+                    raise Cancelled(tr("inst_cancelled"))
+    os.replace(tmp, dest)
+
+
+def _fetch_curl(url, dest, log, status, cancelled):
+    """系统 curl 兜底（Win10 自带）：独立网络栈，能绕开 Python 网络层的问题。"""
+    curl = shutil.which("curl")
+    if not curl:
+        raise RuntimeError(tr("inst_no_curl"))
+    log(tr("inst_download_curl") % url)
+    tmp = dest + ".part"
+    status(tr("inst_download_curl_run"), 4)
+    rc = subprocess.call(
+        [curl, "-L", "--fail", "-sS", "--retry", "2",
+         "--connect-timeout", "15", "--speed-time", "30",
+         "--speed-limit", "1024", "-o", tmp, url],
+        creationflags=CREATE_NO_WINDOW,
+    )
+    if rc != 0:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        raise RuntimeError(tr("inst_curl_rc") % rc)
+    os.replace(tmp, dest)
+
+
+def fetch_url(url, dest, log, status, cancelled, minimum=MIN_DL_SIZE, magic=None):
+    """单个源：urllib -> 直连 urllib（绕开系统代理）-> 系统 curl，最后做体积校验。"""
+    try:
+        _fetch_urllib(url, dest, log, status, cancelled)
+    except Cancelled:
+        raise
+    except Exception as e1:
+        log(tr("inst_python_dl_fail") % _err_text(e1))
+        _cleanup_partial(dest)
+        if not unusable_system_proxy():
+            try:
+                log(tr("inst_proxy_bypass"))
+                _fetch_urllib(url, dest, log, status, cancelled, direct=True)
+                _validate_dl(dest, minimum, magic)
+                return dest
+            except Cancelled:
+                raise
+            except Exception as e2:
+                log(tr("inst_python_dl_fail") % _err_text(e2))
+                _cleanup_partial(dest)
+        _fetch_curl(url, dest, log, status, cancelled)
+    _validate_dl(dest, minimum, magic)
+
+
+def download_with_mirrors(urls, dest, log, status, cancelled,
+                          ask_manual=None, minimum=MIN_DL_SIZE, magic=None):
+    """多镜像依次尝试；全挂则（可选的）让用户指一个本地已下好的包。"""
+    err = None
+    for u in urls:
+        try:
+            fetch_url(u, dest, log, status, cancelled, minimum, magic)
+            return dest
+        except Cancelled:
+            raise
+        except Exception as e:
+            err = e
+            log(tr("inst_python_dl_fail") % _err_text(e))
+            _cleanup_partial(dest)
+    if err is not None:
+        log(tr("inst_all_dl_fail") % _err_text(err))
+    if ask_manual:
+        manual = ask_manual()
+        if manual:
+            log(tr("inst_manual_using") % manual)
+            shutil.copyfile(manual, dest)
+            _validate_dl(dest, minimum, magic)
+            return dest
+    raise RuntimeError(tr("inst_python_dl_err") % _err_text(err))
+
+
+def run_stream(args, log, cwd=None, env=None):
+    """跑一个子进程，逐行把输出喂给 log，返回退出码。"""
+    proc = subprocess.Popen(
+        args,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=sanitize_env(env) if env is None else env,
+        creationflags=CREATE_NO_WINDOW,
+    )
+    for line in proc.stdout:
+        line = line.strip()
+        if line:
+            log(line)
+    return proc.wait()
+
+
+# --------------------------------------------------------------------------
+# Python 便携运行时（embeddable）
+# --------------------------------------------------------------------------
+def python_ok(exe):
+    """验证 Python 能完整初始化（标准库 encodings 可用）。"""
+    if not os.path.exists(exe):
+        return False
+    try:
+        out = subprocess.run(
+            [exe, "-c", "import encodings, sys; print(sys.prefix)"],
+            capture_output=True, text=True, timeout=60,
+            creationflags=CREATE_NO_WINDOW,
+        )
+        return out.returncode == 0 and bool(out.stdout.strip())
+    except Exception:
+        return False
+
+
+def pip_ok(pyexe):
+    if not os.path.exists(pyexe):
+        return False
+    try:
+        out = subprocess.run(
+            [pyexe, "-m", "pip", "--version"],
+            capture_output=True, text=True, timeout=90,
+            creationflags=CREATE_NO_WINDOW,
+        )
+        return out.returncode == 0 and "pip" in (out.stdout or "").lower()
+    except Exception:
+        return False
+
+
+def patch_embed_pth(pydir, log=print):
+    """修补 embeddable 的 `python3xx._pth`。
+
+    这个文件把 sys.path 完全写死（并且默认注释掉 `import site`），不改它的话
+    pip 装进 Lib\\site-packages 的包 import 不到 —— 这是 embeddable 最经典的坑：
+      1) 放开 `import site`，让 site.py 把 Lib\\site-packages 挂进 sys.path
+      2) 补一行 `.`，保证安装目录本身可见
+    """
+    pth = None
+    for name in sorted(os.listdir(pydir)):
+        if name.endswith("._pth"):
+            pth = os.path.join(pydir, name)
+            break
+    if not pth:
+        raise RuntimeError(tr("inst_pth_missing"))
+    with open(pth, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.read().splitlines()
+    out = []
+    for ln in lines:
+        # `#import site` / `import site` 统一成生效的那一行
+        out.append("import site" if ln.strip().lstrip("#").strip() == "import site" else ln)
+    if not any(l.strip() == "import site" for l in out):
+        out.append("import site")
+    if not any(l.strip() == "." for l in out):
+        out.append(".")
+    with open(pth, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(out) + "\n")
+    log(tr("inst_pth_patched") % os.path.basename(pth))
+    return pth
+
+
+def write_sitecustomize(pydir, log=None):
+    """给便携运行时装一份网络自愈脚本（解释器启动即生效）。"""
+    sp = os.path.join(pydir, "Lib", "site-packages")
+    os.makedirs(sp, exist_ok=True)
+    path = os.path.join(sp, "sitecustomize.py")
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(SITECUSTOMIZE)
+    if log:
+        log(tr("inst_netfix_installed"))
+    return path
+
+
+def install_embed_runtime(pydir, dl, log=print, status=None, cancelled=None, ask_manual=None):
+    """保证 pydir 下有一份带 pip 的可用 Python（便携版），返回 python.exe 路径。"""
+    log = log or (lambda m: None)
+    status = status or (lambda m, p=None: None)
+    cancelled = cancelled or (lambda: False)
+    pyexe = os.path.join(pydir, "python.exe")
+
+    if python_ok(pyexe) and pip_ok(pyexe):
+        log(tr("inst_runtime_reuse"))
+        status(tr("inst_python_installed"), 25)
+        write_sitecustomize(pydir, log)
+        return pyexe
+
+    # 坏的旧运行时一律清掉，避免半成品干扰（含旧版本遗留的 venv）
+    if os.path.exists(pydir):
+        log(tr("inst_runtime_purge"))
+        shutil.rmtree(pydir, ignore_errors=True)
+    shutil.rmtree(os.path.join(os.path.dirname(pydir), "venv"), ignore_errors=True)
+
+    # 1. 便携包 zip
+    zpath = os.path.join(dl, PY_EMBED_NAME)
+    if os.path.exists(zpath) and os.path.getsize(zpath) >= MIN_DL_SIZE:
+        status(tr("inst_python_downloaded"), 15)
+    else:
+        status(tr("inst_download_python"), 3)
+        download_with_mirrors(PY_EMBED_URLS, zpath, log, status, cancelled,
+                              ask_manual, MIN_DL_SIZE, b"PK")
+
+    # 2. 解压 + 修补 ._pth
+    status(tr("inst_extract_python"), 20)
+    log(tr("inst_unzip_log") % (PY_EMBED_NAME, pydir))
+    os.makedirs(pydir, exist_ok=True)
+    try:
+        with zipfile.ZipFile(zpath) as zf:
+            zf.extractall(pydir)
+    except zipfile.BadZipFile:
+        _cleanup_partial(zpath)
+        raise RuntimeError(tr("inst_unzip_bad"))
+    patch_embed_pth(pydir, log)
+    write_sitecustomize(pydir, log)
+
+    if not python_ok(pyexe):
+        raise RuntimeError(tr("inst_python_inst_err") % 0)
+
+    # 3. 引导 pip（embeddable 不自带 ensurepip）
+    status(tr("inst_install_pip"), 30)
+    getpip = os.path.join(dl, "get-pip.py")
+    if not (os.path.exists(getpip) and os.path.getsize(getpip) >= GETPIP_MIN_SIZE):
+        download_with_mirrors(GET_PIP_URLS, getpip, log, status, cancelled,
+                              None, GETPIP_MIN_SIZE)
+    rc = run_stream([pyexe, getpip, "--no-warn-script-location", "-i", PYPI_MIRROR], log)
+    log("get-pip 退出码: %d" % rc)
+    if rc != 0 or not pip_ok(pyexe):
+        raise RuntimeError(tr("inst_pip_err") % rc)
+    log(tr("inst_pip_ready"))
+    return pyexe
+
+
+# --------------------------------------------------------------------------
+# 程序本体 / 快捷方式 / 卸载注册
+# --------------------------------------------------------------------------
+def launcher_cmd(appdir, pydir):
+    """返回 (可执行文件, 参数或 None)。
+
+    引导器是独立 exe（自带 tkinter，因为 embeddable 没有 tkinter），直接运行即可 ——
+    注意不能用 `pythonw.exe first_run_gui.exe`（那是把 exe 当脚本喂给解释器，必错）。
+    """
+    fr_exe = os.path.join(appdir, "first_run_gui.exe")
+    if os.path.exists(fr_exe):
+        return fr_exe, None
+    return os.path.join(pydir, "pythonw.exe"), os.path.join(appdir, "first_run.py")
+
+
+def _write_launchers(target, appdir, pydir, log):
+    """写两个便捷脚本：启动.cmd（日常启动）、诊断.cmd（出问题时收集信息）。"""
+    try:
+        exe, args = launcher_cmd(appdir, pydir)
+        cmdline = '"%s"' % exe if not args else '"%s" "%s"' % (exe, args)
+        with open(os.path.join(target, "启动.cmd"), "w", encoding="ascii") as f:
+            f.write('@echo off\r\nstart "" %s\r\n' % cmdline)
+        py_exe = os.path.join(pydir, "python.exe")
+        with open(os.path.join(target, "诊断.cmd"), "w", encoding="utf-8") as f:
+            f.write(
+                '@echo off\r\nchcp 65001 >nul\r\ncd /d "%s"\r\n'
+                '"%s" diag_startup.py\r\necho.\r\n'
+                "echo ============================\r\n"
+                "echo 诊断完成，按任意键关闭窗口...\r\npause >nul\r\n"
+                % (appdir, py_exe)
+            )
+    except Exception as e:
+        log("启动脚本写入失败(不影响使用): %s" % e)
+
+
+def make_shortcut(target, args, workdir, log=print):
+    """在桌面创建快捷方式（args 为 None 时不带参数）。"""
+    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+    lnk = os.path.join(desktop, "%s.lnk" % APP_NAME)
+    ps = (
+        "$ws = New-Object -ComObject WScript.Shell;"
+        "$s = $ws.CreateShortcut('%s');"
+        "$s.TargetPath = '%s';"
+        "%s"
+        "$s.WorkingDirectory = '%s';"
+        "$s.Save()" % (
+            lnk, target,
+            ("$s.Arguments = '%s';" % args) if args else "",
+            workdir,
+        )
+    )
+    subprocess.call(
+        ["powershell", "-NoProfile", "-Command", ps],
+        creationflags=CREATE_NO_WINDOW,
+    )
+    log(tr("inst_shortcut_done") % lnk)
+
+
+def register_uninstall(target, pythonw_runtime, log=print):
+    """写入卸载器并注册到 Windows「设置 > 应用 / 控制面板卸载程序」。"""
+    unw = os.path.join(target, "uninstall.pyw")
+    try:
+        with open(unw, "w", encoding="utf-8") as f:
+            f.write(
+                UNINSTALLER_TEMPLATE
+                .replace("@TARGET@", target)
+                .replace("@EMAIL@", AUTHOR_EMAIL)
+            )
+    except OSError as e:
+        log("写入卸载器失败: %s" % e)
+        return
+    try:
+        import winreg
+
+        key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, UNINSTALL_KEY)
+        vals = [
+            ("DisplayName", APP_NAME),
+            ("DisplayVersion", APP_VER),
+            ("Publisher", "gxgx3456"),
+            ("DisplayIcon", pythonw_runtime),
+            ("InstallLocation", target),
+            ("UninstallString", '"%s" "%s"' % (pythonw_runtime, unw)),
+            ("HelpLink", "mailto:%s" % AUTHOR_EMAIL),
+            ("Contact", AUTHOR_EMAIL),
+            ("Comments", "遇到 Bug 请邮件反馈 / Report bugs: %s" % AUTHOR_EMAIL),
+            ("NoModify", 1),
+            ("NoRepair", 1),
+        ]
+        for name, value in vals:
+            if isinstance(value, int):
+                winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
+            else:
+                winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
+        winreg.CloseKey(key)
+        log(tr("inst_uninstall_registered"))
+    except OSError as e:
+        log(tr("inst_uninstall_reg_fail") % e)
+
+
+def perform_install(target, log=None, status=None, cancelled=None, ask_manual=None,
+                    opt_shortcut=True, opt_launch=True, lang=None):
+    """完整安装流程（GUI / CLI 共用）：Python 便携运行时 -> 程序本体 -> 注册卸载 -> 快捷方式。"""
+    log = log or (lambda m: None)
+    status = status or (lambda m, p=None: None)
+    cancelled = cancelled or (lambda: False)
+
+    dl = os.path.join(target, "_downloads")
+    pydir = os.path.join(target, "runtime", "python")
+    appdir = os.path.join(target, "app")
+    os.makedirs(dl, exist_ok=True)
+
+    apply_env_fix(log)  # 系统代理是 socks（VPN）时改为直连，否则 urllib / pip 全挂
+
+    # 1. Python 便携运行时
+    pyexe = install_embed_runtime(pydir, dl, log, status, cancelled, ask_manual)
+    log("运行时 Python 就绪: %s" % pyexe)
+
+    # 2. 复制程序本体（PyTorch / PySide6 等组件由首次启动引导器下载）
+    status(tr("inst_copy_app"), 80)
+    src = app_source_dir()
+    # logs / __pycache__ 不复制：一是避免把旧日志带过去，二是软件运行时 app.log
+    # 会被占用（Windows 下删不掉），复制它会让"正在用的软件上重装"直接失败
+    ignore = shutil.ignore_patterns("logs", "__pycache__", "*.pyc")
+    if os.path.exists(appdir):
+        try:
+            shutil.rmtree(appdir)
+        except OSError as e:
+            log(tr("inst_appdir_busy") % _err_text(e))
+    try:
+        shutil.copytree(src, appdir, dirs_exist_ok=True, ignore=ignore)
+    except OSError as e:
+        raise RuntimeError(tr("inst_appdir_locked") % _err_text(e))
+
+    # 3. 配置 + 便捷脚本
+    with open(os.path.join(target, "settings.json"), "w", encoding="utf-8") as f:
+        f.write(
+            '{"app": {"install_dir": "%s"}, "ui": {"language": "%s"}}'
+            % (target.replace("\\", "\\\\"), lang or get_lang())
+        )
+    _write_launchers(target, appdir, pydir, log)
+
+    # 4. 卸载入口
+    status(tr("inst_register_uninstall"), 90)
+    register_uninstall(target, os.path.join(pydir, "pythonw.exe"), log)
+
+    # 5. 快捷方式 + 启动
+    status(tr("inst_create_shortcut"), 94)
+    launch_target, launch_args = launcher_cmd(appdir, pydir)
+    if opt_shortcut:
+        make_shortcut(launch_target, launch_args, appdir, log)
+    else:
+        log(tr("inst_skip_shortcut"))
+
+    if opt_launch:
+        try:
+            subprocess.Popen(
+                [launch_target] + ([launch_args] if launch_args else []),
+                cwd=appdir, creationflags=CREATE_NO_WINDOW,
+            )
+            log(tr("inst_launching"))
+        except Exception as e:
+            log(tr("inst_launch_fail") % e)
+
+    status(tr("inst_done"), 100)
+    log(tr("inst_done_log") % APP_NAME)
+    return target
+
+
+# --------------------------------------------------------------------------
+# GUI
+# --------------------------------------------------------------------------
+class Installer(tk.Tk if tk else object):
     def __init__(self):
         super().__init__()
         self.title(tr("inst_title"))
@@ -171,7 +706,7 @@ class Installer(tk.Tk):
 
     def _apply_lang(self):
         self.title(tr("inst_title"))
-        self.title_label.config(text=tr("inst_heading") % APP_NAME)
+        self.title_label.config(text=tr("inst_heading") % (APP_NAME, APP_VER))
         self.desc_label.config(text=tr("inst_desc"))
         self.dir_label.config(text=tr("inst_dir_label"))
         self.cb_shortcut.config(text=tr("inst_opt_shortcut"))
@@ -237,14 +772,14 @@ class Installer(tk.Tk):
         self.set_status(tr("inst_cancelling"))
 
     def ask_manual_file(self):
-        """所有源下载失败时，让用户选择本地已下载的 Python 安装包。"""
+        """所有源下载失败时，让用户选择本地已下载的 Python 便携包。"""
         box = {"path": None}
         ev = threading.Event()
 
         def ask():
             p, _ = filedialog.askopenfilename(
                 title=tr("inst_manual_pick_title"),
-                filetypes=[("Python 安装包", PY_NAME), ("所有文件", "*.*")],
+                filetypes=[PY_NAME, ("所有文件", "*.*")],
             )
             box["path"] = p or None
             ev.set()
@@ -261,326 +796,19 @@ class Installer(tk.Tk):
         self.btn_cancel.config(state="normal")
         threading.Thread(target=self.run_install, daemon=True).start()
 
-    def run_cmd(self, args, cwd=None):
-        proc = subprocess.Popen(
-            args,
-            cwd=cwd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            creationflags=CREATE_NO_WINDOW,
-        )
-        for line in proc.stdout:
-            line = line.strip()
-            if line:
-                self.log_msg(line)
-        return proc.wait()
-
-    def _cleanup_partial(self, dest):
-        for p in (dest + ".part", dest):
-            try:
-                if os.path.exists(p):
-                    os.remove(p)
-            except OSError:
-                pass
-
-    def _validate_dl(self, dest):
-        """下载结果体积校验，防止拿到错误页/半截包。"""
-        if not os.path.exists(dest) or os.path.getsize(dest) < MIN_PY_SIZE:
-            raise RuntimeError(tr("inst_size_bad"))
-
-    def _fetch_urllib(self, url, dest):
-        self.log_msg(tr("inst_download_log") % url)
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        tmp = dest + ".part"
-        with urllib.request.urlopen(req, timeout=60) as r:
-            total = int(r.headers.get("Content-Length") or 0)
-            done = 0
-            with open(tmp, "wb") as f:
-                while True:
-                    chunk = r.read(256 * 1024)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-                    done += len(chunk)
-                    if total:
-                        pct = 5 + int(15 * done / total)
-                        self.set_status(tr("inst_download_python_pct") % pct, pct)
-                    if self.cancel_flag:
-                        raise RuntimeError(tr("inst_cancelled"))
-        os.replace(tmp, dest)
-
-    def _fetch_curl(self, url, dest):
-        """系统 curl 兜底（Win10 自带）：独立网络栈，能绕开 Python 网络层的问题。"""
-        curl = shutil.which("curl")
-        if not curl:
-            raise RuntimeError(tr("inst_no_curl"))
-        self.log_msg(tr("inst_download_curl") % url)
-        tmp = dest + ".part"
-        self.set_status(tr("inst_download_curl_run"), 4)
-        rc = subprocess.call(
-            [curl, "-L", "--fail", "-sS", "--retry", "2",
-             "--connect-timeout", "15", "--speed-time", "30",
-             "--speed-limit", "1024", "-o", tmp, url],
-            creationflags=CREATE_NO_WINDOW,
-        )
-        if rc != 0:
-            if os.path.exists(tmp):
-                try:
-                    os.remove(tmp)
-                except OSError:
-                    pass
-            raise RuntimeError(tr("inst_curl_rc") % rc)
-        os.replace(tmp, dest)
-
-    def download(self, url, dest):
-        """单个源：先 urllib，失败再 curl，成功后做体积校验。"""
-        try:
-            self._fetch_urllib(url, dest)
-        except Exception as e1:
-            if self.cancel_flag:
-                raise
-            self.log_msg(tr("inst_python_dl_fail") % e1)
-            try:
-                if os.path.exists(dest + ".part"):
-                    os.remove(dest + ".part")
-            except OSError:
-                pass
-            self._fetch_curl(url, dest)
-        self._validate_dl(dest)
-
     def run_install(self):
         try:
             target = self.dir_var.get().strip() or r"D:\AIGC_Detector"
-            dl = os.path.join(target, "_downloads")
-            runtime = os.path.join(target, "runtime")
-            pydir = os.path.join(runtime, "python")
-            venv = os.path.join(runtime, "venv")
-            appdir = os.path.join(target, "app")
-            os.makedirs(dl, exist_ok=True)
-
-            # 1. Python 运行时（优先复用已有 runtime，其次系统 Python，最后官方安装器）
-            pyexe_path = os.path.join(pydir, "python.exe")
-
-            def python_ok(exe):
-                """验证 Python 能完整初始化（标准库 encodings 可用）。"""
-                try:
-                    out = subprocess.run(
-                        [exe, "-c", "import encodings, sys; print(sys.prefix)"],
-                        capture_output=True, text=True, timeout=60,
-                        creationflags=CREATE_NO_WINDOW,
-                    )
-                    return out.returncode == 0 and bool(out.stdout.strip())
-                except Exception:
-                    return False
-
-            have_runtime = os.path.exists(pyexe_path) and python_ok(pyexe_path)
-            if have_runtime:
-                self.log_msg("检测到可用的本地运行时 Python，跳过安装")
-                self.set_status(tr("inst_python_installed"), 25)
-
-            if not have_runtime:
-                # 坏的旧 runtime 一律清掉，避免半成品干扰
-                if os.path.exists(pydir):
-                    shutil.rmtree(pydir, ignore_errors=True)
-
-                sys_python = None
-                for cmd in ["python", "python3", "python3.12"]:
-                    for ext in ["", ".exe"]:
-                        try:
-                            out = subprocess.run(
-                                [cmd + ext, "-c", "import sys; print(sys.version)"],
-                                capture_output=True, text=True, timeout=10,
-                                creationflags=CREATE_NO_WINDOW,
-                            )
-                            if out.returncode == 0 and "3.12" in out.stdout:
-                                sys_python = shutil.which(cmd + ext)
-                                self.log_msg("检测到系统 Python: %s (%s)" % (sys_python, out.stdout.strip()))
-                                break
-                        except Exception:
-                            pass
-                    if sys_python:
-                        break
-
-                if sys_python:
-                    # python.exe 就在 Python 根目录，只取一层 dirname
-                    sys_py_dir = os.path.dirname(sys_python)
-                    self.log_msg("系统 Python 目录: %s" % sys_py_dir)
-                    # 只有带完整标准库的源目录才值得复制
-                    if os.path.exists(os.path.join(sys_py_dir, "Lib", "encodings")):
-                        try:
-                            shutil.copytree(sys_py_dir, pydir)
-                            self.log_msg("已复制系统 Python 到目标目录")
-                        except Exception as e:
-                            self.log_msg("复制失败: %s，改用官方安装器" % e)
-                    else:
-                        self.log_msg("系统 Python 缺少 Lib 标准库，不复制，改用官方安装器")
-                    # 复制后必须验证可用，不可用就删掉走官方安装器
-                    if os.path.exists(pyexe_path) and python_ok(pyexe_path):
-                        have_runtime = True
-                        self.set_status(tr("inst_python_installed"), 25)
-                    elif os.path.exists(pydir):
-                        shutil.rmtree(pydir, ignore_errors=True)
-
-            if not have_runtime and not os.path.exists(pyexe_path):
-                pyexe = os.path.join(dl, PY_NAME)
-                if not os.path.exists(pyexe):
-                    self.set_status(tr("inst_download_python"), 3)
-                    err = None
-                    for u in PY_URLS:
-                        try:
-                            self.download(u, pyexe)
-                            err = None
-                            break
-                        except Exception as e:
-                            err = e
-                            self.log_msg(tr("inst_python_dl_fail") % e)
-                            self._cleanup_partial(pyexe)
-                            if self.cancel_flag:
-                                raise RuntimeError(tr("inst_cancelled"))
-                    if err:
-                        # 全部源失败：允许手动指定本地已下载的安装包
-                        self.log_msg(tr("inst_all_dl_fail") % err)
-                        manual = self.ask_manual_file()
-                        if manual:
-                            self.log_msg("使用本地安装包: %s" % manual)
-                            shutil.copyfile(manual, pyexe)
-                        else:
-                            raise RuntimeError(tr("inst_python_dl_err") % err)
-                else:
-                    self.set_status(tr("inst_python_downloaded"), 20)
-
-                self.set_status(tr("inst_install_python"), 22)
-                self.log_msg("目标目录: %s" % pydir)
-                os.makedirs(pydir, exist_ok=True)
-                args = [
-                    pyexe, "/quiet",
-                    "InstallAllUsers=0",
-                    "TargetDir=%s" % pydir,
-                    "Include_pip=1", "Include_launcher=0",
-                    "PrependPath=0", "Shortcuts=0", "Include_test=0",
-                ]
-                self.log_msg("执行: %s" % " ".join(args))
-                rc = subprocess.call(args, creationflags=CREATE_NO_WINDOW)
-                self.log_msg("退出码: %d" % rc)
-                if rc == 3010:
-                    self.log_msg("需要重启完成安装，不影响继续使用")
-
-                # 校验：python.exe + 完整标准库 + 可初始化，缺一不可
-                def runtime_valid(d):
-                    return (
-                        os.path.exists(os.path.join(d, "python.exe"))
-                        and os.path.exists(os.path.join(d, "Lib", "encodings"))
-                        and python_ok(os.path.join(d, "python.exe"))
-                    )
-
-                def find_installed_python():
-                    """机器上有旧注册记录时，官方安装器可能无视 TargetDir
-                    装到别处——从注册表找它实际安装的位置。"""
-                    try:
-                        import winreg
-                    except ImportError:
-                        return None
-                    for hive, view in (
-                        (winreg.HKEY_CURRENT_USER, 0),
-                        (winreg.HKEY_LOCAL_MACHINE, winreg.KEY_WOW64_64KEY),
-                        (winreg.HKEY_LOCAL_MACHINE, winreg.KEY_WOW64_32KEY),
-                    ):
-                        for tag in ("3.12", "3.12-32"):
-                            try:
-                                k = winreg.OpenKey(
-                                    hive,
-                                    r"Software\Python\PythonCore\%s\InstallPath" % tag,
-                                    0,
-                                    view | winreg.KEY_READ,
-                                )
-                                d = winreg.QueryValueEx(k, "")[0].rstrip("\\")
-                                self.log_msg("注册表指向的安装位置: %s" % d)
-                                if runtime_valid(d):
-                                    return d
-                            except OSError:
-                                continue
-                    return None
-
-                local_appdata = os.environ.get("LOCALAPPDATA", "")
-                default_py = os.path.join(local_appdata, "Programs", "Python", "Python312")
-
-                def recover_runtime():
-                    """TargetDir 无效时，从注册表/默认位置找回并复制。"""
-                    src = find_installed_python()
-                    if not src and runtime_valid(default_py):
-                        src = default_py
-                    if src:
-                        self.log_msg("从 %s 复制到目标目录" % src)
-                        shutil.rmtree(pydir, ignore_errors=True)
-                        try:
-                            shutil.copytree(src, pydir)
-                        except Exception as e:
-                            self.log_msg("复制失败: %s" % e)
-
-                if not runtime_valid(pydir):
-                    recover_runtime()
-
-                # 仍无效：改用 /passive 可见安装重试一次（静默模式偶发被拦截/静默失败）
-                if not runtime_valid(pydir):
-                    self.log_msg("静默安装未生效，改用可见安装重试一次")
-                    args2 = list(args)
-                    args2[1] = "/passive"
-                    rc2 = subprocess.call(args2, creationflags=CREATE_NO_WINDOW)
-                    self.log_msg("重试退出码: %d" % rc2)
-                    if not runtime_valid(pydir):
-                        recover_runtime()
-                    if not runtime_valid(pydir):
-                        raise RuntimeError(tr("inst_python_inst_err") % rc)
-            else:
-                self.set_status(tr("inst_python_installed"), 25)
-
-            # 2. venv
-            if not os.path.exists(os.path.join(venv, "Scripts", "python.exe")):
-                self.set_status(tr("inst_create_venv"), 60)
-                self.run_cmd([os.path.join(pydir, "python.exe"), "-m", "venv", venv])
-            vp = os.path.join(venv, "Scripts", "python.exe")
-            if not os.path.exists(vp):
-                raise RuntimeError("虚拟环境创建失败（venv 不存在），请查看上方日志")
-
-            # 3. 复制软件（PyTorch / PySide6 等组件由首次启动引导器下载）
-            self.set_status(tr("inst_copy_app"), 80)
-            if os.path.exists(appdir):
-                shutil.rmtree(appdir)
-            shutil.copytree(app_source_dir(), appdir)
-
-            # 4. 配置文件 + 快捷方式
-            with open(os.path.join(target, "settings.json"), "w", encoding="utf-8") as f:
-                f.write(
-                    '{"app": {"install_dir": "%s"}, "ui": {"language": "%s"}}'
-                    % (target.replace("\\", "\\\\"), get_lang())
-                )
-
-            self.set_status(tr("inst_register_uninstall"), 90)
-            pythonw_runtime = os.path.join(pydir, "pythonw.exe")
-            self.register_uninstall(target, pythonw_runtime)
-
-            self.set_status(tr("inst_create_shortcut"), 94)
-            pythonw = os.path.join(venv, "Scripts", "pythonw.exe")
-            if self.chk_shortcut.get():
-                self.make_shortcut(pythonw, os.path.join(appdir, "first_run.py"), appdir)
-            else:
-                self.log_msg(tr("inst_skip_shortcut"))
-
-            if self.chk_launch.get():
-                try:
-                    subprocess.Popen(
-                        [pythonw, os.path.join(appdir, "first_run.py")],
-                        cwd=appdir, creationflags=CREATE_NO_WINDOW,
-                    )
-                    self.log_msg(tr("inst_launching"))
-                except Exception as e:
-                    self.log_msg(tr("inst_launch_fail") % e)
-
-            self.set_status(tr("inst_done"), 100)
-            self.log_msg(tr("inst_done_log") % APP_NAME)
+            perform_install(
+                target,
+                log=self.log_msg,
+                status=self.set_status,
+                cancelled=lambda: self.cancel_flag,
+                ask_manual=self.ask_manual_file,
+                opt_shortcut=self.chk_shortcut.get(),
+                opt_launch=self.chk_launch.get(),
+                lang=get_lang(),
+            )
             self._ui(
                 lambda: messagebox.showinfo(
                     tr("inst_done_title"),
@@ -595,63 +823,35 @@ class Installer(tk.Tk):
             self.btn_start.config(state="normal")
             self.btn_cancel.config(state="disabled")
 
-    def register_uninstall(self, target, pythonw_runtime):
-        """写入卸载器并注册到 Windows「设置 > 应用 / 控制面板卸载程序」。"""
-        unw = os.path.join(target, "uninstall.pyw")
-        try:
-            with open(unw, "w", encoding="utf-8") as f:
-                f.write(
-                    UNINSTALLER_TEMPLATE
-                    .replace("@TARGET@", target)
-                    .replace("@EMAIL@", AUTHOR_EMAIL)
-                )
-        except OSError as e:
-            self.log_msg("写入卸载器失败: %s" % e)
-            return
-        try:
-            import winreg
 
-            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, UNINSTALL_KEY)
-            vals = [
-                ("DisplayName", APP_NAME),
-                ("DisplayVersion", APP_VER),
-                ("Publisher", "gxgx3456"),
-                ("DisplayIcon", pythonw_runtime),
-                ("InstallLocation", target),
-                ("UninstallString", '"%s" "%s"' % (pythonw_runtime, unw)),
-                ("HelpLink", "mailto:%s" % AUTHOR_EMAIL),
-                ("Contact", AUTHOR_EMAIL),
-                ("Comments", "遇到 Bug 请邮件反馈 / Report bugs: %s" % AUTHOR_EMAIL),
-                ("NoModify", 1),
-                ("NoRepair", 1),
-            ]
-            for name, value in vals:
-                if isinstance(value, int):
-                    winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
-                else:
-                    winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
-            winreg.CloseKey(key)
-            self.log_msg(tr("inst_uninstall_registered"))
-        except OSError as e:
-            self.log_msg(tr("inst_uninstall_reg_fail") % e)
-
-    @staticmethod
-    def make_shortcut(target, args, workdir):
-        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-        lnk = os.path.join(desktop, "%s.lnk" % APP_NAME)
-        ps = (
-            "$ws = New-Object -ComObject WScript.Shell;"
-            "$s = $ws.CreateShortcut('%s');"
-            "$s.TargetPath = '%s';"
-            "$s.Arguments = '%s';"
-            "$s.WorkingDirectory = '%s';"
-            "$s.Save()" % (lnk, target, args, workdir)
+def _cli(argv):
+    """无界面安装：python installer.py --cli [目标目录]。自测 / 静默部署用。"""
+    target = None
+    for i, a in enumerate(argv):
+        if a in ("--cli", "--install-cli") and i + 1 < len(argv) and not argv[i + 1].startswith("--"):
+            target = argv[i + 1]
+    target = target or r"D:\AIGC_Detector"
+    print("[CLI] 安装目标: %s" % target)
+    try:
+        perform_install(
+            target,
+            log=lambda m: print("  " + str(m), flush=True),
+            status=lambda m, p=None: print("[状态] %s%s" % (m, "" if p is None else " (%d%%)" % p), flush=True),
+            opt_shortcut="--no-shortcut" not in argv,
+            opt_launch=False,
         )
-        subprocess.call(
-            ["powershell", "-NoProfile", "-Command", ps],
-            creationflags=CREATE_NO_WINDOW,
-        )
+    except Exception as e:
+        print("[CLI] 安装失败: %s" % e)
+        return 1
+    print("[CLI] 安装完成: %s" % target)
+    return 0
 
 
 if __name__ == "__main__":
+    if "--cli" in sys.argv or "--install-cli" in sys.argv:
+        sys.exit(_cli(sys.argv[1:]))
+    if tk is None:
+        print("当前解释器缺少 tkinter，无法显示安装界面。请直接双击安装器 exe，"
+              "或使用命令行：installer.exe --cli <目标目录>")
+        sys.exit(2)
     Installer().mainloop()

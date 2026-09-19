@@ -16,6 +16,13 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
   直到达标或最大轮数）；安装器下载多镜像 + curl 兜底 + 支持手动选择本地安装包
 - v1.2.4 新增：支持在 Windows「设置 > 应用 / 控制面板」卸载（含 bug 反馈邮箱）、
   安装时可勾选桌面快捷方式与完成后立即运行、安装器全屏按钮移至右上角
+- v1.2.5 修复：打开闪退（torch 被安全软件拦截时改为容错启动并提示）
+- v1.2.6 修复：高分屏（缩放 125%/150%）下的文字重影；界面按设计规范重做
+- v1.2.7 修复（重点，安装/下载成功率）：
+  ① 安装器改用官方 embeddable 便携包（解压即用，不写注册表、不需要管理员权限），
+     彻底解决「静默安装退出码 0 却没装上」「卸载/修复报 1603」
+  ② 新增网络自愈：VPN 常把系统代理设成 socks://，Python 的 urllib/pip 不支持 →
+     自动改直连；下载链路升级为 urllib → 直连 → 系统 curl 三段兜底
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -141,6 +148,17 @@ a paragraph-level report.
 - New in v1.2.4: uninstall entry in Windows Settings > Apps / Control Panel
   (with bug-report email), installer options for desktop shortcut and
   launch-after-install, fullscreen button moved to the top-right corner
+- v1.2.5 fix: crash on launch when torch is blocked by security software
+  (falls back gracefully with a clear message)
+- v1.2.6 fix: garbled/double text on HiDPI scaling (125% / 150%); UI rebuilt
+  according to the design spec
+- v1.2.7 fix (installation & download reliability):
+  1) installer now uses the official embeddable portable package (no registry,
+     no admin rights) - fixes the "silent install exits 0 but nothing installed"
+     and "uninstall/repair fails with 1603" dead end
+  2) network self-heal: VPN clients often set a socks:// system proxy which
+     Python's urllib/pip cannot use - now auto-switched to direct connection;
+     download chain is urllib -> direct -> system curl
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis

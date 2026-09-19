@@ -11,3 +11,10 @@ dist/*
 .build_venv/
 fix_umivpn_permission.bat
 telemetry_queue.json
+
+# PyInstaller 中间产物（多目录并行打包时的临时工作目录）
+build[0-9]*/
+dist[0-9]*/
+dist_first/
+tools/ui_verify_*.png
+app/logs/
