@@ -113,9 +113,16 @@
 
 ## 支持与赞赏 · Support
 
-这个项目是完全免费开源的。如果你觉得它有一点帮助，**把项目分享给需要的同学**、或者点个 ⭐ **Star**，就是最好的支持。
+这个项目是完全免费开源的。如果它对你有一点帮助，可以**请作者喝杯奶茶**，支持继续开发；或者**把项目分享给需要的同学**、点个 ⭐ **Star**，同样是最好的支持。
 
-想直接鼓励作者的话，发邮件到 **gxgx3456@qq.com** 说声加油也很开心（赞赏二维码已从仓库移除，如需可邮件索取）。
+<p align="center">
+  <img src="docs/donate/alipay.jpg" width="220" alt="支付宝赞赏码 / Alipay" title="支付宝 / Alipay">
+  <img src="docs/donate/wechat_pay.jpg" width="220" alt="微信支付赞赏码 / WeChat Pay" title="微信支付 / WeChat Pay">
+</p>
+
+<p align="center">支付宝（Alipay）｜微信支付（WeChat Pay）</p>
+
+也欢迎发邮件到 **gxgx3456@qq.com** 说声加油。
 
 ### For international users
 
@@ -125,7 +132,7 @@ You can also **gift an AI API key** (any provider is welcome) to **gxgx3456@qq.c
 - API / model URL and port (模型地址与端口)
 - If you'd like to be credited, mark it as "特别感谢 / Special Thanks"
 
-Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice.
+Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
 
 ## 技术架构
 

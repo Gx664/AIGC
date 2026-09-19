@@ -127,9 +127,16 @@ Thanks to both authors and their communities for making the full detect → diag
 
 ## Support & Donate
 
-This project is completely free and open source. If it helped you, the best way to support it is to **share it with someone who needs it** or give it a ⭐ **Star**.
+This project is completely free and open source. If it helped you, you are welcome to **buy the author a milk tea** to support further development — or simply **share it with someone who needs it** / give it a ⭐ **Star**, which helps just as much.
 
-You're also welcome to just drop a line to **gxgx3456@qq.com** (the donation QR codes have been removed from this repo; email me if you'd like them).
+<p align="center">
+  <img src="docs/donate/alipay.jpg" width="220" alt="Alipay QR code" title="Alipay">
+  <img src="docs/donate/wechat_pay.jpg" width="220" alt="WeChat Pay QR code" title="WeChat Pay">
+</p>
+
+<p align="center">Alipay ｜ WeChat Pay</p>
+
+You're also welcome to just drop a line to **gxgx3456@qq.com**.
 
 ### For international users
 
@@ -139,7 +146,7 @@ You can also **gift an AI API key** (any provider is welcome) to **gxgx3456@qq.c
 - API / model URL and port
 - If you'd like to be credited, mark it as "特别感谢 / Special Thanks"
 
-Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice.
+Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
 
 ## Tech Stack
 
