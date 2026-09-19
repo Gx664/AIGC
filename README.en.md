@@ -4,6 +4,14 @@
 
 <p align="center"><a href="README.md">中文</a> | <b>English</b></p>
 
+## 📖 User Manual
+
+**Read the manual first.** Installation, detection, diagnosis + rewrite, the auto de-AI loop, LAN compute pooling, and troubleshooting (including every install / download error we know about) are all covered here:
+
+- 👉 **[使用手册.md](使用手册.md)** — complete manual, **written in Chinese** (the app UI itself is bilingual 中文 / English)
+- 📝 **[Changelog CHANGELOG.md](CHANGELOG.md)** — what changed in each version
+- ❓ Something not covered? See [Bug Reports](#bug-reports) at the end, just send an email
+
 ## Introduction
 
 A **fully local** AIGC detection desktop tool: drag in a paper (PDF / DOCX / TXT), choose a detection engine, and get the overall AI-written ratio plus a paragraph-level report.
