@@ -18,3 +18,4 @@ dist[0-9]*/
 dist_first/
 tools/ui_verify_*.png
 app/logs/
+tools/screen_*.png
