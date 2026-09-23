@@ -1,7 +1,7 @@
 # AIGC Detector Toolkit
 
 <p align="center">
-  <img src="docs/icon_256.png" width="120" alt="AIGC Detector Toolkit">
+  <img src="app/assets/icon.png" width="120" alt="AIGC Detector Toolkit">
 </p>
 
 > Free local AI-written ratio detection - dorm PCs can run it, your paper never leaves your computer, and the results stay in your hands.
@@ -164,8 +164,8 @@ Thanks to both authors and their communities for making the full detect → diag
 This project is completely free and open source. If it helped you, you are welcome to **buy the author a milk tea** to support further development — or simply **share it with someone who needs it** / give it a ⭐ **Star**, which helps just as much.
 
 <p align="center">
-  <img src="docs/donate/alipay.jpg" width="220" alt="Alipay QR code" title="Alipay">
-  <img src="docs/donate/wechat_pay.jpg" width="220" alt="WeChat Pay QR code" title="WeChat Pay">
+  <img src="app/assets/donate/alipay.jpg" width="220" alt="Alipay QR code" title="Alipay">
+  <img src="app/assets/donate/wechat_pay.jpg" width="220" alt="WeChat Pay QR code" title="WeChat Pay">
 </p>
 
 <p align="center">Alipay ｜ WeChat Pay</p>
@@ -180,7 +180,7 @@ You can also **gift an AI API key** (any provider is welcome) to **gxgx3456@qq.c
 - API / model URL and port
 - If you'd like to be credited, mark it as "特别感谢 / Special Thanks"
 
-Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
+Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [app/assets/donate/deepseek_usage.png](app/assets/donate/deepseek_usage.png))
 
 ## Tech Stack
 

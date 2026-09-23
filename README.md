@@ -1,7 +1,7 @@
 # AI 检测工具箱（AIGC Detector Toolkit）
 
 <p align="center">
-  <img src="docs/icon_256.png" width="120" alt="AI 检测工具箱">
+  <img src="app/assets/icon.png" width="120" alt="AI 检测工具箱">
 </p>
 
 <p align="center"><b>中文</b> | <a href="README.en.md">English</a></p>
@@ -150,8 +150,8 @@
 这个项目是完全免费开源的。如果它对你有一点帮助，可以**请作者喝杯奶茶**，支持继续开发；或者**把项目分享给需要的同学**、点个 ⭐ **Star**，同样是最好的支持。
 
 <p align="center">
-  <img src="docs/donate/alipay.jpg" width="220" alt="支付宝赞赏码 / Alipay" title="支付宝 / Alipay">
-  <img src="docs/donate/wechat_pay.jpg" width="220" alt="微信支付赞赏码 / WeChat Pay" title="微信支付 / WeChat Pay">
+  <img src="app/assets/donate/alipay.jpg" width="220" alt="支付宝赞赏码 / Alipay" title="支付宝 / Alipay">
+  <img src="app/assets/donate/wechat_pay.jpg" width="220" alt="微信支付赞赏码 / WeChat Pay" title="微信支付 / WeChat Pay">
 </p>
 
 <p align="center">支付宝（Alipay）｜微信支付（WeChat Pay）</p>
@@ -166,7 +166,7 @@ You can also **gift an AI API key** (any provider is welcome) to **gxgx3456@qq.c
 - API / model URL and port (模型地址与端口)
 - If you'd like to be credited, mark it as "特别感谢 / Special Thanks"
 
-Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [docs/donate/deepseek_usage.png](docs/donate/deepseek_usage.png))
+Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [app/assets/donate/deepseek_usage.png](app/assets/donate/deepseek_usage.png))
 
 ## 技术架构
 
