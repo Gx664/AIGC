@@ -127,9 +127,6 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 统计：仅本地运行日志（可导出）；不含任何遥测上报
 打包：小体积安装器，环境按需下载（先检查、缺什么装什么、带进度条）
 
-【开发声明】
-本项目由作者独立开发，部分代码由 DeepSeek V4 Flash + Codex 辅助编写与调试。
-
 【支持与赞赏 · Support】
 如果这个项目对你有一点帮助，可以请作者喝杯奶茶，支持继续开发：
 - 支付宝（Alipay） / 微信支付（WeChat Pay）：扫描软件内或项目主页的赞赏码即可
@@ -314,10 +311,6 @@ Logs: local run logs only (exportable); no telemetry is uploaded
 Packing: small installer; the runtime downloads on demand
 (checks first, installs what's missing, with a progress bar)
 
-[Development Note]
-Developed independently by the author; part of the code was written and
-debugged with the help of DeepSeek V4 Flash + Codex.
-
 [Support]
 If this project helped you a little, you are welcome to buy the author a
 milk tea to support further development:
@@ -337,10 +330,9 @@ DeepSeek V4 Flash is the most cost-effective choice.
 Click "Export Logs" in the app and send the package to: gxgx3456@qq.com
 
 [Disclaimer]
-The author is still a student;
-the code may have flaws. Please be kind - friendly suggestions and
-improvements are always welcome. This project is free and open source,
-for learning and exchange only.
+The author is still a student; the code may have flaws. Please be kind -
+friendly suggestions and improvements are always welcome. This project
+is free and open source, for learning and exchange only.
 
 [License] MIT
 """

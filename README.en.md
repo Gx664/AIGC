@@ -194,10 +194,6 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. I
 - Logs: local run logs only (exportable; never contains paper content); **no telemetry is uploaded**
 - Packing: small installer; the runtime downloads on demand (checks first, installs what's missing, with a progress bar)
 
-## Development Note
-
-Developed independently by the author; **part of the code was written and debugged with the help of DeepSeek V4 Flash + Codex**.
-
 ## Bug Reports
 
 Click "Export Logs" in the app and send the package to: **gxgx3456@qq.com**

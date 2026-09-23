@@ -180,10 +180,6 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value.
 - 日志：本地运行日志（可导出，不含论文内容）；**不含任何遥测上报**
 - 打包：小体积安装器，运行时环境按需下载（先检查、缺什么装什么、带进度条）
 
-## 开发声明
-
-本项目由作者独立开发，**部分代码由 DeepSeek V4 Flash + Codex 辅助编写与调试**。
-
 ## Bug 反馈
 
 软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**
