@@ -6,7 +6,7 @@ os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-BASE = r"C:\Users\user\Documents\Codex\2026-08-07\new-chat-2\outputs\AIGC_Toolkit"
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_ID = "Hello-SimpleAI/chatgpt-detector-roberta-chinese"
 MODEL_DIR = os.path.join(BASE, "models", "simpleai")
 
