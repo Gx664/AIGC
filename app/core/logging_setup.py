@@ -69,3 +69,5 @@ def export_logs(base_dir, out_zip):
                 if os.path.isfile(fp):
                     z.write(fp, "logs/" + fn)
         z.writestr("system_info.txt", collect_system_info(base_dir))
+
+# aigc-toolkit: file purpose marker
