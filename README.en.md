@@ -205,5 +205,3 @@ The author is still a student; the code may have flaws. Please be kind - friendl
 ## License
 
 [MIT](LICENSE)
-
-# aigc-toolkit: file purpose marker
