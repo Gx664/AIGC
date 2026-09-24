@@ -246,3 +246,5 @@ class TitleBar(QWidget):
 
     def mouseReleaseEvent(self, e):
         self._drag = False
+
+# aigc-toolkit: file purpose marker
