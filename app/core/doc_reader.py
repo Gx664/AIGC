@@ -65,5 +65,3 @@ def split_paragraphs(text, min_len=20):
         else:
             merged.append(p)
     return [p for p in merged if len(p) >= min_len]
-
-# aigc-toolkit: file purpose marker
