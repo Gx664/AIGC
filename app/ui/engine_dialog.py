@@ -360,5 +360,3 @@ class EngineDialog(QDialog):
             return
         self.mgr.remove(e["id"])
         self.refresh()
-
-# aigc-toolkit: file purpose marker
