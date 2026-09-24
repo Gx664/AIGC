@@ -380,5 +380,3 @@ def export_text(result, separator="\n\n"):
         head = "=== 第 %d 段（修改率 %d%%）===" % (r["index"], r["mod_ratio"] * 100)
         parts.append(head + "\n" + r["revised"])
     return separator.join(parts)
-
-# aigc-toolkit: file purpose marker
