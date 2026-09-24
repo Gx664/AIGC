@@ -875,5 +875,3 @@ if __name__ == "__main__":
               "或使用命令行：installer.exe --cli <目标目录>")
         sys.exit(2)
     Installer().mainloop()
-
-# aigc-toolkit: file purpose marker
