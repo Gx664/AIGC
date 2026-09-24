@@ -48,5 +48,3 @@ def build_report(paragraphs, probs, ratio, file_name, engine_name, threshold=0.5
         )
         html += footer
     return "".join(html)
-
-# aigc-toolkit: file purpose marker
