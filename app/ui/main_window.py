@@ -774,3 +774,5 @@ class MainWindow(QMainWindow):
         if self.worker_node:
             self.worker_node.stop()
         e.accept()
+
+# aigc-toolkit: file purpose marker
