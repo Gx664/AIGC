@@ -232,3 +232,5 @@ class ClusterWorker:
         except Exception:
             pass
         return "cpu"
+
+# aigc-toolkit: file purpose marker
