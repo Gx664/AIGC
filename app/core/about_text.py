@@ -336,5 +336,3 @@ is free and open source, for learning and exchange only.
 
 [License] MIT
 """
-
-# aigc-toolkit: file purpose marker
