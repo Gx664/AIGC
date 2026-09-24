@@ -227,5 +227,3 @@ class SettingsDialog(QDialog):
         if ret == QMessageBox.Yes:
             shutil.rmtree(model_dir, ignore_errors=True)
             self.progress_label.setText(tr("settings_deleted") % engine_cfg["id"])
-
-# aigc-toolkit: file purpose marker
