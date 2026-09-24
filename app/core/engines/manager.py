@@ -193,5 +193,3 @@ class EngineManager:
             return True, added
         except Exception as e:  # noqa: BLE001
             return False, str(e)
-
-# aigc-toolkit: file purpose marker
