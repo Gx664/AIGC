@@ -8,13 +8,13 @@
 
 <p align="center"><a href="README.md">中文</a> | <b>English</b></p>
 
-## 📖 User Manual
+## 📖 Start Here
 
-**Read the manual first.** Installation, detection, diagnosis + rewrite, the auto de-AI loop, LAN compute pooling, and troubleshooting (including every install / download error we know about) are all covered here:
-
-- 👉 **[使用手册.md](使用手册.md)** — complete manual, **written in Chinese** (the app UI itself is bilingual 中文 / English)
+- 👉 **[仓库文件说明.md](仓库文件说明.md)** — **what every file in this repo is for**, which ones must not be deleted, and how to run from source *(written in Chinese)*
 - 📝 **[Changelog CHANGELOG.md](CHANGELOG.md)** — what changed in each version
 - ❓ Something not covered? See [Bug Reports](#bug-reports) at the end, just send an email
+
+> **If you just want to install and use it, you only need one file: [`dist/AIGC_Toolkit_Setup.exe`](dist/AIGC_Toolkit_Setup.exe)** — download, double-click, and ignore everything else.
 
 ## ✨ Features
 
