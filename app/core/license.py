@@ -43,5 +43,3 @@ class License:
     def deactivate(self):
         if os.path.exists(self.path):
             os.remove(self.path)
-
-# aigc-toolkit: file purpose marker
