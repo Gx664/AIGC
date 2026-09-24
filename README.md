@@ -10,11 +10,11 @@
 
 ## 📖 从这里开始
 
-- 👉 **[仓库文件说明.md](仓库文件说明.md)** —— **每个文件是干什么的**、哪个能删哪个不能删、clone 下来怎么跑
+- 👉 **[仓库文件说明.md](仓库文件说明.md)** —— **每个文件是干什么的**、哪个能删哪个不能删、clone 下来怎么跑（[English](REPO_FILES.md)）
 - 📝 **[更新日志 CHANGELOG.md](CHANGELOG.md)** —— 每个版本改了什么
 - ❓ 遇到问题？见文末 [Bug 反馈](#bug-反馈)，直接发邮件
 
-> **只想安装使用的话，你只需要下载 [`dist/AIGC_Toolkit_Setup.exe`](dist/AIGC_Toolkit_Setup.exe) 一个文件**，双击安装即可，其余文件都不用管。
+> **只想安装使用的话，你只需要下载 [`AIGC_Toolkit_Setup.exe`](AIGC_Toolkit_Setup.exe) 一个文件**（就在本仓库根目录），双击安装即可，其余文件都不用管。
 
 ## ✨ 功能介绍
 

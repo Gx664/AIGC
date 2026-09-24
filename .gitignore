@@ -6,7 +6,7 @@ models/
 __pycache__/
 build/
 dist/*
-!dist/AIGC_Toolkit_Setup.exe
+!AIGC_Toolkit_Setup.exe
 *.spec
 .build_venv/
 fix_umivpn_permission.bat

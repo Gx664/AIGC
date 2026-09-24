@@ -10,11 +10,11 @@
 
 ## 📖 Start Here
 
-- 👉 **[仓库文件说明.md](仓库文件说明.md)** — **what every file in this repo is for**, which ones must not be deleted, and how to run from source *(written in Chinese)*
+- 👉 **[REPO_FILES.md](REPO_FILES.md)** — **what every file in this repo is for**, which ones must not be deleted, and how to run from source（[中文](仓库文件说明.md)）
 - 📝 **[Changelog CHANGELOG.md](CHANGELOG.md)** — what changed in each version
 - ❓ Something not covered? See [Bug Reports](#bug-reports) at the end, just send an email
 
-> **If you just want to install and use it, you only need one file: [`dist/AIGC_Toolkit_Setup.exe`](dist/AIGC_Toolkit_Setup.exe)** — download, double-click, and ignore everything else.
+> **If you just want to install and use it, you only need one file: [`AIGC_Toolkit_Setup.exe`](AIGC_Toolkit_Setup.exe)** — it sits right in the repo root. Download, double-click, and ignore everything else.
 
 ## ✨ Features
 
