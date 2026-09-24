@@ -211,5 +211,3 @@ class BaseEngine:
     # --------------------------------------------------------------- 推理
     def predict_paragraphs(self, paragraphs, device, progress_cb=None, **params):
         raise NotImplementedError
-
-# aigc-toolkit: file purpose marker
