@@ -586,3 +586,5 @@ def risk_label(level, lang="zh"):
     if lang == "zh":
         return {"high": "高风险", "medium": "中风险", "low": "低风险"}.get(level, level)
     return {"high": "High", "medium": "Medium", "low": "Low"}.get(level, level)
+
+# aigc-toolkit: file purpose marker
