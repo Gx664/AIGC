@@ -148,6 +148,18 @@ class MainWindow(QMainWindow):
         self.title_bar = TitleBar("%s  v%s" % (tr("app_name"), APP_VERSION), self)
         root.addWidget(self.title_bar)
 
+        # 标题栏下方常驻一行版权声明，让「禁止商业使用」一开窗就可见
+        _nc = QLabel(
+            "© 2026 gxgx3456 · 禁止商业使用 · Noncommercial use only"
+            if get_lang() != "en"
+            else "© 2026 gxgx3456 · Commercial use prohibited"
+        )
+        _nc.setAlignment(Qt.AlignCenter)
+        _nc.setStyleSheet(
+            "color:#94a3b8;font-size:11px;padding:1px 0 0 0;"
+        )
+        root.addWidget(_nc)
+
         body = QHBoxLayout()
         body.setSpacing(12)
         body.addWidget(self._build_left(), 2)
@@ -580,6 +592,25 @@ class MainWindow(QMainWindow):
         fit_to_screen(dlg, 760, 720)
         box = QVBoxLayout(dlg)
         box.setContentsMargins(16, 16, 16, 16)
+
+        # 禁止商业使用横幅：协议里写了还不够，软件里必须一眼看见
+        banner = QLabel(tr("nc_banner"))
+        banner.setAlignment(Qt.AlignCenter)
+        banner.setStyleSheet(
+            "background:#fee2e2;color:#b91c1c;font-size:15px;font-weight:700;"
+            "border:1px solid #fca5a5;border-radius:10px;padding:10px;"
+        )
+        banner.setToolTip(tr("nc_banner_tip"))
+        box.addWidget(banner)
+
+        nc_tip = QLabel(tr("nc_banner_tip"))
+        nc_tip.setWordWrap(True)
+        nc_tip.setStyleSheet(
+            "background:#fff7ed;color:#9a3412;font-size:12px;"
+            "border:1px solid #fed7aa;border-radius:8px;padding:8px;"
+        )
+        box.addWidget(nc_tip)
+
         text = QTextEdit()
         text.setReadOnly(True)
         text.setPlainText(ABOUT_TEXT_EN if get_lang() == "en" else ABOUT_TEXT)

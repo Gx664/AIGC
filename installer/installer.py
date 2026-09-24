@@ -26,7 +26,7 @@ except ImportError:  # pragma: no cover
     tk = filedialog = messagebox = ttk = None
 
 APP_NAME = "AI 检测工具箱"
-APP_VER = "1.3.0"
+APP_VER = "1.3.1"
 PY_VER = "3.12.10"
 PY_EMBED_NAME = "python-%s-embed-amd64.zip" % PY_VER
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"
@@ -598,18 +598,93 @@ def perform_install(target, log=None, status=None, cancelled=None, ask_manual=No
     log("运行时 Python 就绪: %s" % pyexe)
 
     # 2. 复制程序本体（PyTorch / PySide6 等组件由首次启动引导器下载）
+    #
+    # 覆盖安装的关键：只替换「程序代码」，用户数据一律保留。
+    # 早先这里是 shutil.rmtree(appdir) 整个删掉再复制，副作用有三：
+    #   ① 用户的 logs/ 被清空 —— 升级后出问题查不到旧日志；
+    #   ② 若用户在设置里没改模型路径，模型默认落在 <安装目录>/models，
+    #      旧的引导器还会把依赖塞在 app 目录 —— 一起被删，升级后要重下几个 GB；
+    #   ③ 软件正在运行时 app.log 被占用，rmtree 直接失败 → 覆盖安装装不上。
+    # 现在改为「按文件覆盖 + 显式保护 + 清理陈旧文件」。
     status(tr("inst_copy_app"), 80)
     src = app_source_dir()
-    # logs / __pycache__ 不复制：一是避免把旧日志带过去，二是软件运行时 app.log
-    # 会被占用（Windows 下删不掉），复制它会让"正在用的软件上重装"直接失败
     ignore = shutil.ignore_patterns("logs", "__pycache__", "*.pyc")
-    if os.path.exists(appdir):
+
+    # 这些目录在复制/清理时一律跳过，保留现场。
+    #   logs   —— 旧运行日志，升级后排查问题要用
+    #   models —— 用户已下载的模型（默认落在 <安装目录>/models），可能几个 GB
+    #   cache  —— HF / transformers 缓存
+    #   config —— 用户配置
+    KEEP_DIRS = {"logs", "models", "cache", "config"}
+
+    def _keep(rel):
+        """rel 是相对 appdir 的路径（POSIX 分隔符）。返回 True 表示保留旧文件。"""
+        first = rel.split("/", 1)[0]
+        return first in KEEP_DIRS
+
+    def _overwrite(src_dir, dst_dir, rel="", stats=None):
+        """按文件覆盖：新文件写入，旧文件不在新版本里的删掉（但跳过保护目录）。"""
+        stats = stats if stats is not None else {"add": 0, "upd": 0, "keep": 0, "del": 0}
         try:
-            shutil.rmtree(appdir)
-        except OSError as e:
-            log(tr("inst_appdir_busy") % _err_text(e))
+            entries = os.listdir(src_dir)
+        except OSError:
+            return stats
+        src_names = set()
+        for name in entries:
+            if name in ("logs", "__pycache__") or name.endswith(".pyc"):
+                continue
+            src_names.add(name)
+            s = os.path.join(src_dir, name)
+            d = os.path.join(dst_dir, name)
+            r = (rel + "/" + name) if rel else name
+            if os.path.isdir(s):
+                if os.path.exists(d) and not os.path.isdir(d):
+                    try:
+                        os.remove(d)
+                    except OSError:
+                        pass
+                os.makedirs(d, exist_ok=True)
+                _overwrite(s, d, r, stats)
+            else:
+                if os.path.exists(d) and os.path.isdir(d):
+                    # 新版本是文件、旧版本是目录 → 删旧目录
+                    shutil.rmtree(d, ignore_errors=True)
+                if not os.path.exists(d):
+                    stats["add"] += 1
+                else:
+                    stats["upd"] += 1
+                try:
+                    shutil.copy2(s, d)
+                except OSError as e:
+                    # 单文件被占用（多半是正在运行的 app.log 之类）→ 记日志继续，不中断整个安装
+                    log("  跳过被占用的文件 %s: %s" % (r, _err_text(e)))
+        # 清理：旧版本有、新版本没有的文件 —— 同样跳过保护目录
+        if os.path.isdir(dst_dir):
+            for name in os.listdir(dst_dir):
+                if name in src_names or name in ("logs", "__pycache__") or name.endswith(".pyc"):
+                    continue
+                r = (rel + "/" + name) if rel else name
+                if _keep(r):
+                    stats["keep"] += 1
+                    continue
+                p = os.path.join(dst_dir, name)
+                try:
+                    if os.path.isdir(p):
+                        shutil.rmtree(p, ignore_errors=True)
+                    else:
+                        os.remove(p)
+                    stats["del"] += 1
+                except OSError as e:
+                    log("  跳过被占用的旧文件 %s: %s" % (r, _err_text(e)))
+        return stats
+
     try:
-        shutil.copytree(src, appdir, dirs_exist_ok=True, ignore=ignore)
+        os.makedirs(appdir, exist_ok=True)
+        st = _overwrite(src, appdir)
+        log(
+            "覆盖安装完成：新增 %d，更新 %d，清理旧文件 %d，保留 %d"
+            % (st["add"], st["upd"], st["del"], st["keep"])
+        )
     except OSError as e:
         raise RuntimeError(tr("inst_appdir_locked") % _err_text(e))
 

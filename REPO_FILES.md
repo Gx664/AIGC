@@ -25,7 +25,7 @@
 | `README.md` | Chinese main documentation: features, principles, sources of the 9 methods, donation codes |
 | `README.en.md` | English documentation, mirroring `README.md` |
 | `CHANGELOG.md` | Changelog — what was added or fixed in each version |
-| `LICENSE` | The MIT license text |
+| `LICENSE` | License text: **PolyForm Noncommercial 1.0.0** — source is public, **all commercial use is prohibited**; free for personal study, research and noncommercial organizations |
 | `.gitignore` | Tells git which files to keep out of version control (build artifacts, caches, logs). **Do not delete** — without it, `build*/`, `dist*/` and `__pycache__` would get committed and bloat the repo. |
 | `engines_manifest.json` | **Remote engine manifest.** Fetched by "Engine Manager → Check for Updates" so new engines or model swaps can ship without repackaging the app. |
 
@@ -58,7 +58,7 @@
 | `settings.py` | Config read/write: decision threshold, parallelism, model paths, saved presets; also where the remote URL of `engines_manifest.json` is read |
 | `i18n.py` | Chinese/English UI string tables |
 | `about_text.py` | Text for the "About" window (one Chinese set, one English set) |
-| `license.py` | Free-edition checks plus a reserved interface for a Pro license (core features stay free forever) |
+| `license.py` | Free-edition checks plus a reserved interface for a Pro license (free forever for personal noncommercial use; commercial use requires a separate license) |
 | `netfix.py` | **Network self-healing.** Automatically bypasses unusable system proxies (e.g. a SOCKS proxy that makes pip/urllib fail outright) and falls back to a direct connection |
 | `logging_setup.py` | Logging initialization. Logs contain runtime info only — **no paper content, no telemetry** |
 | `detector.py` | Detection pipeline orchestration: split into paragraphs → call engines → aggregate results |
@@ -147,7 +147,7 @@ How to run (replace `<python>` with your interpreter):
 | `.gitignore` | Build artifacts, caches and logs get committed, and the repo balloons |
 | `engines_manifest.json` | "Check for updates" stops working; engines/models can no longer be added remotely |
 | `app/assets/icon.ico` | Packaging fails to find the icon |
-| `LICENSE` | The MIT license declaration becomes void |
+| `LICENSE` | The license declaration becomes void and others could use the code commercially with no recourse |
 
 ---
 

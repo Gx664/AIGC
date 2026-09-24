@@ -66,6 +66,9 @@ ZH = {
     "scanning_lan": "正在扫描局域网设备（30 秒内可再次查看）...\n%s",
     "cluster_log": "集群：%s\n%s",
     "about_title": "关于 AI 检测工具箱",
+    "nc_banner": "禁止商业使用 · Noncommercial only",
+    "nc_banner_tip": "本项目源码公开，但禁止任何形式的商业使用（PolyForm Noncommercial 1.0.0）。"
+                     "个人学习 / 研究 / 非营利组织使用免费。如需商用请联系 gxgx3456@qq.com 获得授权。",
     "lang_btn": "EN",
     "engine_mgr_title": "引擎管理",
     "engine_mgr_hint": "内置引擎可直接使用；自定义引擎可添加任意 HuggingFace 模型。",
@@ -380,6 +383,11 @@ EN = {
     "scanning_lan": "Scanning LAN devices (re-check in 30s)...\n%s",
     "cluster_log": "Cluster: %s\n%s",
     "about_title": "About AIGC Detector Toolkit",
+    "nc_banner": "Commercial use prohibited",
+    "nc_banner_tip": "The source code is public, but all commercial use is prohibited "
+                     "(PolyForm Noncommercial 1.0.0). Free for personal study, research "
+                     "and noncommercial organizations. For commercial licensing, contact "
+                     "gxgx3456@qq.com.",
     "lang_btn": "中文",
     "engine_mgr_title": "Engine Manager",
     "engine_mgr_hint": "Built-in engines work out of the box; custom engines can use any HuggingFace model.",

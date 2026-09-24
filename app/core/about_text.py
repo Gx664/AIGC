@@ -146,9 +146,23 @@ If you really want to gift one, DeepSeek V4 Flash is the most cost-effective.
 
 【免责声明】
 本人还是一名学生，代码可能存在不足，不好勿喷，
-欢迎友善的建议与改进。本项目免费开源，仅供学习交流。
+欢迎友善的建议与改进。
 
-【开源协议】MIT
+【开源协议 · 禁止商业使用】
+本项目的代码公开，但**禁止任何形式的商业使用**。
+采用 PolyForm Noncommercial License 1.0.0。
+
+✅ 允许：个人学习、研究、实验、测试；个人爱好项目；
+        学校 / 非营利组织 / 政府机构等非商业组织内部使用；
+        阅读源码、提交反馈、在保留协议与署名的前提下分享。
+❌ 禁止：任何商业用途（含公司内部使用、为客户提供服务、SaaS 托管）；
+        转售本软件或修改后的版本；
+        去除或篡改作者署名、版权声明；
+        用本项目代码 / 模型训练商业产品。
+
+如需商业授权，请联系：gxgx3456@qq.com
+
+> 本协议限制的是**他人**的商业使用，不影响作者本人对项目收费或提供商业授权。
 """
 
 ABOUT_TEXT_EN = """AIGC Detector Toolkit
@@ -331,8 +345,25 @@ Click "Export Logs" in the app and send the package to: gxgx3456@qq.com
 
 [Disclaimer]
 The author is still a student; the code may have flaws. Please be kind -
-friendly suggestions and improvements are always welcome. This project
-is free and open source, for learning and exchange only.
+friendly suggestions and improvements are always welcome.
 
-[License] MIT
+[License - Commercial Use Prohibited]
+The source code of this project is public, but **all commercial use is
+prohibited**. Licensed under the PolyForm Noncommercial License 1.0.0.
+
+Permitted: personal study, research, experiment and testing; personal hobby
+           projects; use inside noncommercial organizations (schools,
+           nonprofits, government bodies); reading the source and giving
+           feedback; sharing with the license and attribution kept intact.
+Prohibited: any commercial use (including internal company use, client work,
+            SaaS hosting); reselling the software or modified versions;
+            removing or altering the author's attribution or copyright
+            notices; using this project's code / models to train commercial
+            products.
+
+For commercial licensing, contact: gxgx3456@qq.com
+
+> This license restricts **third-party** commercial use only. It does not
+> prevent the author from charging for the project or offering commercial
+> licenses.
 """

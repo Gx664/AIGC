@@ -6,6 +6,12 @@
 
 > Free local AI-written ratio detection - dorm PCs can run it, your paper never leaves your computer, and the results stay in your hands.
 
+> ⛔ **Commercial use prohibited**
+> The source code is public, but **all commercial use is prohibited** — free for personal study,
+> research and noncommercial organizations, under the
+> [PolyForm Noncommercial License 1.0.0](LICENSE). For commercial use, contact the author for
+> written permission first. See [License](#license).
+
 <p align="center"><a href="README.md">中文</a> | <b>English</b></p>
 
 ## 📖 Start Here
@@ -48,7 +54,7 @@ A **fully local** AIGC detection desktop tool: drag in a paper (PDF / DOCX / TXT
   engine diagnoses AI traces (paragraph-level JSON report), then applies
   deterministic rewriting that keeps the academic register
 - **Bilingual UI**: the app and installer support one-click switching between 中文 / English
-- **Free & open source**: a paid API is reserved, but the core features stay free forever
+- **Free for personal use**: a paid API is reserved, but personal noncommercial use stays free forever; **any commercial use is prohibited**
 
 ## Detect → Diagnose → Treat (new in v1.1)
 
@@ -161,7 +167,9 @@ Thanks to both authors and their communities for making the full detect → diag
 
 ## Support & Donate
 
-This project is completely free and open source. If it helped you, you are welcome to **buy the author a milk tea** to support further development — or simply **share it with someone who needs it** / give it a ⭐ **Star**, which helps just as much.
+This project is completely free for personal use. If it helped you, you are welcome to **buy the author a milk tea** to support further development — or simply **share it with someone who needs it** / give it a ⭐ **Star**, which helps just as much.
+
+> ⚠️ **Commercial use of this project is prohibited.** Personal study, research and exchange are free; for commercial use, please contact the author for written permission first.
 
 <p align="center">
   <img src="app/assets/donate/alipay.jpg" width="220" alt="Alipay QR code" title="Alipay">
@@ -200,8 +208,29 @@ Click "Export Logs" in the app and send the package to: **gxgx3456@qq.com**
 
 ## Disclaimer
 
-The author is still a student; the code may have flaws. Please be kind - friendly suggestions and improvements are always welcome. This project is free and open source, for learning and exchange only.
+The author is still a student; the code may have flaws. Please be kind - friendly suggestions and improvements are always welcome.
 
 ## License
 
-[MIT](LICENSE)
+**The source code of this project is public, but commercial use is prohibited.** Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+
+### ✅ Permitted
+
+- Personal study, research, experiment, and testing
+- Personal hobby projects and private entertainment
+- Use inside noncommercial organizations (schools, nonprofits, government bodies)
+- Reading the source, filing issues, suggesting improvements
+- Redistribution and sharing, provided the license and attribution are kept
+
+### ❌ Prohibited
+
+- **Any commercial use** (including internal company use, client work, SaaS hosting, etc.)
+- **Reselling the software or modified versions**
+- **Removing or altering the author's attribution or copyright notices**
+- Using this project's code / models to train commercial products
+
+### Commercial licensing
+
+Please email **gxgx3456@qq.com** with the intended use and scope.
+
+> This license restricts **third-party** commercial use only. It does not prevent the author from charging for the project or offering commercial licenses.
