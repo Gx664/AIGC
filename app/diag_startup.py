@@ -131,5 +131,3 @@ if __name__ == "__main__":
         input("\n按回车键关闭...")
     except EOFError:
         pass
-
-# aigc-toolkit: file purpose marker
