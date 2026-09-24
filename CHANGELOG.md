@@ -205,5 +205,3 @@ GLTR/Binoculars 约 0.5~1.9GB；Fast-DetectGPT 约 5.4GB。
 ## 反馈
 
 遇到 Bug 或有建议，请邮件联系：**gxgx3456@qq.com**
-
-# aigc-toolkit: file purpose marker
