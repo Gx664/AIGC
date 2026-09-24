@@ -80,5 +80,3 @@ def load_plugins(plugin_dir):
         except Exception as e:  # noqa: BLE001
             errors.append("%s: %s" % (fn, e))
     return loaded, errors
-
-# aigc-toolkit: file purpose marker
