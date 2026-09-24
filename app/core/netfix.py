@@ -90,3 +90,5 @@ def sanitize_env(env=None):
         env["NO_PROXY"] = "*"
         env["no_proxy"] = "*"
     return env
+
+# aigc-toolkit: file purpose marker
