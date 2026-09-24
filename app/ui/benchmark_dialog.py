@@ -270,3 +270,5 @@ class BenchmarkDialog(QDialog):
             QMessageBox.warning(self, tr("notice"), str(e))
             return
         QMessageBox.information(self, tr("notice"), tr("bench_export_done") % os.path.basename(path))
+
+# aigc-toolkit: file purpose marker
