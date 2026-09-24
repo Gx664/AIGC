@@ -38,3 +38,5 @@ class PerplexityEngine(BaseEngine):
             if progress_cb:
                 progress_cb(i + 1, total)
         return out
+
+# aigc-toolkit: file purpose marker
