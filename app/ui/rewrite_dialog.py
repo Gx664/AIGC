@@ -586,5 +586,3 @@ class RewriteDialog(QDialog):
             if w and w.isRunning():
                 w.wait(3000)
         e.accept()
-
-# aigc-toolkit: file purpose marker
