@@ -97,5 +97,3 @@ def detect_with_cluster(engine_cfg, base_dir, paragraphs, params, master, progre
             if progress_cb:
                 progress_cb(done, total)
     return results
-
-# aigc-toolkit: file purpose marker
