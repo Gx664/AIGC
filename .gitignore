@@ -27,3 +27,5 @@ run_dev.bat
 publish_github.bat
 sync_to_d.bat
 sync_to_d.ps1
+
+# aigc-toolkit: file purpose marker
