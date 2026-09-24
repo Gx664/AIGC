@@ -644,5 +644,3 @@ def get_lang():
 def tr(key):
     table = EN if LANG == "en" else ZH
     return table.get(key, key)
-
-# aigc-toolkit: file purpose marker
