@@ -90,3 +90,5 @@ class CnkiDiagnoseEngine(BaseEngine):
             if progress_cb:
                 progress_cb(i, len(paragraphs))
         return out
+
+# aigc-toolkit: file purpose marker
