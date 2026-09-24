@@ -101,5 +101,3 @@ if __name__ == "__main__":
     print(f"  结果: {'ALL PASS' if all_ok else 'SOME FAILED'}")
     print(f"{'='*60}")
     sys.exit(0 if all_ok else 1)
-
-# aigc-toolkit: file purpose marker
