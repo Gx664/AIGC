@@ -210,5 +210,3 @@ def by_id(engine_id):
 
 def by_category(category):
     return [e for e in BUILTIN_ENGINES if e.get("category") == category]
-
-# aigc-toolkit: file purpose marker
