@@ -156,5 +156,3 @@ if fail:
         print(" -", n, ":", e[:120])
     sys.exit(1)
 print("ALL-PASS")
-
-# aigc-toolkit: file purpose marker
