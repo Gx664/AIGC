@@ -69,3 +69,5 @@ def create_engine(cfg, base_dir):
 
         raise RuntimeError(tr("torch_unavailable") % TORCH_ERROR)
     return cls(cfg, base_dir)
+
+# aigc-toolkit: file purpose marker
