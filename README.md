@@ -191,5 +191,3 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value.
 ## 开源协议
 
 [MIT](LICENSE)
-
-# aigc-toolkit: file purpose marker
