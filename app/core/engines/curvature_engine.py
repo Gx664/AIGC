@@ -193,5 +193,3 @@ class CurvatureEngine(BaseEngine):
         if not m:
             return ""
         return _SPECIAL_RE.sub("", m.group(1)).strip()
-
-# aigc-toolkit: file purpose marker
