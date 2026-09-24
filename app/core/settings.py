@@ -124,5 +124,3 @@ class Settings:
             presets = json.load(f)
         self.data.setdefault("presets", {}).update(presets)
         self.save()
-
-# aigc-toolkit: file purpose marker
