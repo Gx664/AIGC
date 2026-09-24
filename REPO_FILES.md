@@ -158,5 +158,3 @@ The user downloads exactly one file →  AIGC_Toolkit_Setup.exe (at the repo roo
 It contains                        →  app/first_run_gui.exe (bootstrapper) + the app + install logic
 Everything else                    →  source, UI, icons, docs, self-test scripts — for development and maintenance
 ```
-
-# aigc-toolkit: file purpose marker
