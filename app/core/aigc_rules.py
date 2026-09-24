@@ -555,5 +555,3 @@ SUGGESTIONS = {
         "en": "High comma density: split long compound sentences",
     },
 }
-
-# aigc-toolkit: file purpose marker
