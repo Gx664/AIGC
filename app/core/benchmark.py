@@ -385,3 +385,5 @@ def to_markdown(result, engine_name="", bench_name="", sample_note=""):
         "",
     ]
     return "\n".join(lines)
+
+# aigc-toolkit: file purpose marker
