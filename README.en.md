@@ -206,10 +206,6 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. I
 
 Click "Export Logs" in the app and send the package to: **gxgx3456@qq.com**
 
-## Disclaimer
-
-The author is still a student; the code may have flaws. Please be kind - friendly suggestions and improvements are always welcome.
-
 ## License
 
 **The source code of this project is public, but commercial use is prohibited.** Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).

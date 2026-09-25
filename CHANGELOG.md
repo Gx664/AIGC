@@ -1,5 +1,67 @@
 # AI 检测工具箱 更新日志
 
+## v1.3.2（2026-09-25）
+
+> 本版是 **v1.3.1 的首次实际发布**。v1.3.1 当时只改了源码，从未重新打包 exe，
+> 所以用户下载安装到的仍是 v1.3.0 的内容。本版把 v1.3.1 的全部改动连同下述文案清理
+> 一起打进安装包。
+
+### 变更：移除「免责声明」段落
+- 删除「关于」窗口与项目文档中的整段免责声明（「本人还是一名学生，代码可能存在不足，
+  不好勿喷，欢迎友善的建议与改进」），共 4 处：
+  `app/core/about_text.py`（中文段 `【免责声明】` + 英文段 `[Disclaimer]`）、
+  `README.md`、`README.en.md`
+- 同步清理「支持与赞赏」段中同类的自我描述（中英文各一处）
+- **保留**「检测结果受模型与文本类型影响，仅供自测参考，请以学校 / 期刊官方认定为准」
+  这一功能性声明 —— 它与作者个人情况无关，属于必须告知使用者的使用提示
+
+### 修复：一类环境下安装器 100% 装不上（畸形残留代理）
+- **现象**：便携 Python 下载成功，却卡在初始化 pip 并失败：
+  `ERROR: Could not install packages due to an OSError: Please check proxy URL.
+   It is malformed and could be missing the host.`
+- **根因**：代理软件卸载后，注册表 `HKCU\...\Internet Settings` 可能残留
+  `http` / `https` / `ftp` 三个值为 `http://`（**有协议头、没有主机名**）。
+  `urllib.request.getproxies()` 会把它们读出来交给 pip，pip 解析不了，连接建不起来。
+  而 `app/core/netfix.py` 的自愈逻辑只识别 `socks://` 前缀，把 `http://` 判成
+  「正常代理，不用管」→ 自愈完全不触发。
+- **修复**：`is_unusable_proxy()` 增加「有协议头但没有主机名」的判定；
+  `unusable_system_proxy()` 改为直接看 `urllib.request.getproxies()`
+  （它是 urllib / requests / pip 的共同入口，同时覆盖环境变量与注册表），
+  不再只看注册表的 `ProxyEnable` —— 该值可能已是 0，残留值却照样被读出来。
+  命中后走原有路径：`NO_PROXY=*` + 清不可用代理变量，主进程与 pip 子进程一起直连。
+- **影响面**：不只在安装器 —— 主程序下载模型走的是同一套逻辑，
+  所以「模型下不动」也可能是这个原因。装过 VPN / 代理软件又卸载过的机器建议用本版。
+- 验证：`is_unusable_proxy()` 12 条边界用例全过（socks 系、`http://`、`http://:8080`、
+  正常代理、带用户名密码的代理等）；实测修复后 `getproxies()` 由
+  `{'http': 'http://', 'https': 'http://', 'ftp': 'http://'}` 变为 `{'no': '*'}`，
+  子进程拿到的也是干净环境。
+
+### 修复：覆盖安装会重置用户设置
+- `installer/installer.py` 收尾处原本**无条件覆盖写** `<安装目录>/settings.json`，
+  且只写 `install_dir` 与 `language` 两个键 —— 用户调过的主题、阈值、引擎与参数预设
+  每次升级都被清空。
+- 改为「读旧值 → 只更新这两个键 → 写回」，其余键原样保留。
+- 顺带删掉一个定义了却从未使用的 `shutil.ignore_patterns(...)` 变量。
+
+### 清理：安装包不再夹带作者本机文件
+- `AIGC_Toolkit_Setup.spec` 的 `datas=[('app','app')]` 会把 `app/` 整个打进安装包，
+  于是每次构建都夹带了：
+  - `app/settings.json` —— 含**作者本机的设备标识**（`device_id`）；且程序实际读的是
+    `<安装目录>/settings.json`（见 `app/main.py`），这个文件本就是历史遗留，纯属泄露
+  - `app/logs/` —— 作者本机的运行日志与诊断输出
+  - `app/__pycache__/` —— 多个 Python 版本的 `.pyc`，其中还留着**旧版文案的编译产物**
+- 打包前把这些内容移出 `app/`；`diag_startup.py` 的「安装内容」检查项也改为
+  检查安装根目录的 `settings.json`（原先检查 `app/` 下的，排除后会误报缺失）。
+- 体积变化：安装器 23.59 MB → 21.47 MB，引导器 11.38 MB → 10.35 MB。
+
+### 重新打包两个 exe（v1.3.1 的改动自此生效）
+- `AIGC_Toolkit_Setup.exe`（安装器）与 `app/first_run_gui.exe`（首启引导器）均已重新构建
+- 此前只在源码里的改动，从本版起真正体现在用户装出来的软件中：
+  ① 移除「开发声明」；② 软件内 3 处「禁止商业使用」标注；
+  ③ 覆盖安装不丢用户数据、也不再重置设置；④ 残留畸形代理的机器也能装上
+- 版本号同步 4 处：`installer/installer.py:APP_VER`、`app/core/meta.py:APP_VERSION`、
+  本文件、`使用手册.md`
+
 ## v1.3.1（2026-09-24）
 
 > 本版两项改动都是**面向使用者体验**的：协议改成禁止商用，安装器支持覆盖安装不丢数据。

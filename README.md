@@ -191,10 +191,6 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value.
 
 软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**
 
-## 免责声明
-
-本人还是一名学生，代码可能存在不足，不好勿喷，欢迎友善的建议与改进。
-
 ## 开源协议
 
 **本项目的代码公开，但禁止商业使用。** 采用 [PolyForm Noncommercial License 1.0.0](LICENSE)。

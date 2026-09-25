@@ -10,6 +10,7 @@ GUI 只是薄薄一层壳 —— 这样既可以用 `installer.py --cli D:\\目�
 （也方便自测），又避免"把逻辑写在 Tk 回调里没法验证"的老问题。
 """
 
+import json
 import os
 import queue
 import shutil
@@ -26,7 +27,7 @@ except ImportError:  # pragma: no cover
     tk = filedialog = messagebox = ttk = None
 
 APP_NAME = "AI 检测工具箱"
-APP_VER = "1.3.1"
+APP_VER = "1.3.2"
 PY_VER = "3.12.10"
 PY_EMBED_NAME = "python-%s-embed-amd64.zip" % PY_VER
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"
@@ -608,7 +609,6 @@ def perform_install(target, log=None, status=None, cancelled=None, ask_manual=No
     # 现在改为「按文件覆盖 + 显式保护 + 清理陈旧文件」。
     status(tr("inst_copy_app"), 80)
     src = app_source_dir()
-    ignore = shutil.ignore_patterns("logs", "__pycache__", "*.pyc")
 
     # 这些目录在复制/清理时一律跳过，保留现场。
     #   logs   —— 旧运行日志，升级后排查问题要用
@@ -689,11 +689,31 @@ def perform_install(target, log=None, status=None, cancelled=None, ask_manual=No
         raise RuntimeError(tr("inst_appdir_locked") % _err_text(e))
 
     # 3. 配置 + 便捷脚本
-    with open(os.path.join(target, "settings.json"), "w", encoding="utf-8") as f:
-        f.write(
-            '{"app": {"install_dir": "%s"}, "ui": {"language": "%s"}}'
-            % (target.replace("\\", "\\\\"), lang or get_lang())
-        )
+    #
+    # 程序读的是 <安装目录>/settings.json（见 app/main.py：Settings(app 的上一级)），
+    # 里面除了 install_dir 还存着用户自己调过的主题、引擎、阈值与参数预设。
+    # 旧代码这里是无条件覆盖写，等于每次升级都把用户设置重置回默认值 ——
+    # 覆盖安装「不丢用户数据」就名不副实了。改为：读旧值 → 只更新这两个键 → 写回。
+    cfg_path = os.path.join(target, "settings.json")
+    cfg = {}
+    if os.path.exists(cfg_path):
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+            if isinstance(saved, dict):
+                cfg = saved
+        except Exception as e:
+            log("  旧的 settings.json 无法解析，将重建：%s" % _err_text(e))
+    app_cfg = cfg.get("app")
+    if not isinstance(app_cfg, dict):
+        app_cfg = cfg["app"] = {}
+    app_cfg["install_dir"] = target
+    ui_cfg = cfg.get("ui")
+    if not isinstance(ui_cfg, dict):
+        ui_cfg = cfg["ui"] = {}
+    ui_cfg["language"] = lang or get_lang()
+    with open(cfg_path, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
     _write_launchers(target, appdir, pydir, log)
 
     # 4. 卸载入口

@@ -130,8 +130,8 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 【支持与赞赏 · Support】
 如果这个项目对你有一点帮助，可以请作者喝杯奶茶，支持继续开发：
 - 支付宝（Alipay） / 微信支付（WeChat Pay）：扫描软件内或项目主页的赞赏码即可
-- 想给就给，不想给就不给，绝非道德绑架；作者还是一名学生，
-  零花钱不多，但做这个项目本身已经很有意义，你的支持只是额外的鼓励。
+- 想给就给，不想给就不给，绝非道德绑架。做这个项目本身已经很有意义，
+  你的支持只是额外的鼓励。
 
 For international users:
 If you don't use Alipay or WeChat Pay, you can also gift any AI API key
@@ -143,10 +143,6 @@ If you really want to gift one, DeepSeek V4 Flash is the most cost-effective.
 
 【Bug 反馈】
 点击「导出日志」打包日志后，发送至：gxgx3456@qq.com
-
-【免责声明】
-本人还是一名学生，代码可能存在不足，不好勿喷，
-欢迎友善的建议与改进。
 
 【开源协议 · 禁止商业使用】
 本项目的代码公开，但**禁止任何形式的商业使用**。
@@ -330,8 +326,7 @@ If this project helped you a little, you are welcome to buy the author a
 milk tea to support further development:
 - Alipay / WeChat Pay: scan the QR codes shown in the app or on the project page
 - No pressure at all - give only if you want to. It is not moral coercion.
-  The author is still a student with a tiny allowance, but
-  building this project is already meaningful on its own; your support is
+  Building this project is already meaningful on its own; your support is
   just extra encouragement.
 For international users: if you don't use Alipay or WeChat Pay, you can also
 gift any AI API key (any provider is welcome) to gxgx3456@qq.com. Please
@@ -342,10 +337,6 @@ DeepSeek V4 Flash is the most cost-effective choice.
 
 [Bug Reports]
 Click "Export Logs" in the app and send the package to: gxgx3456@qq.com
-
-[Disclaimer]
-The author is still a student; the code may have flaws. Please be kind -
-friendly suggestions and improvements are always welcome.
 
 [License - Commercial Use Prohibited]
 The source code of this project is public, but **all commercial use is

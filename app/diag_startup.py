@@ -85,9 +85,12 @@ def main():
             say("%-16s: 失败 -> %s: %s" % (name, type(e).__name__, e))
 
     section("安装内容")
-    for rel in ("main.py", "first_run.py", "first_run_gui.exe", "core/netfix.py", "settings.json"):
+    for rel in ("main.py", "first_run.py", "first_run_gui.exe", "core/netfix.py"):
         p = os.path.join(APP_DIR, rel)
         say("%-20s: %s" % (rel, "存在" if os.path.exists(p) else "缺失"))
+    # 设置文件在安装根目录（app 的上一级），不在 app 内 —— 见 app/main.py 的 Settings(...)
+    cfg = os.path.join(os.path.dirname(APP_DIR), "settings.json")
+    say("%-20s: %s" % ("settings.json", "存在" if os.path.exists(cfg) else "缺失（安装器会创建）"))
     models = os.path.join(os.path.dirname(APP_DIR), "models")
     if os.path.isdir(models):
         total = sum(

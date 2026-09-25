@@ -8,9 +8,10 @@
   - pip / requests：`Missing dependencies for SOCKS support`（要 PySocks，便携 Python 没装）
 而 curl.exe 不读注册表，所以"curl 能下、程序里下不了"。
 
-这里只做两件事，且只针对 socks 这类 Python 用不了的代理：
-  1) apply_env_fix()：进程内打补丁（NO_PROXY=* + 清 socks 代理变量），
-     让 urllib / requests / huggingface_hub 都走直连；
+这里只做两件事，且只针对 Python 用不了的代理（socks 系列，以及没有主机名的
+畸形残留值 —— 例如代理软件卸载后留在注册表里的 `http://`）：
+  1) apply_env_fix()：进程内打补丁（NO_PROXY=* + 清不可用的代理变量），
+     让 urllib / requests / huggingface_hub / pip 都走直连；
   2) sanitize_env()：给子进程（pip 等）准备的干净 env。
 正常的 HTTP(S) 代理不动，避免误伤"必须走代理"的用户。
 """
@@ -27,11 +28,25 @@ _REG_KEY = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings"
 
 
 def is_unusable_proxy(value):
-    """socks 系列代理对标准库 / pip 都不可用（需要 PySocks）。"""
+    """Python 拿到也用不了的代理串。
+
+    两类：
+      1) socks 系列 —— urllib / requests / pip 都不认，要额外装 PySocks；
+      2) 没有主机名的畸形值 —— 典型是代理软件卸载后残留在注册表里的 `http://`
+         （ProxyEnable 可能已是 0，但 urllib.getproxies_registry() 仍会把它读出来）。
+         此时 pip 直接报 "proxy URL is malformed and could be missing the host"，
+         连接根本建不起来，安装器会卡在 get-pip 这一步。
+    """
     if not value:
         return False
-    scheme = value.split("=")[-1].split(":", 1)[0].strip().lower()
-    return scheme in ("socks", "socks4", "socks5", "socks5h")
+    v = value.split("=")[-1].strip()  # 兼容 "http=http://xxx" 这种写法
+    scheme = v.split(":", 1)[0].strip().lower()
+    if scheme in ("socks", "socks4", "socks5", "socks5h"):
+        return True
+    # 有没有 host：`http://host:port`、`http://user:pw@host` 才算正常
+    rest = v.split("://", 1)[1] if "://" in v else v
+    host = rest.split("@")[-1].split("/")[0].split(":")[0].strip()
+    return not host
 
 
 def system_proxy():
@@ -60,9 +75,26 @@ def system_proxy():
 
 
 def unusable_system_proxy():
-    """系统代理是 socks 时返回该字符串，否则 None。"""
-    value = system_proxy()
-    return value if is_unusable_proxy(value) else None
+    """Python 实际会拿到、却用不了的代理串；没有则返回 None。
+
+    用 urllib.request.getproxies() 取得，而不是只看注册表的 ProxyEnable：
+      - getproxies() 正是 urllib / requests / pip 的共同入口（环境变量与注册表
+        已经合并好），拿到的就是它们真正会用的东西；
+      - 只看 ProxyEnable 会漏掉一类真实故障：代理软件卸载后残留的 `http://`
+        （ProxyEnable=0，但 getproxies_registry() 照样把它读出来），
+        这时 pip 报 "proxy URL is malformed"，安装器 100% 装不上。
+    正常的 HTTP(S) 代理（有 host）不会命中，保持原样不动。
+    """
+    try:
+        import urllib.request as _ur
+
+        proxies = _ur.getproxies()
+    except Exception:
+        proxies = {}
+    for v in proxies.values():
+        if is_unusable_proxy(v):
+            return v
+    return None
 
 
 def apply_env_fix(log=None):
@@ -76,7 +108,7 @@ def apply_env_fix(log=None):
         os.environ["NO_PROXY"] = "*"
         os.environ["no_proxy"] = "*"
         if log:
-            log("检测到系统代理为 %s（Python 不支持 socks），已自动改为直连" % bad)
+            log("检测到不可用的系统代理 %s（socks 或缺少主机名），已自动改为直连" % bad)
     return bad
 
 
