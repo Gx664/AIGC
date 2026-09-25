@@ -27,7 +27,7 @@ except ImportError:  # pragma: no cover
     tk = filedialog = messagebox = ttk = None
 
 APP_NAME = "AI 检测工具箱"
-APP_VER = "1.3.2"
+APP_VER = "1.3.3"
 PY_VER = "3.12.10"
 PY_EMBED_NAME = "python-%s-embed-amd64.zip" % PY_VER
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"
@@ -47,7 +47,6 @@ PYPI_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
 MIN_DL_SIZE = 2 * 1024 * 1024   # Python 便携包 ~11MB
 GETPIP_MIN_SIZE = 200 * 1024    # get-pip.py 各镜像 1.9~2.3MB，下限放宽
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-AUTHOR_EMAIL = "gxgx3456@qq.com"
 PY_NAME = ("Python 便携包 (*.zip)", "*.zip")
 
 # 卸载器由安装器生成到安装目录；自删用延迟 rd，避开运行中 python.exe 的文件锁
@@ -70,8 +69,8 @@ def main():
         "卸载 / Uninstall",
         "确定要卸载 AI 检测工具箱吗？\\nUninstall AI Detector Toolkit?\\n\\n"
         "将删除以下目录（含模型文件）：\\n%s\\n\\n"
-        "遇到 Bug？欢迎先邮件反馈，很多问题都能修：\\n%s\\n"
-        "(Found a bug? Email us first - we can probably fix it)" % (TARGET, EMAIL),
+        "遇到 Bug 或有建议？欢迎先联系反馈（反馈 / 意见 / 合作都欢迎）：\\n%s\\n"
+        "(Found a bug or have a suggestion? Contact us first)" % (TARGET, EMAIL),
     )
     if not ok:
         return
@@ -98,7 +97,7 @@ def main():
     messagebox.showinfo(
         "完成 / Done",
         "AI 检测工具箱 已卸载，感谢使用。\\nUninstalled.\\n\\n"
-        "有 Bug 或建议随时邮件：\\n%s" % EMAIL,
+        "有 Bug 或建议随时联系（反馈 / 意见 / 合作都欢迎）：\\n%s" % EMAIL,
     )
     root.destroy()
 
@@ -178,6 +177,7 @@ def _i18n_dir():
 
 sys.path.insert(0, _i18n_dir())
 from i18n import get_lang, set_lang, tr  # noqa: E402
+from meta import AUTHOR_CONTACT, AUTHOR_EMAIL, AUTHOR_TG  # noqa: E402
 from netfix import apply_env_fix, sanitize_env, unusable_system_proxy  # noqa: E402
 
 
@@ -543,7 +543,7 @@ def register_uninstall(target, pythonw_runtime, log=print):
             f.write(
                 UNINSTALLER_TEMPLATE
                 .replace("@TARGET@", target)
-                .replace("@EMAIL@", AUTHOR_EMAIL)
+                .replace("@EMAIL@", AUTHOR_CONTACT)
             )
     except OSError as e:
         log("写入卸载器失败: %s" % e)
@@ -564,8 +564,11 @@ def register_uninstall(target, pythonw_runtime, log=print):
             ("InstallLocation", target),
             ("UninstallString", '"%s" "%s"' % (pythonw_runtime, unw)),
             ("HelpLink", "mailto:%s" % AUTHOR_EMAIL),
-            ("Contact", AUTHOR_EMAIL),
-            ("Comments", "遇到 Bug 请邮件反馈 / Report bugs: %s" % AUTHOR_EMAIL),
+            ("URLInfoAbout", "https://t.me/%s" % AUTHOR_TG.lstrip("@")),
+            ("Contact", AUTHOR_CONTACT),
+            ("Comments",
+             "反馈 / 意见 / 合作欢迎联系 · Feedback, suggestions & collaboration: %s"
+             % AUTHOR_CONTACT),
             ("NoModify", 1),
             ("NoRepair", 1),
         ]
@@ -830,7 +833,7 @@ class Installer(tk.Tk if tk else object):
         self.btn_start.config(text=tr("inst_start"))
         self.btn_cancel.config(text=tr("inst_cancel"))
         self.btn_lang.config(text="EN" if get_lang() == "zh" else "中文")
-        self.author_label.config(text=tr("inst_author_email") % AUTHOR_EMAIL)
+        self.author_label.config(text=tr("inst_author_email") % AUTHOR_CONTACT)
         if not self.status.get():
             self.status.set(tr("inst_ready"))
 

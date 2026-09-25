@@ -18,6 +18,8 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, APP_DIR)
 sys.path.insert(0, os.path.join(APP_DIR, "core"))
 
+from meta import AUTHOR_CONTACT  # noqa: E402
+
 LOG_DIR = os.path.join(APP_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 OUT_PATH = os.path.join(LOG_DIR, "diag_%s.txt" % time.strftime("%Y%m%d_%H%M%S"))
@@ -117,7 +119,7 @@ def main():
         f.write("\n".join(_lines))
     say()
     say("诊断报告已保存: %s" % OUT_PATH)
-    say("遇到问题请把这份报告发到 gxgx3456@qq.com")
+    say("遇到问题请把这份报告发到 %s" % AUTHOR_CONTACT)
 
 
 if __name__ == "__main__":

@@ -106,7 +106,7 @@
 | `icon.ico` / `icon.png` | Application icon. `icon.ico` is used for the exe, window, taskbar and shortcuts; `icon.png` is for the README |
 | `donate/alipay.jpg` | Alipay donation QR code (shown in README) |
 | `donate/wechat_pay.jpg` | WeChat Pay donation QR code |
-| `donate/deepseek_usage.png` | Illustration for the API-key gifting note for international users |
+| `donate/deepseek_usage.png` | Illustration for the earlier "gift an API key" note aimed at international users (no longer referenced since v1.3.3; kept for reference) |
 
 ---
 

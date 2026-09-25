@@ -34,7 +34,13 @@ from core.engines import EngineManager, create_engine
 from core.i18n import get_lang, set_lang, tr
 from core.license import License
 from core.logging_setup import export_logs, setup_logging
-from core.meta import APP_NAME, APP_VERSION, AUTHOR_EMAIL
+from core.meta import (
+    APP_NAME,
+    APP_VERSION,
+    AUTHOR_CONTACT,
+    AUTHOR_EMAIL,
+    AUTHOR_TG,
+)
 from core.report import build_report
 from core.settings import Settings
 from ui.engine_dialog import EngineDialog
@@ -325,10 +331,12 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(self._section(tr("label_contact")))
         cont_row = QHBoxLayout()
-        self.author_label = QLabel(AUTHOR_EMAIL)
+        self.author_label = QLabel(
+            "%s  ｜  Telegram %s" % (AUTHOR_EMAIL, AUTHOR_TG)
+        )
         self.author_label.setStyleSheet("color:#64748b;")
         cont_row.addWidget(self.author_label, 1)
-        self.btn_copy_mail = GlassButton(tr("btn_copy_email"))
+        self.btn_copy_mail = GlassButton(tr("btn_copy_contact"))
         self.btn_copy_mail.clicked.connect(self.copy_author_email)
         cont_row.addWidget(self.btn_copy_mail)
         lay.addLayout(cont_row)
@@ -658,9 +666,9 @@ class MainWindow(QMainWindow):
         return os.path.join(BASE_DIR, "app", "assets", "donate", name)
 
     def copy_author_email(self):
-        QApplication.clipboard().setText(AUTHOR_EMAIL)
+        QApplication.clipboard().setText(AUTHOR_CONTACT)
         QMessageBox.information(
-            self, tr("copied_title"), tr("copied_body") % AUTHOR_EMAIL
+            self, tr("copied_title"), tr("copied_body") % AUTHOR_CONTACT
         )
 
     def export_log(self):
@@ -678,7 +686,7 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             tr("export_done_title"),
-            tr("export_done_body") % (path, AUTHOR_EMAIL),
+            tr("export_done_body") % (path, AUTHOR_CONTACT),
         )
 
     # ---- 检测 ----

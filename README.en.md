@@ -178,17 +178,15 @@ This project is completely free for personal use. If it helped you, you are welc
 
 <p align="center">Alipay ｜ WeChat Pay</p>
 
-You're also welcome to just drop a line to **gxgx3456@qq.com**.
+You're also welcome to just drop a line to **gxgx3456@qq.com** or ping **@A9100010** on Telegram.
+
+> 💬 **Feedback / suggestions / collaboration are all welcome - contact: gxgx3456@qq.com | Telegram: @A9100010**
 
 ### For international users
 
-You can also **gift an AI API key** (any provider is welcome) to **gxgx3456@qq.com**. Please include:
+If you'd like to tip but don't use either of the two payment methods above, you can contact me on Telegram to send a tip instead - thank you!!!
 
-- Model name
-- API / model URL and port
-- If you'd like to be credited, mark it as "特别感谢 / Special Thanks"
-
-Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [app/assets/donate/deepseek_usage.png](app/assets/donate/deepseek_usage.png))
+**Telegram: @A9100010** (not my personal account; it is a purchased one)
 
 ## Tech Stack
 
@@ -204,7 +202,9 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) - great value. I
 
 ## Bug Reports
 
-Click "Export Logs" in the app and send the package to: **gxgx3456@qq.com**
+Click "Export Logs" in the app and send the package to: **gxgx3456@qq.com**, or message **@A9100010** on Telegram.
+
+Feedback, suggestions and collaboration are all welcome through either channel.
 
 ## License
 
@@ -227,6 +227,6 @@ Click "Export Logs" in the app and send the package to: **gxgx3456@qq.com**
 
 ### Commercial licensing
 
-Please email **gxgx3456@qq.com** with the intended use and scope.
+Please email **gxgx3456@qq.com**, or message **@A9100010** on Telegram, with the intended use and scope.
 
 > This license restricts **third-party** commercial use only. It does not prevent the author from charging for the project or offering commercial licenses.

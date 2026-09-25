@@ -163,17 +163,15 @@
 
 <p align="center">支付宝（Alipay）｜微信支付（WeChat Pay）</p>
 
-也欢迎发邮件到 **gxgx3456@qq.com** 说声加油。
+也欢迎发邮件到 **gxgx3456@qq.com**，或 Telegram 私信 **@A9100010** 说声加油。
+
+> 💬 **反馈 / 意见 / 合作都欢迎联系：gxgx3456@qq.com ｜ Telegram: @A9100010**
 
 ### For international users
 
-You can also **gift an AI API key** (any provider is welcome) to **gxgx3456@qq.com**. Please include:
+If you'd like to tip but don't use either of the two payment methods above, you can contact me on Telegram to send a tip instead - thank you!!!
 
-- Model name (模型型号)
-- API / model URL and port (模型地址与端口)
-- If you'd like to be credited, mark it as "特别感谢 / Special Thanks"
-
-Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value. If you really want to gift one, **DeepSeek V4 Flash** is the most cost-effective choice. (Screenshot reference: [app/assets/donate/deepseek_usage.png](app/assets/donate/deepseek_usage.png))
+**Telegram: @A9100010** (not my personal account; it is a purchased one)
 
 ## 技术架构
 
@@ -189,7 +187,9 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value.
 
 ## Bug 反馈
 
-软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**
+软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**，或 Telegram 私信 **@A9100010**。
+
+反馈 / 意见 / 合作都欢迎联系，两个渠道都可以。
 
 ## 开源协议
 
@@ -212,6 +212,6 @@ Recommended: [DeepSeek](https://platform.deepseek.com/api_keys) — great value.
 
 ### 如需商业授权
 
-请邮件联系：**gxgx3456@qq.com**，说明用途与范围。
+请邮件联系 **gxgx3456@qq.com**，或 Telegram 私信 **@A9100010**，说明用途与范围。
 
 > 本协议限制的是**他人**的商业使用，不影响作者本人对项目收费或提供商业授权。

@@ -45,6 +45,11 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
   ③ 修复一类机器装不上：代理软件卸载后残留的畸形系统代理（`http://` 无主机名）
      会让 pip 报 `proxy URL is malformed`，现改为自动识别并转直连；
   ④ 安装包不再夹带作者本机的设备标识与运行日志
+- v1.3.3 新增 / 变更：
+  ① 新增 Telegram 联系方式 @A9100010：主界面「联系作者」同屏显示邮箱与 Telegram，
+     一键复制两者；「关于」窗口、卸载提示、安装器界面、导出日志提示同步更新；
+  ② 国际用户赞赏说明改为直接 Telegram 联系打赏（不再需要赠送 API Key）；
+  ③ 反馈 / 意见 / 合作统一给出邮箱与 Telegram 两个渠道
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -141,15 +146,13 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
   你的支持只是额外的鼓励。
 
 For international users:
-If you don't use Alipay or WeChat Pay, you can also gift any AI API key
-(any provider is welcome) to gxgx3456@qq.com.
-Please include: model name, API/model URL and port.
-If you'd like to be credited, mark it as "特别感谢 / Special Thanks".
-Recommended: DeepSeek (great value) - https://platform.deepseek.com/api_keys
-If you really want to gift one, DeepSeek V4 Flash is the most cost-effective.
+If you'd like to tip but don't use either of the two payment methods above,
+you can contact me on Telegram to send a tip instead - thank you!!!
+Telegram: @A9100010  (not my personal account; it is a purchased one)
 
-【Bug 反馈】
+【Bug 反馈 · 反馈 / 意见 / 合作都欢迎联系】
 点击「导出日志」打包日志后，发送至：gxgx3456@qq.com
+或 Telegram 私信：@A9100010
 
 【开源协议 · 禁止商业使用】
 本项目的代码公开，但**禁止任何形式的商业使用**。
@@ -163,7 +166,8 @@ If you really want to gift one, DeepSeek V4 Flash is the most cost-effective.
         去除或篡改作者署名、版权声明；
         用本项目代码 / 模型训练商业产品。
 
-如需商业授权，请联系：gxgx3456@qq.com
+如需商业授权 · 反馈 / 意见 / 合作，请联系：
+  gxgx3456@qq.com 或 Telegram @A9100010
 
 > 本协议限制的是**他人**的商业使用，不影响作者本人对项目收费或提供商业授权。
 """
@@ -234,6 +238,13 @@ a paragraph-level report.
      (`http://` with no host) made pip fail with `proxy URL is malformed`; it is now
      detected and switched to a direct connection;
   4) the installer no longer carries the author's local device id or run logs
+- New / changed in v1.3.3:
+  1) added a Telegram contact, @A9100010: the main window's Contact section now shows the
+     email and Telegram on one line and copies both in one click; the About window,
+     uninstall prompt, installer window and log-export dialog were updated to match;
+  2) the international support note now points straight at Telegram tipping
+     (no more "gift an API key");
+  3) feedback / suggestions / collaboration now list both channels
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis
@@ -346,15 +357,14 @@ milk tea to support further development:
 - No pressure at all - give only if you want to. It is not moral coercion.
   Building this project is already meaningful on its own; your support is
   just extra encouragement.
-For international users: if you don't use Alipay or WeChat Pay, you can also
-gift any AI API key (any provider is welcome) to gxgx3456@qq.com. Please
-include: model name, API/model URL and port. If you'd like to be credited,
-mark it as "Special Thanks". Recommended: DeepSeek (great value) -
-https://platform.deepseek.com/api_keys . If you really want to gift one,
-DeepSeek V4 Flash is the most cost-effective choice.
+For international users: if you'd like to tip but don't use either of the two
+payment methods above, you can contact me on Telegram to send a tip instead
+- thank you!!! Telegram: @A9100010 (not my personal account; it is a
+purchased one)
 
-[Bug Reports]
+[Bug Reports - feedback / suggestions / collaboration all welcome]
 Click "Export Logs" in the app and send the package to: gxgx3456@qq.com
+or message @A9100010 on Telegram
 
 [License - Commercial Use Prohibited]
 The source code of this project is public, but **all commercial use is
@@ -370,7 +380,8 @@ Prohibited: any commercial use (including internal company use, client work,
             notices; using this project's code / models to train commercial
             products.
 
-For commercial licensing, contact: gxgx3456@qq.com
+For commercial licensing / feedback / suggestions / collaboration, contact:
+  gxgx3456@qq.com or Telegram @A9100010
 
 > This license restricts **third-party** commercial use only. It does not
 > prevent the author from charging for the project or offering commercial

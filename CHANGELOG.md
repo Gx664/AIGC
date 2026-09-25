@@ -28,6 +28,50 @@ These rules apply to this project from 2026-09-25 onward:
 
 ---
 
+## v1.3.3 (2026-09-25)
+
+> This release **only changes how contact details are shown** - no detection / rewrite logic was touched.
+
+### Visible to users
+- There is a new way to reach the author: **Telegram @A9100010**
+  (the main window's "⑦ Contact" section now shows both the email and the Telegram handle,
+  and the button became "Copy contact")
+- International users used to have to "gift an AI API key" to support the project; now they can
+  simply **get in touch on Telegram to send a tip** - a much lower barrier
+- The uninstall prompt, installer window, log-export dialog and startup self-check all now list
+  both the email and Telegram
+
+### Changed: Telegram contact @A9100010 added
+- Single source of truth for contact details (`app/core/meta.py`):
+  `AUTHOR_EMAIL` = gxgx3456@qq.com ｜ `AUTHOR_TG` = @A9100010
+  ｜ `AUTHOR_CONTACT` = `gxgx3456@qq.com / Telegram @A9100010`
+- **Inside the app**:
+  - Main window "⑦ Contact": email and Telegram on one line, one click copies both
+  - About-window note under the banner (`nc_banner_tip`): licensing / feedback / suggestions /
+    collaboration all point at both channels
+  - About-window body: bug-report section and licence section
+  - First-run bootstrapper failure message and startup self-check report (`diag_startup.py`)
+  - Installer footer, uninstall prompt, and the Control Panel uninstall entry's Contact and
+    support link (`URLInfoAbout` → `https://t.me/A9100010`)
+- **Repo docs**: `README.md` / `README.en.md` / `使用手册.md` / `更新日志.md` / this file
+
+### Changed: international support note switched to Telegram tipping
+- The old "gift an AI API key" block (with the DeepSeek recommendation and the
+  model-name / URL / port checklist) was replaced entirely by:
+  > If you'd like to tip but don't use either of the two payment methods above,
+  > you can contact me on Telegram to send a tip instead - thank you!!!
+  > **Telegram: @A9100010** (not my personal account; it is a purchased one)
+- This block is **English-only** in both READMEs and in the app's About window
+- ⚠️ `app/assets/donate/deepseek_usage.png` and its repo description are **kept** (just no longer referenced)
+
+### Checked: full Chinese / English localisation audit
+- Key alignment in `app/core/i18n.py`: 313 Chinese keys / 313 English keys, **none missing, none extra**
+- Every i18n key referenced in code exists - **no dangling references**
+- **Zero Chinese leftovers** in English strings (except deliberate keeps such as the
+  language-switch button and brand name)
+
+---
+
 ## Repo docs tidy-up · Chinese changelog created (2026-09-25)
 
 > **Documentation only — no program logic changed.** The installer and bootstrapper are still v1.3.2,
@@ -346,8 +390,8 @@ GLTR/Binoculars are about 0.5–1.9GB; Fast-DetectGPT about 5.4GB.
 ### Added
 - **Uninstall entry in Control Panel**: after installation the app can be removed from
   Windows "Settings > Apps" or Control Panel "Programs and Features"
-  - Before uninstalling it lists the folders that will be deleted and suggests emailing a bug report first
-    (gxgx3456@qq.com)
+  - Before uninstalling it lists the folders that will be deleted and suggests reporting a bug first
+    (gxgx3456@qq.com / Telegram @A9100010)
   - Uninstalling also removes the registry uninstall key, the desktop shortcut and the whole install folder
     (including model files)
 - **Install options** (both on by default):
@@ -405,4 +449,7 @@ GLTR/Binoculars are about 0.5–1.9GB; Fast-DetectGPT about 5.4GB.
 
 ## Feedback
 
-Found a bug or have a suggestion? Email **gxgx3456@qq.com**
+Found a bug, or have a suggestion, idea or collaboration enquiry? Either channel works:
+
+- Email: **gxgx3456@qq.com**
+- Telegram: **@A9100010**

@@ -37,6 +37,7 @@ sys.path.insert(0, RESOURCE_DIR)
 sys.path.insert(0, os.path.join(RESOURCE_DIR, "core"))
 
 from core.i18n import tr  # noqa: E402
+from core.meta import AUTHOR_CONTACT  # noqa: E402
 from core.netfix import apply_env_fix, sanitize_env  # noqa: E402
 
 LOG_PATH = os.path.join(APP_DIR, "logs", "first_run.log")
@@ -47,7 +48,6 @@ TORCH_CUDA_MIRRORS = [
     "https://download.pytorch.org/whl/cu128",
 ]
 DEPS = ["PySide6", "transformers", "accelerate", "docx", "pypdf", "numpy"]
-AUTHOR_EMAIL = "gxgx3456@qq.com"
 
 
 def module_ok(name):
@@ -206,7 +206,7 @@ class FirstRun:
             self.q.put(("pct", pct))
 
     def fatal(self, err):
-        self.set_status(tr("fr_fail") % (err, AUTHOR_EMAIL), 0)
+        self.set_status(tr("fr_fail") % (err, AUTHOR_CONTACT), 0)
 
     # ---------- 主流程 ----------
     def main(self):
@@ -218,7 +218,7 @@ class FirstRun:
                 os.path.abspath(RUNTIME_PY)
             ) == os.path.normcase(os.path.abspath(sys.executable)):
                 # 打包成 exe 却没找到 runtime\python：说明安装不完整，别硬跑
-                raise RuntimeError(tr("fr_no_runtime") % AUTHOR_EMAIL)
+                raise RuntimeError(tr("fr_no_runtime") % AUTHOR_CONTACT)
             need = deps_missing()
             need_torch = not torch_ok()
             if not need and not need_torch:
