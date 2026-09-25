@@ -17,7 +17,7 @@
 ## 📖 Start Here
 
 - 👉 **[REPO_FILES.md](REPO_FILES.md)** — **what every file in this repo is for**, which ones must not be deleted, and how to run from source（[中文](仓库文件说明.md)）
-- 📝 **[Changelog CHANGELOG.md](CHANGELOG.md)** — what changed in each version
+- 📝 **[Changelog CHANGELOG.md](CHANGELOG.md)** — what changed in each version, with a **"visible to users"** note per release (中文: [更新日志.md](更新日志.md))
 - ❓ Something not covered? See [Bug Reports](#bug-reports) at the end, just send an email
 
 > **If you just want to install and use it, you only need one file: [`AIGC_Toolkit_Setup.exe`](AIGC_Toolkit_Setup.exe)** — it sits right in the repo root. Download, double-click, and ignore everything else.

@@ -38,6 +38,13 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
   ① 全新应用图标（程序、任务栏、安装器、桌面快捷方式、卸载列表统一，透明底无白框）；
   ② 修复全屏时按钮文字被裁（小屏 1440×900 上左侧面板被 Qt 等比压扁所致，
      现在改成滚动 + 按钮最小高度锁定，并统一限制窗口不超出屏幕）
+- v1.3.1 / v1.3.2 新增 / 修复：
+  ① 协议由 MIT 改为 PolyForm Noncommercial 1.0.0 —— 源码公开，**禁止任何商业使用**，
+     软件内 3 处可见标注（标题栏版权行、关于窗口横幅、关于窗口协议段）；
+  ② 安装器支持覆盖安装：升级不再清空日志与已下载的模型，也不再重置主题 / 阈值 / 预设；
+  ③ 修复一类机器装不上：代理软件卸载后残留的畸形系统代理（`http://` 无主机名）
+     会让 pip 报 `proxy URL is malformed`，现改为自动识别并转直连；
+  ④ 安装包不再夹带作者本机的设备标识与运行日志
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -216,6 +223,17 @@ a paragraph-level report.
   2) fixed clipped button text in fullscreen on small screens (1440x900): the left
      panel is ~1082px tall so Qt squeezed every widget; it now scrolls instead,
      buttons cannot shrink below their text, and windows are clamped to the screen
+- New / fixed in v1.3.1 / v1.3.2:
+  1) licence changed from MIT to PolyForm Noncommercial 1.0.0 - the source stays public
+     but **all commercial use is prohibited**, with three visible notices in the app
+     (copyright line under the title bar, banner in the About window, licence section
+     in its body);
+  2) the installer overwrites in place: upgrading keeps your logs and downloaded models,
+     and no longer resets theme / thresholds / presets;
+  3) fixed "cannot install on some machines": a malformed leftover system proxy
+     (`http://` with no host) made pip fail with `proxy URL is malformed`; it is now
+     detected and switched to a direct connection;
+  4) the installer no longer carries the author's local device id or run logs
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis

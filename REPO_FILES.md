@@ -11,7 +11,7 @@
 |---|---|
 | **Install and use the app** | Download [`AIGC_Toolkit_Setup.exe`](AIGC_Toolkit_Setup.exe) from the repo root and double-click it. Ignore everything else. |
 | Understand features and usage | [`README.en.md`](README.en.md) (English) / [`README.md`](README.md) (Chinese) |
-| See what changed in each version | [`CHANGELOG.md`](CHANGELOG.md) |
+| See what changed in each version | [`CHANGELOG.md`](CHANGELOG.md) (English) / [`更新日志.md`](更新日志.md) (Chinese) |
 
 ⚠️ **Regular users only need the single file `AIGC_Toolkit_Setup.exe`** (it sits at the top level of this repo). Everything else is for developers.
 
@@ -21,10 +21,11 @@
 
 | File | Purpose |
 |---|---|
-| **`AIGC_Toolkit_Setup.exe` (23.6 MB)** | **The installer** — the only download entry point for users, placed at the repo root so it's immediately visible. It unpacks the portable Python, copies the application, and creates a desktop shortcut. |
+| **`AIGC_Toolkit_Setup.exe` (22.1 MB)** | **The installer** — the only download entry point for users, placed at the repo root so it's immediately visible. It unpacks the portable Python, copies the application, and creates a desktop shortcut. |
 | `README.md` | Chinese main documentation: features, principles, sources of the 9 methods, donation codes |
 | `README.en.md` | English documentation, mirroring `README.md` |
-| `CHANGELOG.md` | Changelog — what was added or fixed in each version |
+| `更新日志.md` | **Chinese changelog** — what was added or fixed in each version, with a "visible to users" note per release. **Must be updated on every release** (maintenance rules at the top of the file). |
+| `CHANGELOG.md` | English changelog, mirroring `更新日志.md` one-to-one |
 | `LICENSE` | License text: **PolyForm Noncommercial 1.0.0** — source is public, **all commercial use is prohibited**; free for personal study, research and noncommercial organizations |
 | `.gitignore` | Tells git which files to keep out of version control (build artifacts, caches, logs). **Do not delete** — without it, `build*/`, `dist*/` and `__pycache__` would get committed and bloat the repo. |
 | `engines_manifest.json` | **Remote engine manifest.** Fetched by "Engine Manager → Check for Updates" so new engines or model swaps can ship without repackaging the app. |
