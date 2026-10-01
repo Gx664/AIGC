@@ -65,7 +65,32 @@ def main():
     import importlib.util as u
 
     for mod in ("PySide6", "torch", "torchvision", "transformers", "accelerate", "docx", "pypdf", "numpy"):
-        say("%-14s: %s" % (mod, "OK" if u.find_spec(mod) else "缺失"))
+        try:
+            spec = u.find_spec(mod)
+        except Exception as e:
+            say("%-14s: 查找失败 -> %s: %s" % (mod, type(e).__name__, e))
+            continue
+        if spec is None:
+            say("%-14s: 缺失" % mod)
+            continue
+        # 远古单文件模块会冒充同名包（典型：PyPI 上的 docx 0.2.4 冒充 python-docx）
+        if not spec.submodule_search_locations:
+            say("%-14s: 版本错误 -> %s" % (mod, spec.origin))
+            if mod == "docx":
+                say("               PyPI 上的 docx 是 2011 年的 Python 2 版本，Python 3 下无法使用；")
+                say("               正确包名是 python-docx。重启软件后引导器会自动卸载并替换。")
+            continue
+        say("%-14s: OK (%s)" % (mod, spec.origin))
+
+    section("文档解析（上传 DOCX / PDF 时才会用到）")
+    for mod in ("docx", "pypdf"):
+        try:
+            __import__(mod)
+            say("%-14s: 可正常使用" % mod)
+        except Exception as e:
+            say("%-14s: 不可用 -> %s: %s" % (mod, type(e).__name__, e))
+            if getattr(e, "name", "") == "exceptions":
+                say("               这是装成了远古 docx 0.2.4 的典型症状，重启软件会自动修复。")
 
     section("torch 可用性（安全软件常会拦截）")
     try:

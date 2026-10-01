@@ -16,6 +16,11 @@ DEFAULTS = {
         "manifest_url": "https://raw.githubusercontent.com/Gx664/AIGC/main/engines_manifest.json",
         "plugins_dir": "",
     },
+    "runtime": {
+        # 运行组件（PyTorch）的发行版选择：cuda=显卡加速版 / cpu=通用小体积版。
+        # 空串表示"还没选过"，由首次启动引导器按是否有显卡决定并写入。
+        "torch_variant": "",
+    },
     "benchmark": {
         "threshold": 0.5,
         "max_samples": 200,

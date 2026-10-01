@@ -28,6 +28,76 @@ These rules apply to this project from 2026-09-25 onward:
 
 ---
 
+## v1.3.4 (2026-10-01)
+
+> This release mainly **fixes a bug that made Word documents completely unusable**, plus two additions.
+
+### Visible to users
+- 🔴 **Fixed: importing a .docx failed with "No module named 'exceptions'"**
+  - before this release, picking a Word document and hitting Detect crashed every time
+  - already-installed users do **not** need to reinstall: drop `tools/修复DOCX组件.bat`
+    into the install root and double-click it
+- **A new choice on first launch**: when a discrete GPU is detected, the app asks which runtime
+  component to install - CUDA (about 2.5-3.5 GB, fast) or CPU (about 0.2 GB, smaller but slower).
+  No GPU detected means it silently installs the CPU build, no question asked
+- **Two more detection engines** (download their models on demand in Engine Manager) - see below
+- The Settings window gains a "Runtime component (PyTorch)" group showing which build is installed
+
+### Fixed: Word documents always crashed (the focus of this release)
+- **Symptom**: dropping in a .docx and clicking Detect raised
+  "Detection failed: No module named 'exceptions'"
+- **Root cause**: the first-run launcher's dependency list used the package name `docx`
+  (the correct name is `python-docx`). The package actually called `docx` on PyPI is the
+  **Python 2 build from 2011** - a single-file `docx.py` whose first lines are
+  `from exceptions import ...`, and `exceptions` is a Python 2 module that Python 3 removed.
+  Importing it explodes immediately
+- **Why it stayed hidden**: the health check used the same wrong name and only ran `find_spec`
+  (which never executes the code), so a package that exists but crashes on import was forever
+  reported as healthy
+- **What was fixed**:
+  - package name corrected to `python-docx`; a "pip name <-> import name" mapping table added
+  - for docx the check now uses a **real import probe** (actually running `import`, not just
+    testing whether a file exists)
+  - installs now **uninstall** that ancient `docx` 0.2.4 first (otherwise it keeps shadowing
+    the correct package)
+  - read failures now raise a **plain-language, actionable** message (including the fix), PDF included
+  - the Diagnose tool now detects "wrong version installed" and shows the module's real file path
+- New `tools/修复DOCX组件.bat`: **existing users do not need to reinstall** - drop it into the
+  install root and double-click
+
+### Added: selectable runtime component (CUDA / CPU)
+- the decision logic moved to `app/core/runtime_deps.py` (standard library only - the launcher
+  needs it before any dependency is installed)
+- discrete GPU present -> first launch shows a picker (CUDA preselected); no GPU -> CPU build
+  installed silently
+- the choice is stored in `settings.json` as `runtime.torch_variant` and reused on reinstall/repair,
+  so it is never asked twice
+- if all three CUDA mirrors fail, the app **falls back to the CPU build automatically** and says so,
+  instead of leaving the user stuck with a failed install
+
+### Added: two detection engines
+- **AIGC Chinese detector v3** - `yuchuantian/AIGC_detector_zhv3`, about 409 MB, Apache-2.0, Chinese
+- **PAN 2026 ModernBERT-large** - `ShantanuT01/vanguard-ai-text-detector`, about 1.58 GB, MIT,
+  English (the ModernBERT-large classifier from the PAN 2026 evaluation)
+- both reuse the existing classifier implementation - **zero new engine code**; the classifier
+  gained the ability to **pin the AI label index per entry** (`params.ai_label`), so a different
+  label order in a new model cannot silently invert the verdict
+- models are still downloaded on demand in Engine Manager, never bundled
+
+### Changed: groundwork for three platforms (Windows / Linux / macOS)
+- platform differences are now centralised in `app/core/platform_ops.py`
+  (data directory / font / icon / runtime interpreter / desktop entry)
+- **Windows behaviour is unchanged down to the letter** (data directory is still the install
+  directory, the font is still Microsoft YaHei UI, the icon is still .ico), pinned by assertion
+  tests; no Linux / macOS build ships in this release
+
+### Checks
+- Chinese/English UI strings aligned at **329:329**, nothing missing or extra
+- all regression suites green: platform layer 13, runtime component 18, engine framework 13,
+  new engines 7, dependency fix 14, platform check 9
+
+---
+
 ## v1.3.3 (2026-09-25)
 
 > This release **only changes how contact details are shown** - no detection / rewrite logic was touched.

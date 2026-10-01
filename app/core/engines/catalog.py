@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""引擎清单（9 项，零依赖，UI 与安装器都可安全导入）。
+"""引擎清单（11 项，零依赖，UI 与安装器都可安全导入）。
 
 设计要点
 --------
@@ -43,6 +43,54 @@ BUILTIN_ENGINES = [
         "desc_en": "A classifier trained on Chinese human-vs-ChatGPT corpora; outputs a per-paragraph AI probability. Runs on CPU.",
         "tags": ["中文", "CPU 可跑", "推荐"],
         "params": {"max_len": 500},
+        "update_channel": "models",
+    },
+    {
+        "id": "aigc_zh_v3",
+        "name": "AIGC 中文检测 v3",
+        "name_en": "AIGC Chinese detector v3",
+        "category": CAT_DETECT,
+        "impl": "classifier",
+        "model_id": "yuchuantian/AIGC_detector_zhv3",
+        "models": [
+            {
+                "repo": "yuchuantian/AIGC_detector_zhv3",
+                "size": "约 400MB",
+                "role": "中文判别模型（BERT）",
+                "role_en": "Chinese classifier (BERT)",
+            }
+        ],
+        "size_hint": "约 400MB",
+        "paper": "HC3-Chinese / AIGC_text_detector",
+        "venue": "中文 AIGC 检测公开实现 · Apache-2.0",
+        "desc": "在 HC3 中文语料升级版上训练的判别模型，对中文改写、润色后的 AI 文本比旧版更敏感，逐段输出 AI 概率。CPU 可跑。",
+        "desc_en": "A classifier trained on the upgraded Chinese HC3 corpus; more sensitive to paraphrased or polished Chinese AI text than the older detector. Outputs a per-paragraph AI probability. Runs on CPU.",
+        "tags": ["中文", "CPU 可跑"],
+        "params": {"max_len": 500},
+        "update_channel": "models",
+    },
+    {
+        "id": "pan_modernbert",
+        "name": "PAN 2026 ModernBERT（英文）",
+        "name_en": "PAN 2026 ModernBERT (English)",
+        "category": CAT_DETECT,
+        "impl": "classifier",
+        "model_id": "ShantanuT01/vanguard-ai-text-detector",
+        "models": [
+            {
+                "repo": "ShantanuT01/vanguard-ai-text-detector",
+                "size": "约 1.6GB",
+                "role": "英文判别模型（ModernBERT-large）",
+                "role_en": "English classifier (ModernBERT-large)",
+            }
+        ],
+        "size_hint": "约 1.6GB",
+        "paper": "arXiv:2607.17382",
+        "venue": "PAN@CLEF 2026 检测赛道 · MIT",
+        "desc": "PAN 2026 检测赛道的高分分类器（均分 0.96），主打抗跨域过拟合，长英文文档表现最稳。模型较大，建议独立显卡。",
+        "desc_en": "A top-scoring classifier from the PAN 2026 detection track (mean score 0.96), built for out-of-distribution robustness. Strongest on long English texts. Large model, GPU recommended.",
+        "tags": ["英文", "需显卡"],
+        "params": {"max_len": 1000},
         "update_channel": "models",
     },
     {

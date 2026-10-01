@@ -108,6 +108,28 @@ class SettingsDialog(QDialog):
         dirl.addWidget(dir_hint)
         lay.addWidget(grp_dir)
 
+        # 运行组件（PyTorch）版本：首次启动时选择，这里只读展示 + 说明如何切换
+        grp_rt = QGroupBox(tr("settings_runtime_group"))
+        rt_lay = QVBoxLayout(grp_rt)
+        try:
+            from core import runtime_deps
+
+            variant = runtime_deps.get_variant(self.base_dir)
+        except Exception:
+            variant = ""
+        if variant == "cuda":
+            cur_txt = tr("settings_runtime_cuda")
+        elif variant == "cpu":
+            cur_txt = tr("settings_runtime_cpu")
+        else:
+            cur_txt = tr("settings_runtime_unknown")
+        rt_lay.addWidget(QLabel(tr("settings_runtime_current") % cur_txt))
+        rt_hint = QLabel(tr("settings_runtime_hint"))
+        rt_hint.setWordWrap(True)
+        rt_hint.setStyleSheet("color: #666; font-size: 11px;")
+        rt_lay.addWidget(rt_hint)
+        lay.addWidget(grp_rt)
+
         grp_model = QGroupBox(tr("settings_model_group"))
         mll = QVBoxLayout(grp_model)
 

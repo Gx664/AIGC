@@ -5,8 +5,9 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 一款本地运行的 AIGC 检测桌面工具：拖入论文（PDF/DOCX/TXT），
 选择检测引擎，得到整篇 AI 生成占比与段落级报告。
 - 全程离线推理：论文内容不上传任何平台，保护隐私
-- 5 个可切换检测引擎：SimpleAI 中文检测（默认）、GLTR 困惑度、
-  Fast-DetectGPT、DetectGPT、Binoculars，也可接入任意 HuggingFace 模型
+- 7 个可切换检测引擎：SimpleAI 中文检测（默认）、AIGC 中文检测 v3、GLTR 困惑度、
+  Fast-DetectGPT、DetectGPT、Binoculars、PAN ModernBERT（英文），
+  也可接入任意 HuggingFace 模型
 - 模型不预置、按需下载：用到哪个下哪个，下载一次之后完全离线可用
 - 参数可自定义并存档
 - 同机多卡自动并行；局域网可把室友电脑、Pad、手机加入并行计算
@@ -50,6 +51,17 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
      一键复制两者；「关于」窗口、卸载提示、安装器界面、导出日志提示同步更新；
   ② 国际用户赞赏说明改为直接 Telegram 联系打赏（不再需要赠送 API Key）；
   ③ 反馈 / 意见 / 合作统一给出邮箱与 Telegram 两个渠道
+- v1.3.4 修复 / 新增：
+  ① 修复导入 .docx 必崩（报 No module named 'exceptions'）：首启依赖清单把包名写成了
+     `docx`，而 PyPI 上那个包是 2011 年的 Python 2 版本，一导入就炸；现改为
+     `python-docx`，并加真实导入探针 + 装前自动清理旧包（旧版用户不必重装，
+     可从项目主页取 tools/修复DOCX组件.bat 双击就地修复）；
+  ② 首次启动新增运行组件选择：检测到独立显卡时可选 CUDA 版（约 2.5～3.5 GB，快）
+     或 CPU 版（约 0.2 GB，体积小）；选择会记住，CUDA 下载失败自动回退 CPU；
+  ③ 新增两个检测引擎：AIGC 中文检测 v3（约 409 MB）与 PAN 2026 ModernBERT-large
+     （约 1.58 GB，英文）；模型仍在「引擎管理」里按需下载，不预置；
+  ④ 为 Windows / Linux / macOS 三端做准备（Windows 行为不变），本版尚未发布
+     Linux / macOS 包
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -70,11 +82,11 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 一张卡不够还能用数据线/局域网连室友的电脑，甚至 Pad、手机也能加入算力。
 于是就有了这个免费、本地、可控的项目。
 
-【集成的方法与落地状态（v1.2.8 起 9 项全部可运行）】
-本项目不是自创算法：9 项经过学术评审的方法全部落地成可运行的引擎或评测模块，
+【集成的方法与落地状态（v1.2.8 起逐项落地，v1.3.4 起 11 项全部可运行）】
+本项目不是自创算法：11 项经过学术评审的方法全部落地成可运行的引擎或评测模块，
 分「检查」「修复」「评测」三类。模型不预置，用到哪个下哪个。
 
-■ 检查引擎（5 个 · 判断文本是否 AI 生成）
+■ 检查引擎（7 个 · 判断文本是否 AI 生成）
 1) SimpleAI / HC3（默认中文引擎）· arXiv:2301.07597
    数据集、代码、模型全部公开，被大量研究引用。
 2) GLTR（统计检测）· arXiv:1906.04043，来自 MIT，NeurIPS 2019
@@ -87,21 +99,25 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
    零样本，无需训练数据。
 5) Binoculars · arXiv:2401.12070，ICML 2024
    同词表双模型交叉困惑度比，只看比值不看绝对值，免调阈值。
+6) AIGC 中文检测 v3（v1.3.4 新增）· HuggingFace: yuchuantian/AIGC_detector_zhv3
+   中文 BERT 分类器，HC3 中文升级语料训练，约 409 MB（Apache-2.0）。
+7) PAN ModernBERT-large（v1.3.4 新增）· 来自 PAN 2026 评测（Team DACTYL）
+   HuggingFace: ShantanuT01/vanguard-ai-text-detector，约 1.58 GB（MIT），英文文本。
    （以上引擎用哪个 HuggingFace 模型由引擎清单声明，换模型不必改代码）
 
 ■ 修复引擎（2 个 · 诊断 + 降重 · 内置规则，无需下载模型）
-6) aigc-reduce 三轮降重协议（MIT 开源项目）
+8) aigc-reduce 三轮降重协议（MIT 开源项目）
    9 维扫描 + AI 高频词替换表 + 口语化负面清单 + 受保护片段，
    三轮确定性改写，坚持「降重 ≠ 口语化」。
-7) 知网 5 种语言模式诊断（MIT 开源项目 cnki-aigc---skill）
+9) 知网 5 种语言模式诊断（MIT 开源项目 cnki-aigc---skill）
    句法节奏 / 信息密度 / 术语句法位置 / 连接词功能 / 模板段功能，
    该做法实测总 AI 率 20.6% → 10.1%。
 
 ■ 评测基准（2 个 · 给检测器做体检）
-8) RAID · arXiv:2401.09985，ACL 2024（600 万+ 条文本）
+10) RAID · arXiv:2401.09985，ACL 2024（600 万+ 条文本）
    输出准确率、假阳性率（人类文章被判成 AI 的比例）、假阴性率，
    并按生成模型分项。
-9) MGTBench · arXiv:2303.14822（首个面向 LLM 的检测基准框架）
+11) MGTBench · arXiv:2303.14822（首个面向 LLM 的检测基准框架）
    精确率 / 召回率 / F1，用于横向比较不同检测器。
    两个基准都支持导入官方数据集子集（CSV / JSONL）；
    内置样本是作者手写的快速自检集，不代表官方成绩。
@@ -131,7 +147,7 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 
 【技术架构】
 界面：Python + PySide6（自绘现代工具风 UI）
-检测：transformers（5 个可切换引擎，模型按需下载、全程离线推理）
+检测：transformers（7 个可切换引擎，模型按需下载、全程离线推理）
 修复：本地规则引擎（9 维扫描 + 知网 5 种语言模式 + 11 种深度 AI 痕迹，段落级 JSON）
 评测：RAID / MGTBench 指标（准确率 / 假阳性率 / 假阴性率 / F1，按生成模型分项）
 扩展：引擎插件目录（engines_plugins/*.py）+ 可远端更新的引擎清单
@@ -180,8 +196,9 @@ A local AIGC detection desktop tool: drop in a paper (PDF/DOCX/TXT),
 choose a detection engine, and get the overall AI-written ratio plus
 a paragraph-level report.
 - Fully offline inference: your paper never leaves your computer
-- 5 switchable detectors: SimpleAI Chinese (default), GLTR perplexity,
-  Fast-DetectGPT, DetectGPT and Binoculars - or any HuggingFace model you like
+- 7 switchable detectors: SimpleAI Chinese (default), AIGC Chinese detector v3,
+  GLTR perplexity, Fast-DetectGPT, DetectGPT, Binoculars and PAN ModernBERT
+  (English) - or any HuggingFace model you like
 - Models are never bundled: download only the ones you use, then work offline
 - Highly customizable parameters, with savable presets
 - Automatic multi-GPU parallelism on one machine; LAN cluster lets you add
@@ -245,6 +262,20 @@ a paragraph-level report.
   2) the international support note now points straight at Telegram tipping
      (no more "gift an API key");
   3) feedback / suggestions / collaboration now list both channels
+- Fixed / new in v1.3.4:
+  1) fixed .docx imports crashing with "No module named 'exceptions'": the first-run
+     dependency list used the package name `docx`, which on PyPI is the 2011 Python 2
+     build that explodes on import. It is now `python-docx`, with a real import probe
+     and automatic cleanup of the old package (existing users can repair in place by
+     double-clicking tools/修复DOCX组件.bat from the project page);
+  2) first launch now offers a runtime component choice: CUDA (about 2.5-3.5 GB,
+     fast) or CPU (about 0.2 GB, small). The choice is remembered, and a failed CUDA
+     download falls back to CPU automatically;
+  3) two new detection engines: AIGC Chinese detector v3 (about 409 MB) and
+     PAN 2026 ModernBERT-large (about 1.58 GB, English); models are still downloaded
+     on demand in Engine Manager, never bundled;
+  4) groundwork for Windows / Linux / macOS (Windows behaviour unchanged); no
+     Linux / macOS build ships in this release
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis
@@ -273,12 +304,12 @@ detection; if one GPU is not enough, you can link roommates' computers over
 Ethernet/LAN, or even add Pads and phones. So this free, local, controllable
 project was born.
 
-[Integrated methods & implementation status (all 9 live since v1.2.8)]
-This project does not invent algorithms: 9 peer-reviewed methods are all
+[Integrated methods & implementation status (all 11 live since v1.3.4)]
+This project does not invent algorithms: 11 peer-reviewed methods are all
 implemented as runnable engines or benchmark modules, grouped into
 Detectors / Rewriters / Benchmarks. No model is bundled; download what you use.
 
--- Detectors (5) - is this text AI-written? --
+-- Detectors (7) - is this text AI-written? --
 1) SimpleAI / HC3 (default Chinese engine) - arXiv:2301.07597
    Dataset, code and models are fully public and widely cited.
 2) GLTR (statistical detection) - arXiv:1906.04043, MIT, NeurIPS 2019
@@ -292,22 +323,29 @@ Detectors / Rewriters / Benchmarks. No model is bundled; download what you use.
    compare log-probability curvature. Zero-shot, no training data needed.
 5) Binoculars - arXiv:2401.12070, ICML 2024
    Two same-tokenizer models scored cross-wise; a ratio, so no threshold
-   tuning per domain. (Which HuggingFace model each engine uses is declared in
+   tuning per domain.
+6) AIGC Chinese detector v3 (new in v1.3.4) - HuggingFace:
+   yuchuantian/AIGC_detector_zhv3. A Chinese BERT classifier trained on an
+   upgraded HC3 Chinese corpus, about 409 MB (Apache-2.0).
+7) PAN ModernBERT-large (new in v1.3.4) - from the PAN 2026 evaluation
+   (Team DACTYL), HuggingFace: ShantanuT01/vanguard-ai-text-detector,
+   about 1.58 GB (MIT), English text.
+   (Which HuggingFace model each engine uses is declared in
    the engine list, so swapping models never requires code changes.)
 
 -- Rewriters (2) - diagnose & reduce, built-in rules, no model download --
-6) aigc-reduce three-round rewrite protocol (MIT project)
+8) aigc-reduce three-round rewrite protocol (MIT project)
    9-dimension scan + AI-frequent word table + colloquial blacklist +
    protected spans; deterministic rewriting that keeps the academic register.
-7) CNKI 5-language-pattern diagnosis (MIT project cnki-aigc---skill)
+9) CNKI 5-language-pattern diagnosis (MIT project cnki-aigc---skill)
    Sentence rhythm / information density / term position / connective function /
    template blocks; that method measured 20.6% -> 10.1% in practice.
 
 -- Benchmarks (2) - audit a detector --
-8) RAID - arXiv:2401.09985, ACL 2024 (6M+ texts)
+10) RAID - arXiv:2401.09985, ACL 2024 (6M+ texts)
    Accuracy, false-positive rate (human text flagged as AI), false-negative
    rate, and a per-generator breakdown.
-9) MGTBench - arXiv:2303.14822 (first detection benchmark framework for LLMs)
+11) MGTBench - arXiv:2303.14822 (first detection benchmark framework for LLMs)
    Precision / recall / F1 for comparing detectors head to head.
    Both accept a subset of the official datasets (CSV / JSONL); the built-in
    set is a hand-written smoke test, not an official score.
@@ -338,7 +376,7 @@ Thanks to those projects and their communities.
 
 [Tech Stack]
 UI: Python + PySide6 (custom modern-tool UI)
-Detection: transformers (5 switchable engines; models downloaded on demand,
+Detection: transformers (7 switchable engines; models downloaded on demand,
           inference always local)
 Rewrite: local rule engine (9-dimension scan + CNKI 5 patterns + 11 deep AI
          patterns, paragraph-level JSON)

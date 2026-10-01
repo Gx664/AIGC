@@ -27,7 +27,7 @@ except ImportError:  # pragma: no cover
     tk = filedialog = messagebox = ttk = None
 
 APP_NAME = "AI 检测工具箱"
-APP_VER = "1.3.3"
+APP_VER = "1.3.4"
 PY_VER = "3.12.10"
 PY_EMBED_NAME = "python-%s-embed-amd64.zip" % PY_VER
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"
@@ -745,7 +745,11 @@ def perform_install(target, log=None, status=None, cancelled=None, ask_manual=No
             log(tr("inst_launch_fail") % e)
 
     status(tr("inst_done"), 100)
-    log(tr("inst_done_log") % APP_NAME)
+    # 完成日志要跟着用户的选择走：跳过快捷方式时不能说"已创建快捷方式"
+    if opt_shortcut:
+        log(tr("inst_done_log") % APP_NAME)
+    else:
+        log(tr("inst_done_log_noshortcut"))
     return target
 
 

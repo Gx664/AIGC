@@ -14,8 +14,18 @@ class SimpleAIEngine(BaseEngine):
         ("Hello-SimpleAI/chatgpt-detector-roberta-chinese", "seq", "中文判别模型（RoBERTa）"),
     )
 
-    @staticmethod
-    def _ai_index(model):
+    def _ai_index(self, model):
+        """判断输出里哪一维代表"AI 写的"。
+
+        条目里可用 ``params.ai_label`` 显式钉住（新模型的标签顺序未必与旧模型
+        一致）；没写就按 id2label 的名称猜，再不然退回 1（HF 二分类惯例）。
+        """
+        explicit = (self.cfg.get("params") or {}).get("ai_label")
+        if explicit is not None:
+            try:
+                return int(explicit)
+            except (TypeError, ValueError):
+                pass
         labels = getattr(model.config, "id2label", None)
         if labels:
             for k, v in labels.items():

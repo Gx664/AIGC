@@ -2,7 +2,7 @@
 """引擎框架回归测试：不需要 torch / 不需要真的下载模型。
 
 覆盖：
-  1. 引擎清单完整性（9 项、三类、字段齐备）
+  1. 引擎清单完整性（11 项、三类、字段齐备）
   2. EngineManager 分类 / 本地覆盖 / 远端清单更新
   3. 注册表与插件自动发现
   4. 模型清单解析（条目声明即真相，换模型不改代码）
@@ -47,26 +47,29 @@ def _tmp():
 
 # ---------------------------------------------------------------- 1. 清单
 @case
-def test_catalog_nine_engines():
+def test_catalog_entries():
     from core.engines import catalog
 
     engines = catalog.BUILTIN_ENGINES
-    assert len(engines) == 9, "应有 9 个条目，实际 %d" % len(engines)
+    assert len(engines) == 11, "应有 11 个条目，实际 %d" % len(engines)
     ids = [e["id"] for e in engines]
-    assert len(set(ids)) == 9, "id 有重复：%s" % ids
+    assert len(set(ids)) == 11, "id 有重复：%s" % ids
     for e in engines:
         for key in ("id", "name", "category", "impl", "desc"):
             assert e.get(key), "%s 缺字段 %s" % (e.get("id"), key)
         assert e["category"] in ("detect", "repair", "benchmark"), e["category"]
         assert isinstance(e.get("models", []), list)
-    assert len(catalog.by_category("detect")) == 5
+    assert len(catalog.by_category("detect")) == 7
     assert len(catalog.by_category("repair")) == 2
     assert len(catalog.by_category("benchmark")) == 2
+    # 2026-10 新增的两个检测引擎必须落在清单里
+    for eid in ("aigc_zh_v3", "pan_modernbert"):
+        assert catalog.by_id(eid) is not None, "缺少条目 %s" % eid
 
 
 @case
-def test_catalog_covers_nine_methods():
-    """9 项学术方法都要在清单里有对应条目。"""
+def test_catalog_covers_methods():
+    """内置学术方法都要在清单里有对应条目。"""
     from core.engines import catalog
 
     blob = " ".join(
@@ -76,6 +79,8 @@ def test_catalog_covers_nine_methods():
     for needle in (
         "simpleai", "gltr", "fast-detectgpt", "detectgpt", "binoculars",
         "raid", "mgtbench", "aigc-reduce", "cnki",
+        # 2026-10 新增：中文增强（HC3 升级版）+ PAN@CLEF 2026 英文
+        "aigc_text_detector", "pan 2026",
     ):
         assert needle in blob, "清单里找不到 %s" % needle
 
@@ -88,14 +93,17 @@ def test_manager_categories():
     tmp = _tmp()
     try:
         mgr = EngineManager(tmp)
-        assert len(mgr.all()) == 9
-        assert len(mgr.by_category("detect")) == 5
+        assert len(mgr.all()) == 11
+        assert len(mgr.by_category("detect")) == 7
         assert len(mgr.by_category("repair")) == 2
         assert len(mgr.by_category("benchmark")) == 2
         # 检测流程只应看到检查类引擎
         names = [e["id"] for e in mgr.runnable()]
         assert sorted(names) == sorted(
-            ["simpleai", "gltr", "fastdetectgpt", "detectgpt", "binoculars"]
+            [
+                "simpleai", "gltr", "fastdetectgpt", "detectgpt", "binoculars",
+                "aigc_zh_v3", "pan_modernbert",
+            ]
         ), names
         assert mgr.get("binoculars")["category"] == "detect"
         assert mgr.is_builtin("gltr") is True
@@ -120,7 +128,7 @@ def test_manager_local_override():
         assert e["name"] == "我的 GLTR", e["name"]
         assert e["model_id"] == "gpt2-medium"
         assert e["category"] == "detect", "覆盖时不应丢掉未声明的字段"
-        assert len(mgr.all()) == 9
+        assert len(mgr.all()) == 11
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -157,7 +165,7 @@ def test_manager_remote_manifest():
         assert ok is True, "拉取失败：%s" % added
         assert added == 1, added
         assert mgr.get("future_detector") is not None
-        assert len(mgr.by_category("detect")) == 6
+        assert len(mgr.by_category("detect")) == 8
         # 重新打开（模拟重启）后依然在
         mgr2 = EngineManager(tmp)
         assert mgr2.get("future_detector")["name"] == "未来新检测器"
@@ -382,8 +390,8 @@ def main():
     print("torch 可用：%s %s" % (TORCH_OK, ("(%s)" % TORCH_ERROR) if TORCH_ERROR else ""))
 
     for fn in (
-        test_catalog_nine_engines,
-        test_catalog_covers_nine_methods,
+        test_catalog_entries,
+        test_catalog_covers_methods,
         test_manager_categories,
         test_manager_local_override,
         test_manager_remote_manifest,

@@ -29,7 +29,7 @@
 | **段落级定位** | 逐段输出 AI 概率，红色高亮最可疑的段落，照着改就行 |
 | **检测 → 诊断 → 降重闭环** | 先诊断 11 种 AI 痕迹（段落级 JSON 报告），再按「三轮降重协议」做确定性改写，**降重 ≠ 口语化**，守住学术书面语体 |
 | **自动降重** | 改写后本地复检，没降到目标 AI 率就继续改，循环到达标为止 |
-| **5 个检测引擎** | SimpleAI 中文（默认）、GLTR 困惑度、Fast-DetectGPT、DetectGPT、Binoculars；也可接入任意 HuggingFace 模型 |
+| **7 个检测引擎** | SimpleAI 中文（默认）、AIGC 中文检测 v3、GLTR 困惑度、Fast-DetectGPT、DetectGPT、Binoculars、PAN ModernBERT（英文）；也可接入任意 HuggingFace 模型 |
 | **模型按需下载** | 软件不预置模型，用哪个下哪个；下载一次后完全离线运行 |
 | **评测基准** | 内置 RAID / MGTBench：用带标注样本测出准确率、假阳性率、按生成模型分项；可导入官方数据集子集 |
 | **全程离线** | 推理全在本机跑，论文不上传任何平台；模型下载一次后就断网可用 |
@@ -44,7 +44,7 @@
 
 - **全程离线推理**：检测模型本地下载一次，论文内容不会上传给任何平台，保护隐私
 - **模型保存路径可自定义**：模型可存到任意磁盘（如 D 盘），装在 C 盘也不怕占空间；重装软件不影响已下载的模型
-- **5 个检测引擎**：SimpleAI 中文（默认）、GLTR 困惑度、Fast-DetectGPT、DetectGPT、Binoculars，也支持任意 HuggingFace 模型
+- **7 个检测引擎**：SimpleAI 中文（默认）、AIGC 中文检测 v3、GLTR 困惑度、Fast-DetectGPT、DetectGPT、Binoculars、PAN ModernBERT（英文），也支持任意 HuggingFace 模型
 - **模型按需下载**：软件不预置模型，用哪个下哪个，下载一次后完全离线可用
 - **评测基准**：内置 RAID / MGTBench，用带标注样本给自己的检测结果做体检（准确率、假阳性率、按生成模型分项）
 - **参数高度自定义**：判定阈值、段落切分、并行数等均可调整，预设可存档、导出、导入
@@ -88,11 +88,11 @@
 
 于是就有了这个项目：让论文检测**回归本地、免费、可控**。
 
-## 集成的 9 项方法（全部已实现，不是纸面引用）
+## 集成的 11 项方法（全部已实现，不是纸面引用）
 
 本项目**不是自创检测算法**，而是把以下经过**学术评审**的方法**全部落地成可运行的引擎或评测模块**，分「检查 / 修复 / 评测」三类。模型不预置，用到哪个下哪个。
 
-### 检查引擎（5 个 · 判断文本是否 AI 生成）
+### 检查引擎（7 个 · 判断文本是否 AI 生成）
 
 | 项目 / 论文 | 在本项目里怎么实现的 | 链接 |
 |---|---|---|
@@ -101,6 +101,8 @@
 | **Fast-DetectGPT** | **按论文的条件概率曲率实现**：用打分模型自身采样构造扰动样本 x̃，比较 `logP(x) − E[logP(x̃)]`；ICLR 2024 | [arXiv](https://arxiv.org/abs/2310.05130) · [GitHub](https://github.com/baoguangsheng/fast-detect-gpt) |
 | **DetectGPT** | **按论文的掩码扰动实现**：T5 补全随机挖掉的片段得到 x̃，比较对数概率曲率；零样本，斯坦福，ICML 2023 (Oral) | [arXiv](https://arxiv.org/abs/2301.11305) · [GitHub](https://github.com/ericmitchell/DetectGPT) |
 | **Binoculars** | 同词表双模型交叉困惑度比 `B = logPPL_observer / crossPPL_performer`，B 越小越像 AI；只看比值，免调阈值；ICML 2024 | [arXiv](https://arxiv.org/abs/2401.12070) · [GitHub](https://github.com/AHans30/Binoculars) |
+| **AIGC 中文检测 v3**（v1.3.4 新增） | 中文 BERT 序列分类器，训练语料为升级版 HC3 中文数据；HuggingFace `yuchuantian/AIGC_detector_zhv3`，约 409 MB，Apache-2.0 | [HuggingFace](https://huggingface.co/yuchuantian/AIGC_detector_zhv3) |
+| **PAN ModernBERT-large**（v1.3.4 新增） | 来自 PAN 2026 评测（Team DACTYL）；HuggingFace `ShantanuT01/vanguard-ai-text-detector`，约 1.58 GB，MIT，面向英文文本 | [HuggingFace](https://huggingface.co/ShantanuT01/vanguard-ai-text-detector) |
 
 ### 修复引擎（2 个 · 诊断 + 降重 · 内置规则，不需要下载模型）
 
@@ -176,7 +178,7 @@ If you'd like to tip but don't use either of the two payment methods above, you 
 ## 技术架构
 
 - 界面：Python + PySide6（自绘现代工具风 UI）
-- 检测引擎：transformers —— 5 个可切换引擎（分类 / 困惑度 / 概率曲率 / 双模型），模型按需下载、全程离线推理
+- 检测引擎：transformers —— 7 个可切换引擎（分类 / 困惑度 / 概率曲率 / 双模型），模型按需下载、全程离线推理
 - 诊断：本地规则引擎（9 维扫描 + 知网 5 种语言模式 + 11 种深度 AI 痕迹，段落级 JSON）
 - 治疗：三轮降重协议（确定性改写 + 受保护片段 + 语体守门，完全离线）
 - 评测：RAID / MGTBench 指标（准确率 / 假阳性率 / 假阴性率 / F1，按生成模型分项）

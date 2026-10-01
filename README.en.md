@@ -30,7 +30,7 @@
 | **Paragraph-level pinpointing** | Per-paragraph AI probability, with the most suspicious paragraphs highlighted in red |
 | **Detect → diagnose → rewrite loop** | Diagnoses 11 kinds of AI traces (paragraph-level JSON report), then rewrites deterministically via a "three-round protocol" — **de-AI-ing ≠ colloquializing**, formal academic register preserved |
 | **Automatic rewriting** | Re-checks locally after each pass and keeps rewriting until the target AI ratio is reached |
-| **5 detection engines** | SimpleAI Chinese (default), GLTR perplexity, Fast-DetectGPT, DetectGPT, Binoculars — or any HuggingFace model |
+| **7 detection engines** | SimpleAI Chinese (default), AIGC Chinese v3, GLTR perplexity, Fast-DetectGPT, DetectGPT, Binoculars, PAN ModernBERT (English) — or any HuggingFace model |
 | **Models on demand** | No model is bundled; download only what you use, then work fully offline |
 | **Benchmarks** | RAID / MGTBench built in: measure accuracy, false-positive rate and a per-generator breakdown on labelled samples; import official dataset subsets |
 | **Fully offline** | All inference runs locally; your paper is never uploaded. After the one-time model download it works with no internet |
@@ -45,7 +45,7 @@ A **fully local** AIGC detection desktop tool: drag in a paper (PDF / DOCX / TXT
 
 - **Fully offline inference**: the detection model is downloaded once; your paper is never uploaded to any platform
 - **Custom model storage path**: keep models on any drive (e.g. D:) so they don't eat C: space; reinstalling the app never deletes downloaded models
-- **5 detection engines**: SimpleAI Chinese (default), GLTR perplexity, Fast-DetectGPT, DetectGPT, Binoculars — plus any custom HuggingFace model
+- **7 detection engines**: SimpleAI Chinese (default), AIGC Chinese v3, GLTR perplexity, Fast-DetectGPT, DetectGPT, Binoculars, PAN ModernBERT (English) — plus any custom HuggingFace model
 - **Models downloaded on demand**: nothing is bundled; grab what you need and stay offline afterwards
 - **Benchmarks**: RAID / MGTBench built in, so you can audit your own detection results (accuracy, false-positive rate, per-generator breakdown)
 - **Highly customizable**: threshold, paragraph splitting, worker count and more; presets can be saved, exported and imported
@@ -103,11 +103,11 @@ His graduation thesis had to be **re-checked for AI-written ratio again and agai
 
 So this project was born: bringing thesis detection **back to local, free and controllable**.
 
-## The 9 integrated methods (all implemented, not just cited)
+## The 11 integrated methods (all implemented, not just cited)
 
 This project does **not invent its own algorithms** - it implements the following **peer-reviewed** methods as runnable engines or benchmark modules, grouped into Detectors / Rewriters / Benchmarks. No model is bundled; download what you use.
 
-### Detectors (5) - is this text AI-written?
+### Detectors (7) - is this text AI-written?
 
 | Project / Paper | How it is implemented here | Links |
 |---|---|---|
@@ -116,6 +116,8 @@ This project does **not invent its own algorithms** - it implements the followin
 | **Fast-DetectGPT** | **Implemented per the paper's conditional probability curvature**: the scoring model samples its own perturbations x̃, then we compare `logP(x) − E[logP(x̃)]`; ICLR 2024 | [arXiv](https://arxiv.org/abs/2310.05130) · [GitHub](https://github.com/baoguangsheng/fast-detect-gpt) |
 | **DetectGPT** | **Implemented per the paper's masked perturbation**: T5 refills randomly removed spans to build x̃, then we compare log-probability curvature; zero-shot, Stanford, ICML 2023 (Oral) | [arXiv](https://arxiv.org/abs/2301.11305) · [GitHub](https://github.com/ericmitchell/DetectGPT) |
 | **Binoculars** | Cross-perplexity ratio of two same-tokenizer models, `B = logPPL_observer / crossPPL_performer`; lower B means more AI-like; ratio-based, no threshold tuning; ICML 2024 | [arXiv](https://arxiv.org/abs/2401.12070) · [GitHub](https://github.com/AHans30/Binoculars) |
+| **AIGC Chinese v3** (new in v1.3.4) | Chinese BERT sequence classifier trained on an upgraded HC3 Chinese corpus; HuggingFace `yuchuantian/AIGC_detector_zhv3`, about 409 MB, Apache-2.0 | [HuggingFace](https://huggingface.co/yuchuantian/AIGC_detector_zhv3) |
+| **PAN ModernBERT-large** (new in v1.3.4) | From the PAN 2026 evaluation (Team DACTYL); HuggingFace `ShantanuT01/vanguard-ai-text-detector`, about 1.58 GB, MIT, English text | [HuggingFace](https://huggingface.co/ShantanuT01/vanguard-ai-text-detector) |
 
 ### Rewriters (2) - diagnose & reduce, built-in rules, no model download
 
@@ -191,7 +193,7 @@ If you'd like to tip but don't use either of the two payment methods above, you 
 ## Tech Stack
 
 - UI: Python + PySide6 (custom modern-tool UI)
-- Detection: transformers - 5 switchable engines (classifier / perplexity / probability curvature / dual model); models downloaded on demand, inference always local
+- Detection: transformers - 7 switchable engines (classifier / perplexity / probability curvature / dual model); models downloaded on demand, inference always local
 - Diagnosis: local rule engine (9-dimension scan + CNKI 5 language patterns + 11 deep AI patterns, paragraph-level JSON)
 - Treatment: three-round protocol (deterministic rewriting + protected spans + register guard, fully offline)
 - Benchmarks: RAID / MGTBench metrics (accuracy / FPR / FNR / F1, per generator)

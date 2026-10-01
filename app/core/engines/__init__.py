@@ -10,7 +10,7 @@ from .manager import BUILTIN_ENGINES, EngineManager  # noqa: F401
 from .registry import get_impl, load_plugins, register, registered  # noqa: F401
 
 # torch 是否可用单独判定。引擎模块一律在函数内部才 import torch，
-# 所以即使 torch 被拦住，9 个引擎条目、模型清单、下载界面仍然完整可见。
+# 所以即使 torch 被拦住，11 个引擎条目、模型清单、下载界面仍然完整可见。
 TORCH_OK = True
 TORCH_ERROR = ""
 try:

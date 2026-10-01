@@ -41,6 +41,7 @@ from core.meta import (
     AUTHOR_EMAIL,
     AUTHOR_TG,
 )
+from core import platform_ops
 from core.report import build_report
 from core.settings import Settings
 from ui.engine_dialog import EngineDialog
@@ -53,6 +54,12 @@ if getattr(sys, "frozen", False):
     BASE_DIR = os.path.dirname(sys.executable)
 else:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# BASE_DIR  = 程序目录：代码、app/assets 等**只读**资源从这儿找
+# DATA_DIR  = 数据目录：settings.json / logs / models 等**要写**的东西落这儿
+# Windows 两者相同（行为与改造前一致）；Unix 的 DATA_DIR 走用户级目录，
+# 因为 .app 装在 /Applications 下、AppImage 也可能是只读的。
+DATA_DIR = platform_ops.effective_base_dir(BASE_DIR)
 
 
 class DetectWorker(QThread):
@@ -123,7 +130,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(APP_NAME)
         # 初始尺寸按屏幕可用区域收敛，避免小屏（如 1440x900）上一开窗就超出屏幕底部
         fit_to_screen(self, 1120, 780)
-        self.base_dir = BASE_DIR
+        self.base_dir = DATA_DIR
         self.settings = Settings(self.base_dir)
         set_lang(self.settings.get("ui", "language", default="zh"))
         self.log = setup_logging(self.base_dir)
@@ -397,7 +404,7 @@ class MainWindow(QMainWindow):
             self.engine_combo.setCurrentIndex(idx)
 
     def open_engine_dialog(self):
-        EngineDialog(self.mgr, BASE_DIR, self.settings, self).exec()
+        EngineDialog(self.mgr, DATA_DIR, self.settings, self).exec()
         current = self.engine_combo.currentData()
         self._reload_engines()
         if current is not None:
@@ -420,10 +427,10 @@ class MainWindow(QMainWindow):
         bench = benches[names.index(choice)]
         from ui.benchmark_dialog import BenchmarkDialog
 
-        BenchmarkDialog(self.mgr, BASE_DIR, self.settings, bench["id"], self).exec()
+        BenchmarkDialog(self.mgr, DATA_DIR, self.settings, bench["id"], self).exec()
 
     def open_download_settings(self):
-        SettingsDialog(self.settings, BASE_DIR, self).exec()
+        SettingsDialog(self.settings, DATA_DIR, self).exec()
 
     # ---- 文件 ----
     def choose_file(self):
