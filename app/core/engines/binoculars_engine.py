@@ -37,7 +37,7 @@ global threshold = 0.901。
 gpt2 + gpt2-medium（同词表、合计约 1.9GB、CPU 可跑）。
 **换了模型组合就必须重标阈值**，0.9015 只作为初始值。
 
-TODO（论文原版模型，见 docs/AUDIT_2026-09-22.md）
+TODO（切回论文原版模型）
 -------------------------------------------------
 切回 Falcon-7B-Instruct + Falcon-7B（约 15GB）。
 """

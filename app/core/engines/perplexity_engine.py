@@ -19,7 +19,7 @@
 按文本语言自动切换。
 
 数据来源：Ghostbuster Student Essay（英）/ HC3-Chinese（中），
-详见 docs/CALIBRATION.md
+详见 docs/FIXES.md §3
 
 中文专用条目（``zh_perplexity``，2026-09-23 加入内置清单）
 --------------------------------------------------------
@@ -35,13 +35,13 @@
 ``zh_perplexity`` 的阈值标自 HC3-Chinese 200 条 1:1，取的是 **FPR<=5% 版**
 （原作者原填 (20, 45)，实测 FPR 高达 95% —— 中文人写 PPL 中位仅 13.64，
 低于 ``ppl_low=20``，于是人写文本全被判 AI）。改用 (2.88, 7.68) 后
-acc 0.5200 → 0.6300、FPR 0.9500 → 0.0400。详见 docs/CALIBRATION.md 2.8。
+acc 0.5200 → 0.6300、FPR 0.9500 → 0.0400。详见 docs/FIXES.md §3.1。
 
 **两套阈值量纲差约 5 倍，不可互换。**
 
 注：论文 GLTR（arXiv:1906.04043）的主特征是逐 token rank 四档分布
 （§4 实测 AUC 0.87），本实现用的是整段平均 PPL（Test-1 路线的退化版，
-AUC 0.71）。按 rank 四档重做见 docs/AUDIT_2026-09-22.md 的 TODO-3。
+AUC 0.71）。按 rank 四档 + 逻辑回归重做需训练，未做。
 """
 from .base import BaseEngine
 from .registry import register
@@ -163,7 +163,7 @@ class PerplexityEngine(BaseEngine):
 
         **已知局限**：这样聚合后与 PPL 路线基本打平（中文还略差）。
         原因是四档信息集中在绿/紫两端，压扁就丢了；论文的 AUC 0.87
-        来自「四档 + 逻辑回归」，需训练才能复现。详见 docs/FIXES.md TODO-3。
+        来自「四档 + 逻辑回归」，需训练才能复现（未做）。
         """
         tok = self.tok(0)
         model = self.mdl(0, device)

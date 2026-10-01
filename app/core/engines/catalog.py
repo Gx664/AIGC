@@ -65,18 +65,18 @@ BUILTIN_ENGINES = [
         #   英文 (12, 25)        -> acc 93.67%  FPR 5.19%
         #   中文 (11.35, 18.72)  -> acc 74.67%  FPR 29.58%
         # 数据：Ghostbuster Student Essay / HC3-Chinese
-        # 详见 docs/CALIBRATION.md
+        # 详见 docs/FIXES.md §3
         # 为什么要分：英文 human 的 PPL 中位 29.50、中文只有 17.18 ——
         # 同一组阈值对中文会把大段人写文本判进插值区间。
         #
         # 中文可用性（2026-09-23 AUC 复测）：AUC 0.7816，但**在 FPR<=5%
         # 约束下中文不存在可行阈值**（英文有：thr=0.4998 acc=0.9400）。
-        # 查重工具误报比漏报严重，故中文侧实际不可交付。详见
-        # docs/CALIBRATION.md 2.7 与 docs/HANDOFF.md 5.8。
+        # 查重工具误报比漏报严重，故中文侧实际不可交付。
+        # 详见 docs/FIXES.md §3.1
         #
         # method 可切到论文 §3 的 Test-2（逐 token rank 四档）：
         # "rank" 路线实测与 PPL 打平（中文还略差），故默认仍是 "ppl"。
-        # 详见 FIXES.md §2.2（Test-2 已实现为 method="rank" 可选路线）
+        # 详见 docs/FIXES.md §2.2（Test-2 已实现为 method="rank" 可选路线）
         "params": {
             "method": "ppl",
             "ppl_high": 25.0,
@@ -91,7 +91,7 @@ BUILTIN_ENGINES = [
         # 但没接进内置清单 —— 中文侧原本只有 simpleai 一个可用选项。
         # 本次（TODO-8 方案 A）把它落到内置清单，用户开箱即可用。
         #
-        # 实测（HC3-Chinese 200 条 1:1，见 docs/CALIBRATION.md 2.8）：
+        # 实测（HC3-Chinese 200 条 1:1，见 docs/FIXES.md §3.1）：
         #   AI    PPL 中位  6.27
         #   human PPL 中位 13.64        <- 英文 human 中位是 29.50
         #   阈值原来填的 (20, 45) -> acc 0.5200 / FPR 0.9500（95% 人写被判 AI）
@@ -140,13 +140,13 @@ BUILTIN_ENGINES = [
         "venue": "ICLR 2024",
         "desc": "原论文的采样近似实现：用模型自身采样近似曲率，无需训练数据。模型大，建议独立显卡。",
         "desc_en": "Sampling-based approximation of the original method: conditional probability curvature via self-sampling, no training data needed. Large model, GPU recommended.",
-        # ⚠️ 本引擎**中英两侧都还没标定**（docs/CALIBRATION.md 1.1 与 2.1 均记
+        # ⚠️ 本引擎**中英两侧都还没标定**（docs/FIXES.md §3.1 与 §3.2 均记
         # 「未标定」）。原标签写「中文不可用」是**推测**（因底座是英文模型、
         # 且 detectgpt 中文反向），不是实测 —— 2026-09-23 撤掉，改为「未标定」，
         # 避免让用户以为已有依据。
         #
         # 跑不了的原因：需可用显存 >=7GB，本机常被其他进程占 7.8GB，余量不足
-        # 时会慢 10 倍（139.9 秒/条 vs 干净环境 13.6 秒）。见 docs/HANDOFF.md §5.9。
+        # 时会慢 10 倍（139.9 秒/条 vs 干净环境 13.6 秒）—— 见 docs/FIXES.md §5。
         "tags": ["零样本", "需显卡", "英文", "未标定"],
         "params": {"mode": "fast", "samples": 5, "threshold": 0.0, "scale": 0.6},
         "update_channel": "models",
@@ -193,7 +193,7 @@ BUILTIN_ENGINES = [
         # 论文附录 A.1.2 要求换模型后重标（"optimize using accuracy"）。
         # 标定数据：Ghostbuster Student Essay 1:1 平衡样本 120 条，
         #           最优阈值 0.615，准确率 94.17%，FPR 4.84%。
-        # 详见 docs/CALIBRATION.md 2.3
+        # 详见 docs/FIXES.md §3.2
         "params": {"threshold": 0.615, "scale": 0.12},
         "update_channel": "models",
     },

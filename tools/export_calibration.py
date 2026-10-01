@@ -97,7 +97,7 @@ CALIBRATED = {
             "criterion": "最优阈值（中文 FPR<=5% 无解，故只能取最优）",
             "acc": 0.9367,
             "fpr": 0.0519,
-            "method": "docs/calibration.md §1.1 / §2.2 / §2.7",
+            "method": "docs/FIXES.md §3.1 / §3.2",
             "date": "2026-09-23",
             "note": "英文侧已按 FPR<=5% 复核（0.9400，见 §2.9）✅；"
                     "中文侧 FPR 高达 29.58% 且 FPR<=5% 下无可行阈值，"
@@ -120,7 +120,7 @@ CALIBRATED = {
             "criterion": "最优阈值",
             "acc": 0.9417,
             "fpr": 0.0484,
-            "method": "docs/calibration.md §2.3",
+            "method": "docs/FIXES.md §3.2",
             "date": "2026-09-23",
             "note": "**阈值漂移警告**：换到 essay 前 200 条时最优阈值掉到 "
                     "0.1288，0.615 下 FNR=1.0000（一条 AI 都抓不出）。"
@@ -144,7 +144,7 @@ CALIBRATED = {
             "date": "2026-09-23",
             "note": "中英两侧都未测（需可用显存 >=7GB，本机常不足）。"
                     "threshold=0.0 / scale=0.6 是**未经标定的默认值**，"
-                    "界面标「未标定」以免误导。见 HANDOFF §5.14。",
+                    "界面标「未标定」以免误导。见 docs/FIXES.md §6。",
         },
     },
     "detectgpt": {
@@ -162,7 +162,7 @@ CALIBRATED = {
             "criterion": "最优阈值（英文）",
             "acc": 0.7000,
             "fpr": None,
-            "method": "docs/calibration.md §2.1 / HANDOFF §5.10",
+            "method": "docs/FIXES.md §3",
             "date": "2026-09-23",
             "note": "英文 AUC 0.7100（论文 0.9554，差 0.245）；"
                     "中文 AUC 0.2800 **排序反向**，任何阈值都救不了 -> 勿用于中文。"
@@ -181,7 +181,7 @@ CALIBRATED = {
             "criterion": "无需阈值（分类器直接输出概率）",
             "acc": 0.9975,
             "fpr": 0.0050,
-            "method": "docs/calibration.md §1.1",
+            "method": "docs/FIXES.md §3.1",
             "date": "2026-09-23",
             "note": "max_len=500 是**截断长度**，非判别阈值。模型自带分类头，"
                     "逐段输出 AI 概率，无需标定。中文侧唯一可交付引擎"

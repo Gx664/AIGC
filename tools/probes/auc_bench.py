@@ -12,14 +12,14 @@
 | Fast-DetectGPT (2310.05130 Table 1) | AUROC | 0.9887 |
 
 而项目一直报 **acc**（依赖阈值）。**两者不可直接比较** ——
-`FIXES.md §2` §6.2 已发现：阈值本身的统计误差（±0.05）
+`docs/FIXES.md §2` 已记：阈值本身的统计误差（±0.05）
 比搜索步长（0.0025）大 20 倍，即 **acc 被阈值漂移严重干扰**。
 
 AUC 排除阈值因素，直接量"排序判别力"。算出来才能回答"与论文差多少"。
 
 做法
 ----
-复用已有标定数据（`docs/CALIBRATION.md` 里的逐条分数不存盘了，
+复用已有标定数据（`docs/FIXES.md` §3 里的逐条分数不存盘了，
 故本探针**现场重跑**轻量引擎），对每个引擎算：
   * AUC（`sklearn.metrics.roc_auc_score`）
   * 最优 acc（对照）
@@ -229,7 +229,7 @@ def run_auc(v):
         print("  %-14s %-8s %s" % (eid, val, note))
     print()
     print("判读要点：")
-    print("  1. AUC 与阈值无关 —— 排除了 FIXES.md §6.2 记的'阈值漂移'干扰")
+    print("  1. AUC 与阈值无关 —— 排除了 docs/FIXES.md §2 记的'阈值漂移'干扰")
     print("  2. 项目未做训练，而 GLTR 论文的 0.87 来自'四档 + 逻辑回归'")
     print("     —— 若本项 AUC 低于 0.87，差距可能来自'无训练'而非'实现错'")
     print("  3. 中英数据源不同（HC3 vs Ghostbuster），跨语言列不可直接相减")

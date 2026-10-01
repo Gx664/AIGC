@@ -23,7 +23,7 @@
   3. sys.path / stdout 包装 / ROOT 路径原本每脚本重复一遍
 
 **探针内部的验证逻辑一字未改** —— 改动仅限包成函数、统一公共部分。
-历史结论（见 docs/FIXES.md）仍然成立。
+历史结论（见 docs/FIXES.md §1）仍然成立。
 """
 import argparse
 import os
@@ -53,7 +53,7 @@ REGISTRY = [
      "静态扫描：未用导入 / 行长 / 静默 except / 引擎参数签名",
      "static:run_static_scan"),
     ("style_report",  "safe", "秒级",  "无（只打控制台）",
-     "原作者代码风格核查 + 改动一致性（结论见 docs/CALIBRATION.md 三）",
+     "原作者代码风格核查 + 改动一致性（结论见 docs/FIXES.md §5）",
      "static:run_style_report"),
     ("xformers_sig",  "safe", "秒级",  "无（只读 inspect 签名，不加载模型）",
      "transformers API 存在性（**有误报**，结论以 xformers_call 为准）",

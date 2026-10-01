@@ -222,7 +222,7 @@ def run_dtype_compare(v):
     """fp16 vs fp32：同一批文本、同一引擎、只改权重精度。
 
     结论（2026-09-23）：fp16 不影响判定 —— Kendall 排序一致率 1.0000（190/190）。
-    详见 docs/HANDOFF.md §5.8。
+    详见 docs/FIXES.md §1。
     """
     import json
 
@@ -438,7 +438,7 @@ def run_vram_spill(v):
 
     结论（2026-09-23）：fp32 溢出（共享显存 +2163 MB），fp16 不溢出（+27 MB）。
     但 fp16 在显存余量仅 3GB 时仍被拖慢 10 倍（温度 32℃、功耗 129W）。
-    详见 docs/HANDOFF.md §5.8。
+    详见 docs/FIXES.md §5。
     """
     import json
     import threading

@@ -42,7 +42,7 @@
         "criterion": "最优阈值（英文）",
         "acc": 0.7,
         "fpr": null,
-        "method": "docs/calibration.md §2.1 / HANDOFF §5.10",
+        "method": "docs/FIXES.md §3",
         "date": "2026-09-23",
         "note": "英文 AUC 0.7100（论文 0.9554，差 0.245）；中文 AUC 0.2800 **排序反向**，任何阈值都救不了 -> 勿用于中文。threshold 仍为 0.0（未细化标定）。"
       }
@@ -64,7 +64,7 @@
         "fpr": null,
         "method": "-",
         "date": "2026-09-23",
-        "note": "中英两侧都未测（需可用显存 >=7GB，本机常不足）。threshold=0.0 / scale=0.6 是**未经标定的默认值**，界面标「未标定」以免误导。见 HANDOFF §5.14。"
+        "note": "中英两侧都未测（需可用显存 >=7GB，本机常不足）。threshold=0.0 / scale=0.6 是**未经标定的默认值**，界面标「未标定」以免误导。见 docs/FIXES.md §6。"
       }
     },
     {

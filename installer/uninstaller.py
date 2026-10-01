@@ -21,7 +21,7 @@ exe 自带解释器，与环境彻底解耦：环境删了照样能卸载。
 清理策略（三个勾默认都不打）
 ----------------------------
 默认只删"软件的壳"：注册表卸载项、桌面快捷方式、程序本体 ``app\\``，以及
-settings.json / 启动.cmd / 诊断.cmd / build_info.json。运行环境与模型**默认保留** ——
+settings.json / 启动.cmd / 诊断.cmd。运行环境与模型**默认保留** ——
 前者重装能复用（省几 GB 下载），后者是用户花时间下的东西。
 
 三个勾对应三类**性质完全不同**的东西：
@@ -204,7 +204,7 @@ def do_uninstall(chk_cache, chk_run, chk_models,
                 pass
 
     # 3) 要删的清单 —— **先把分母数出来**，再逐个删着报进度
-    #    （uninstall.pyw 是旧版 pythonw 方案留下的，顺手清掉）
+    #    （uninstall.pyw / build_info.json 是旧版本留下的产物，顺手清掉）
     targets = [os.path.join(TARGET, n) for n in
                ("app", "settings.json", "启动.cmd", "诊断.cmd",
                 "build_info.json", "uninstall.pyw")]

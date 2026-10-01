@@ -47,29 +47,6 @@ if ($LASTEXITCODE -ne 0) {
 $work = Join-Path $proj 'build'
 $appdir = Join-Path $proj 'app'
 
-# ---------------------------------------------------------------------------
-# Build stamp: version + short git hash + build time. The installer prints it as
-# its first log line and drops a copy beside itself in the install folder, so
-# "which build is installed?" can never be a mystery again (2026-09: a stale exe
-# shipped for days because nothing recorded which code went into it).
-# ---------------------------------------------------------------------------
-$gitHash = (& git -C $proj rev-parse --short HEAD 2>$null)
-if (-not $gitHash) { $gitHash = 'unknown' }
-$verHit = (Select-String -LiteralPath (Join-Path $appdir 'core\meta.py') `
-          -Pattern 'APP_VERSION\s*=\s*"([^"]+)"').Matches
-$ver = if ($verHit.Count) { $verHit[0].Groups[1].Value } else { '0.0.0' }
-$stamp = @{
-    version = $ver
-    git     = $gitHash
-    built   = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-} | ConvertTo-Json -Compress
-New-Item -ItemType Directory -Force -Path $work | Out-Null
-$stampPath = Join-Path $work 'build_info.json'
-# Write WITHOUT a BOM: PowerShell 5.1's `Set-Content -Encoding UTF8` adds one,
-# and json.load() in Python then fails on the leading U+FEFF (silent -> "dev").
-[IO.File]::WriteAllText($stampPath, $stamp, (New-Object Text.UTF8Encoding($false)))
-Write-Host "build stamp: $stamp"
-
 Push-Location $proj
 try {
     Write-Host "`n=== [1/3] dist\uninstaller.exe ===" -ForegroundColor Cyan
@@ -96,7 +73,6 @@ try {
         --name 'AIGC_Toolkit_Setup' `
         --add-data "$appdir;app" `
         --add-data "$(Join-Path $proj 'dist\uninstaller.exe');." `
-        --add-data "$stampPath;." `
         --distpath (Join-Path $proj 'dist') `
         --workpath (Join-Path $work 'installer') `
         --specpath $work `

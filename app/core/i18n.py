@@ -252,9 +252,6 @@ ZH = {
     "inst_done_log": "安装完成。桌面已创建快捷方式：%s",
     "inst_done_box": "%s 安装完成！\n首次打开会自动下载运行组件与检测模型，之后离线可用。",
     "inst_done_title": "完成",
-    # 打包信息：写在安装日志第一行。2026-09 的教训 —— 源码改了但 exe 没重打，
-    # 装到机器上的是旧代码却看不出来（界面现象全是旧的）。有这一行就不用猜。
-    "inst_build_line": "安装包：v%s ｜ 构建 %s ｜ %s",
     "inst_uninstaller_missing": "未找到卸载器 exe（安装器未打包？），已跳过注册卸载入口",
     # 勾选自检（GPU / 集群）与检测进度的时间显示
     "detecting_para_eta": "检测第 %d/%d 段 ｜ 已用 %s ｜ 剩余 %s",
@@ -627,7 +624,6 @@ EN = {
     "inst_done_log": "Installation complete. Desktop shortcut created: %s",
     "inst_done_box": "%s installed!\nComponents and the detection model download automatically on first launch; after that it works offline.",
     "inst_done_title": "Done",
-    "inst_build_line": "Installer build: v%s | %s | %s",
     "inst_uninstaller_missing": "Uninstaller exe not found (installer not rebuilt?); skipped registering the uninstall entry",
     "detecting_para_eta": "Detecting %d/%d | elapsed %s | left %s",
     "btn_check_gpu": "Check GPU",

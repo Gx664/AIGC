@@ -44,7 +44,7 @@ CACHE = r"D:\hf_cache\zh_gpt2"
 # 原作者在 engines_manifest.json 里填的阈值
 AUTHOR_LOW, AUTHOR_HIGH = 20.0, 45.0
 
-# 历史标定值（供对照，见 docs/calibration.md §2.8）
+# 历史标定值（供对照，见 docs/FIXES.md §3.1）
 PREV_200 = (2.88, 7.68, 0.6300)      # 200 条时
 PREV_400 = (3.72, 9.92, 0.7875)      # 400 条时
 
@@ -156,7 +156,7 @@ def run_zh_threshold(v):
     print("模型: %s  dtype=%s" % (REPO, next(model.parameters()).dtype))
 
     # tqdm 进度：显示条数 / 百分比 / 速率 / 剩余时间
-    # （长任务必须可观测 —— 见 AGENTS.md「长任务必须带进度」）
+    # （长任务必须可观测 —— 即带进度输出）
     try:
         from tqdm import tqdm
         it = tqdm(rows, desc="PPL 打分", unit="条", ncols=90,

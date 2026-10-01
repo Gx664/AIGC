@@ -10,7 +10,6 @@ GUI 只是薄薄一层壳 —— 这样既可以用 `installer.py --cli D:\\目�
 （也方便自测），又避免"把逻辑写在 Tk 回调里没法验证"的老问题。
 """
 
-import json
 import os
 import queue
 import shutil
@@ -585,53 +584,6 @@ def make_shortcut(target, args, workdir, log=print, icon=""):
     log(tr("inst_shortcut_done") % lnk)
 
 
-def build_info_path():
-    """打包时写入的构建信息文件（``build_info.json``）在哪；没有则返回空串。
-
-    打包脚本 ``tools/build_exe.ps1`` 生成它并打进 exe。源码模式下没有该文件，
-    调用方必须能容忍"不知道版本"（回退 ``dev``），**绝不编一个像真的版本号**。
-    """
-    # 注意别把 ".." 写重：__file__ 在 installer/ 下，上溯两级已是仓库根，
-    # 再拼一个 ".." 就跑出仓库了（实测踩过：读不到 build_info.json → 退化成 dev）
-    cands = []
-    _mp = getattr(sys, "_MEIPASS", "")
-    if _mp:
-        cands.append(os.path.join(_mp, "build_info.json"))
-    cands.append(os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "build", "build_info.json"))
-    cands = [os.path.abspath(p) for p in cands]
-    for p in cands:
-        if p and os.path.exists(p):
-            return p
-    return ""
-
-
-def build_stamp():
-    """读取构建信息；读不到就回 ``dev``。"""
-    p = build_info_path()
-    if p:
-        try:
-            # utf-8-sig：容忍别人用 PowerShell 5.1 的 `Set-Content -Encoding UTF8`
-            # 写出的 BOM（实测踩过：带 BOM 时 json.load 直接抛，静默退化成 dev）
-            with open(p, "r", encoding="utf-8-sig") as f:
-                return json.load(f)
-        except Exception:  # noqa: BLE001
-            pass
-    return {"version": APP_VER, "git": "dev", "built": ""}
-
-
-def build_line():
-    """一行构建信息（版本 / git 短哈希 / 打包时间），写在安装日志最前面。
-
-    为什么要有：出问题时第一句话总是"你装的是哪一版"，而 2026-09 的教训是
-    **装了旧 exe 却看不出来**（源码改了没重新打包，用户看到的现象全是旧的）。
-    """
-    d = build_stamp()
-    return tr("inst_build_line") % (
-        d.get("version", APP_VER), d.get("git", "dev"), d.get("built", "?"))
-
-
 def uninstaller_source():
     """打包好的卸载器 exe 在哪（安装时复制到安装目录）。
 
@@ -751,13 +703,6 @@ def perform_install(target, log=None, status=None, cancelled=None, ask_manual=No
             % (target.replace("\\", "\\\\"), lang or get_lang())
         )
     _write_launchers(target, appdir, pydir, log)
-    # 构建信息也落一份到安装目录：用户报问题时让他发这个文件，就知道装的是哪版
-    info = build_info_path()
-    if info:
-        try:
-            shutil.copyfile(info, os.path.join(target, "build_info.json"))
-        except OSError:
-            pass
 
     # 4. 卸载入口（复制卸载器 exe + 写注册表，注册表里带上 RuntimeDir）
     status(tr("inst_register_uninstall"), 90)
@@ -980,8 +925,6 @@ class Installer(tk.Tk if tk else object):
             fill="x", padx=18, pady=(0, 10)
         )
         self._apply_lang()
-        # 日志第一行写清"这个安装包是哪一版"——出问题时第一句话就是问这个
-        self.log_msg(build_line())
 
     def _apply_lang(self):
         self.title(tr("inst_title"))

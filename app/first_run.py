@@ -73,7 +73,7 @@ TORCH_MIRRORS = [
 # **导入名 ≠ pip 包名**：python-docx 的导入名是 docx，若直接把 "docx" 交给 pip，
 # 会装成 PyPI 上 2014 年的另一个旧库（实测核实过）—— 两者必须分开写。
 #
-# 版本约束的理由：本项目用的是 transformers 5.x 的 API（AGENTS.md 记「勿降级」），
+# 版本约束的理由：本项目用的是 transformers 5.x 的 API（勿降级），
 # 上游一旦发 6.x 改了 API，不锁版本的新装用户会直接崩；锁住主版本即可。
 DEPS = [
     ("PySide6", "PySide6", ">=6.9,<7"),

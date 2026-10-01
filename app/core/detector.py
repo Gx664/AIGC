@@ -30,7 +30,6 @@ def _run_one_device(engine_cfg, base_dir, paragraphs, device, params, progress_c
     probs = engine.predict_paragraphs(paragraphs, device, **params)
     # 一并回传引擎实例：统计派引擎会把逐段四档（GLTR Test-2）存在
     # `last_buckets` 上，只返回 probs 的话那份数据就随实例一起丢了。
-    # 见 docs/FIXES.md §9。
     return probs, engine
 
 

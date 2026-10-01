@@ -51,7 +51,7 @@ def _pick_lang(zh, en):
     return zh or en or ""
 
 
-# 语言适配标注（2026-09-23 由 AUC / acc 实测得出，见 docs/HANDOFF.md §5.10）
+# 语言适配标注（2026-09-23 由 AUC / acc 实测得出，见 docs/FIXES.md §3.3）
 #
 # **本项目不是每个引擎都适合中英文**，实测结论：
 #
@@ -104,7 +104,7 @@ def engine_lang_mark(engine):
     没有实测数据时"适用哪门语言"同样未知，标语言反而是编造。
     含义由该行悬停提示说明（见 ``refresh()`` 里的 ``setToolTip``）。
 
-    实测依据（docs/HANDOFF.md §5.10 与 docs/calibration.md）：
+    实测依据（docs/FIXES.md §3.3）：
         simpleai       中文 AUC 0.9998    ✅ 中文可交付
         zh_perplexity  中文 acc 0.6300    ⚠️ 中文弱
         gltr           中文无可行阈值     ⚠️ 中文勿用
