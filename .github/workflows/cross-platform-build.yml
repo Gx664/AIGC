@@ -97,14 +97,24 @@ jobs:
       - name: 产物自检（不启动界面）
         run: |
           set -euo pipefail
-          APP=dist-unix/AIGC_Toolkit
+          APP="$PWD/dist-unix/AIGC_Toolkit"        # 必须绝对：下面会 cd 进产物
           test -x "$APP/AIGC_Toolkit"
-          # app/ 会被 PyInstaller 放进 _internal/（PyInstaller 6 的 onedir 布局）
-          test -f "$APP/_internal/app/first_run.py" -o -f "$APP/app/first_run.py"
+          echo "===== 产物布局（留档，别删）====="
+          ls -la "$APP"
+          find "$APP" -maxdepth 3 -name app -type d -print
+          du -sh "$APP"
+          # app/ 的实际位置随 PyInstaller 版本变（6.x 起放进 _internal/），
+          # 判据只认"哪里有 app/main.py"，不写死任何一层目录名
+          APP_MAIN=$(find "$APP" -maxdepth 4 -type f -path '*/app/main.py' | head -1)
+          test -n "$APP_MAIN" || { echo "产物里找不到 app/main.py"; exit 1; }
+          APP_SRC=$(dirname "$APP_MAIN")
+          test -f "$APP_SRC/first_run.py" || { echo "app/ 里缺 first_run.py"; exit 1; }
+          echo "app/ 源码目录 = $APP_SRC"
           # 用产物自带的解释器跑一遍适配层，确认 app/ 与核心模块能被加载
           cd "$APP"
           ./runtime/python/bin/python3 -c \
-            "import sys; sys.path.insert(0,'app'); from core import platform_ops; print('OK', platform_ops.describe())"
+            "import sys; sys.path.insert(0, sys.argv[1]); from core import platform_ops; print('OK', platform_ops.describe())" \
+            "$APP_SRC"
 
       - name: 打 AppImage
         run: |
@@ -222,12 +232,26 @@ jobs:
       - name: 产物自检（不启动界面）
         run: |
           set -euo pipefail
-          APP="dist-unix/AIGC_Toolkit.app/Contents/MacOS"
+          BUNDLE="$PWD/dist-unix/AIGC_Toolkit.app"   # 必须绝对：下面会 cd 进产物
+          APP="$BUNDLE/Contents/MacOS"
           test -x "$APP/AIGC_Toolkit"
-          test -f "$APP/_internal/app/first_run.py" -o -f "$APP/app/first_run.py"
+          echo "===== 产物布局（留档，别删）====="
+          ls -la "$APP"
+          ls -la "$BUNDLE/Contents" || true
+          find "$BUNDLE" -maxdepth 6 -name app -type d -print
+          du -sh "$BUNDLE"
+          # macOS 的 BUNDLE 会把 _internal 在 Contents/Frameworks 与
+          # Contents/Resources 之间交叉软链，具体哪层随版本变 —— 所以从
+          # .app 根往下搜，只认"哪里有 app/main.py"
+          APP_MAIN=$(find "$BUNDLE" -maxdepth 6 -type f -path '*/app/main.py' | head -1)
+          test -n "$APP_MAIN" || { echo "产物里找不到 app/main.py"; exit 1; }
+          APP_SRC=$(dirname "$APP_MAIN")
+          test -f "$APP_SRC/first_run.py" || { echo "app/ 里缺 first_run.py"; exit 1; }
+          echo "app/ 源码目录 = $APP_SRC"
           cd "$APP"
           ./runtime/python/bin/python3 -c \
-            "import sys; sys.path.insert(0,'app'); from core import platform_ops; print('OK', platform_ops.describe())"
+            "import sys; sys.path.insert(0, sys.argv[1]); from core import platform_ops; print('OK', platform_ops.describe())" \
+            "$APP_SRC"
 
       - name: 打 dmg
         run: |

@@ -8,11 +8,17 @@
 产物：
     Linux  -> dist-unix/AIGC_Toolkit/AIGC_Toolkit
     macOS  -> dist-unix/AIGC_Toolkit.app
-              （可执行文件在 Contents/MacOS/AIGC_Toolkit，runtime/ 并列）
 
 打完之后 CI 还要做两件事（spec 管不了）：
     1. 把解好的便携 Python 拷进去：<产物>/runtime/python/...
     2. Linux 打成 AppImage / macOS 打成 dmg
+
+⚠️ 本 spec 在 `packaging/` 子目录里，所以 **里面一律不许写相对路径** ——
+   PyInstaller 把 spec 内的相对路径按【spec 所在目录】解析，而不是你
+   invoke pyinstaller 时的当前目录。写 'packaging/unix_launcher.py' 会被
+   拼成 packaging/packaging/unix_launcher.py，直接
+   `ERROR: script '...' not found`（CI 首次实跑就栽在这）。
+   统一用 SPECPATH 推出绝对路径。
 """
 import os
 import re
@@ -20,15 +26,23 @@ import sys
 
 IS_MAC = sys.platform == "darwin"
 
+# SPECPATH 是 PyInstaller 注入的全局变量 = spec 文件所在目录（绝对路径）
+SPEC_DIR = os.path.abspath(SPECPATH)                 # <repo>/packaging
+REPO_ROOT = os.path.dirname(SPEC_DIR)                # <repo>
+
 # 版本号从 app/core/meta.py 现读，避免又多出一处要手工同步的地方
 _m = re.search(
     r'APP_VERSION\s*=\s*"([^"]+)"',
-    open("app/core/meta.py", encoding="utf-8").read(),
+    open(os.path.join(REPO_ROOT, "app", "core", "meta.py"), encoding="utf-8").read(),
 )
 VERSION = _m.group(1) if _m else "0.0.0"
 
 # macOS 用 .icns（CI 里由 icon.png 现生成），Linux 用 .png
-ICON = "packaging/icon.icns" if IS_MAC else "app/assets/icon.png"
+ICON = (
+    os.path.join(SPEC_DIR, "icon.icns")
+    if IS_MAC
+    else os.path.join(REPO_ROOT, "app", "assets", "icon.png")
+)
 if not os.path.exists(ICON):
     ICON = None
 
@@ -54,10 +68,10 @@ EXCLUDES = [
 ]
 
 a = Analysis(
-    ['packaging/unix_launcher.py'],
-    pathex=['app'],
+    [os.path.join(SPEC_DIR, "unix_launcher.py")],
+    pathex=[os.path.join(REPO_ROOT, "app")],
     binaries=[],
-    datas=[('app', 'app')],
+    datas=[(os.path.join(REPO_ROOT, "app"), "app")],
     hiddenimports=HIDDEN,
     hookspath=[],
     hooksconfig={},

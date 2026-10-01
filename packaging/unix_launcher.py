@@ -14,8 +14,13 @@ Unix 没有独立的安装器（.app / AppImage 本身就是安装形态），�
 引导逻辑都在 ``app/first_run.py`` —— 这里不重复实现任何一条。
 
 ⚠️ 目录定位为什么不能写死：PyInstaller 6 起，onedir 产物的 datas 不再摊在
-   产物根，而是放进 ``_internal/``；macOS 的 .app 还更靠外一层。所以下面
-   按候选列表探测，判据是"这一层有没有 ``main.py``"。
+   产物根，而是放进 ``_internal/``；macOS 的 .app 还更靠外一层（``Contents/
+   Frameworks`` 或 ``Contents/Resources``，且两者会互相交叉软链）。所以下面
+   先按候选探测，再退化为**有限深度搜索**，判据统一是"这一层有没有 main.py"。
+
+⚠️ 为什么这里自带一份搜索函数而不是复用 ``platform_ops``：本文件的作用正是
+   先找到 ``app/``、把它放进 sys.path 之后 ``core`` 才 import 得到 —— 顺序上
+   不可能反过来依赖它。这份实现很薄，改布局时**两处一起改**，并有测试钉住。
 """
 import os
 import runpy
@@ -32,29 +37,57 @@ def _candidates():
     out = [here]  # Windows 式：exe 就放在 app/ 里
     if meipass:
         out.append(os.path.join(meipass, "app"))
+        out.append(os.path.join(meipass, "_internal", "app"))
         out.append(meipass)  # 万一把 core/ 直接摊在 _MEIPASS
     out += [
         os.path.join(here, "app"),
-        os.path.join(here, "_internal", "app"),      # PyInstaller 6 onedir
-        os.path.join(up, "Frameworks", "app"),       # macOS .app
-        os.path.join(up, "Resources", "app"),        # macOS .app（旧布局）
+        os.path.join(here, "_internal", "app"),                # PyInstaller 6 onedir
+        os.path.join(up, "Frameworks", "app"),                 # macOS .app
+        os.path.join(up, "Frameworks", "_internal", "app"),
+        os.path.join(up, "Resources", "app"),
+        os.path.join(up, "Resources", "_internal", "app"),
     ]
     return out
 
 
+def _search_app_dir(root, max_depth=3):
+    """在 ``root`` 下有限深度内找名为 ``app`` 且含 ``main.py`` 的目录。
+
+    深度语义是"**含**第 max_depth 层"（root 自己算第 0 层）—— 否则 macOS 的
+    ``Contents/Frameworks/_internal/app``（相对 ``Contents`` 正好第 3 层）会被漏掉。
+    """
+    root = os.path.abspath(root)
+    if not os.path.isdir(root):
+        return ""
+    base_depth = os.path.normpath(root).count(os.sep)
+    for dirpath, dirnames, filenames in os.walk(root):
+        depth = os.path.normpath(dirpath).count(os.sep) - base_depth
+        if depth >= max_depth:
+            dirnames[:] = []  # 到顶了，本层仍检查，但不往下走
+        if "main.py" in filenames and os.path.basename(dirpath) == "app":
+            return os.path.normpath(dirpath)
+    return ""
+
+
 def _find_app_dir():
-    """第一个含 ``main.py`` 的候选目录；都没有则返回空串。"""
+    """候选里第一个含 ``main.py`` 的目录；都没有再有限深度搜索。"""
     for d in _candidates():
         if d and os.path.isfile(os.path.join(d, "main.py")):
             return os.path.normpath(d)
+    # 从 exe 所在目录与其上一层各搜一遍：onedir 产物在第 2 层命中，
+    # macOS 的 .app 里 app/ 在 Contents/Frameworks/_internal 下、要从上一层搜
+    here = os.path.dirname(os.path.abspath(sys.executable))
+    for root in (here, os.path.dirname(here)):
+        hit = _search_app_dir(root)
+        if hit:
+            return hit
     return ""
 
 
 def _ensure_importable():
     """把能让 ``import core.*`` / ``import ui.*`` 生效的目录塞进 sys.path。
 
-    源码运行时不做事（仓库根已经在 path 上）；打包后按候选逐个补，
-    最后无论成败都把源码目录插到最前面。
+    源码运行时不做事（仓库根已经在 path 上）；打包后按候选逐个补。
     """
     if not _FROZEN:
         return

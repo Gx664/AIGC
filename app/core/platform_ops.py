@@ -212,17 +212,61 @@ def app_source_dir(base_dir):
         os.path.join(base_dir, "app"),
         os.path.join(base_dir, "_internal", "app"),
         os.path.join(base_dir, os.pardir, "Frameworks", "app"),
+        os.path.join(base_dir, os.pardir, "Frameworks", "_internal", "app"),
         os.path.join(base_dir, os.pardir, "Resources", "app"),
+        os.path.join(base_dir, os.pardir, "Resources", "_internal", "app"),
         os.path.join(base_dir, "Contents", "Frameworks", "app"),
+        os.path.join(base_dir, "Contents", "Frameworks", "_internal", "app"),
         os.path.join(base_dir, "Contents", "Resources", "app"),
     ]
     for c in cands:
         if os.path.isfile(os.path.join(c, "main.py")):
             return os.path.normpath(c)
+
+    # 候选全落空 → 有限深度搜一把兜底。
+    # 为什么不继续加候选：macOS 的 BUNDLE 会把 _internal 在 Contents/Frameworks
+    # 与 Contents/Resources 之间交叉软链，具体落在哪层随 PyInstaller 版本变；
+    # 与其跟着版本追着改候选，不如按"谁有 main.py"直接找 —— 判据永远成立。
+    roots = [base_dir]
+    # macOS 的 base_dir 是 <App>.app/Contents/MacOS，而 app/ 在它的上一级
+    # （Contents/Frameworks/_internal/app），必须带上父目录一起搜。
+    # Windows 不带：app/ 永远在 base_dir 底下，而 base_dir 的父目录很可能是
+    # 盘根（D:\），walk 它又慢又没意义。
+    _parent = os.path.dirname(os.path.abspath(base_dir))
+    if not IS_WIN and _parent and _parent != os.path.abspath(base_dir):
+        roots.append(_parent)
+    for r in roots:
+        hit = _search_app_dir(r, max_depth=3)
+        if hit:
+            return hit
+
     for c in cands:  # 退一步：main.py 缺失但目录在（让调用方给出更有用的报错）
         if os.path.isdir(c):
             return os.path.normpath(c)
     return os.path.join(base_dir, "app")
+
+
+def _search_app_dir(root, max_depth=3):
+    """在 ``root`` 下不超过 ``max_depth`` 层里找名为 ``app`` 且含 ``main.py`` 的目录。
+
+    深度语义是"**含**第 max_depth 层"：``root`` 自己算第 0 层，第 max_depth 层
+    仍会被检查，只是不再往下走 —— 否则 ``Contents/Frameworks/_internal/app``
+    （相对 ``Contents`` 正好第 3 层）会被漏掉。
+
+    深度必须限制：macOS 的 ``.app`` 里有 ``.framework`` 嵌套，不加限制地 walk 很慢。
+    找到就立刻返回，正常布局下第一层就命中。
+    """
+    root = os.path.abspath(root)
+    if not os.path.isdir(root):
+        return ""
+    base_depth = os.path.normpath(root).count(os.sep)
+    for dirpath, dirnames, filenames in os.walk(root):
+        depth = os.path.normpath(dirpath).count(os.sep) - base_depth
+        if depth >= max_depth:
+            dirnames[:] = []  # 到顶了，本层仍检查，但不往下走
+        if "main.py" in filenames and os.path.basename(dirpath) == "app":
+            return os.path.normpath(dirpath)
+    return ""
 
 
 def export_env(base_dir, key="AIGC_TOOLKIT_HOME"):
