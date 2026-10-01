@@ -128,7 +128,7 @@ python -m pip index versions torch --index-url <源>
 | 脚本 | 项数 | 覆盖 |
 |---|---|---|
 | `_diag/test_platform_ops.py` | 13 | 路径 / 字体 / 图标 / .desktop 内容 |
-| `_diag/test_unix_adapt.py` | 39 | 新增的 `work_python` / `runtime_root` / `runtime_is_local`、Unix 的 CPU 源、launcher 在两种打包布局下的根目录判定、torch 源守卫、文案中英对齐 |
+| `_diag/test_unix_adapt.py` | 67 | 新增的 `work_python` / `runtime_root` / `runtime_is_local`、Unix 的 CPU 源、launcher 在两种打包布局下的根目录判定、`app/` 定位的深度搜索（含上界/下界）、**spec 的路径基准（AST 级，只看真实字符串）**、CI 自检不写死布局、取数脚本守卫、torch 源守卫、文案中英对齐 |
 | `_diag/check_torch_mirrors_live.py` | 12 | **需要联网**：用 pip 逐个实测 torch 源（含拉黑源必须确实不可用） |
 | `_diag/verify_platform_p1.py` | 9 | 接入点是否真的走了适配层 |
 | `_diag/smoke_first_run_pick.py` | 11 | 真实建 tkinter 选择框（需带 tkinter 的解释器） |
@@ -138,17 +138,36 @@ python -m pip index versions torch --index-url <源>
 已经具备：
 
 - 三端同一套 `app/` 源码，平台差异收进 `platform_ops`
-- 云端能装依赖、跑引擎回归测试、出 AppImage 与 dmg（**待首次实跑验证**）
+- **云端流水线已实跑通过**（run #36856227590，Linux / macOS 两个 job 全绿）
 - Unix 首启的「运行时落地 → 装依赖 → 启动」链路有代码、有测试
 - Linux 桌面入口、macOS .app 图标（CI 现生成 .icns）均已接好
 - CPU / CUDA 两个下载选项，引导器与主程序共用
 
+### 实跑产出的产物
+
+| 产物 | 体积 | 说明 |
+|---|---|---|
+| `AIGC_Toolkit-1.3.4-x86_64.AppImage` | 88 MB | Linux 单文件，双击即用 |
+| `AIGC_Toolkit-1.3.4-macos-arm64.dmg` | 59 MB | macOS（Apple Silicon） |
+| `dist-unix/AIGC_Toolkit/` | 291 MB | Linux 原始 onedir，供排障 |
+| `dist-unix/AIGC_Toolkit.app` | 106 MB | macOS 原始 bundle，供排障 |
+
+产物自检在两个真机环境都跑通了（用**产物自带的便携 Python** 执行 `platform_ops.describe()`）：
+
+```
+macOS : 平台=mac   数据目录=~/Library/Application Support/AIGC_Toolkit
+Linux : 平台=linux 数据目录=~/.local/share/AIGC_Toolkit
+```
+
+同时也把 `app/` 的真实落点确认下来了：Linux onedir 在 `<产物>/_internal/app`，
+macOS `.app` 在 `Contents/Resources/app`（此前只是按候选探测，现在是实测结论）。
+
 还缺：
 
-1. **首次云端实跑** —— 流水线尚未在 GitHub 上真正跑过一次，
-   AppImage 打包、dmg 制作、便携 Python 版本匹配都要跑一遍才知道有没有坑
-2. **macOS 签名** —— 没有苹果开发者证书，产物是未签名的，用户首次打开需右键"打开"
+1. **macOS 签名 / 公证** —— 没有苹果开发者证书，产物是未签名的，用户首次打开需右键"打开"
    或跑 `xattr -dr com.apple.quarantine`（dmg 里已附说明文件）
-3. **Intel 版 macOS 包** —— 目前只出 arm64；需要时把 `macos-14` 换成 `macos-13` 再跑一遍
-4. **实机验证** —— 目前所有 Unix 侧结论都来自本机（Windows）的模拟测试，
-   真机上的 Qt 依赖、中文字体、桌面环境差异还没验过
+2. **Intel 版 macOS 包** —— 目前只出 arm64；需要时把 `macos-14` 换成 `macos-13` 再跑一遍
+3. **Unix 实机验证** —— 流水线跑通了，但还没人在真的 Linux / macOS 上双击打开过，
+   Qt 依赖、中文字体、桌面环境差异要实机才看得出来
+4. **Linux 产物可瘦身** —— 现在把 AppImage（88 MB）和整个 onedir（291 MB）一起上传，
+   压缩后 264 MB，其中 AppImage 是重复内容；只想留分发件的话把 onedir 从 upload path 去掉即可
