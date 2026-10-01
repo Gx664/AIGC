@@ -8,6 +8,9 @@ build/
 dist/
 !/AIGC_Toolkit_Setup.exe
 *.spec
+# 例外：Linux / macOS 是**云端**构建（GitHub Actions），spec 必须在仓库里，
+# 不然 CI 跑 pyinstaller 时找不到文件。Windows 的两个 spec 仍然不入库。
+!packaging/AIGC_Toolkit_unix.spec
 .build_venv/
 fix_umivpn_permission.bat
 telemetry_queue.json

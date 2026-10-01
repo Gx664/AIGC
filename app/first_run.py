@@ -12,6 +12,7 @@ first_run_gui.exe（自带 tkinter 界面，因为 embeddable Python 没有 tkin
 import importlib.util
 import os
 import queue
+import shutil
 import subprocess
 import sys
 import threading
@@ -19,21 +20,47 @@ import time
 import traceback
 
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+_FROZEN = getattr(sys, "frozen", False)
 
-if getattr(sys, "frozen", False):
-    # first_run_gui.exe：资源在 _MEIPASS，工作目录在 exe 所在的 app 目录
+
+def _bootstrap_app_dir():
+    """打包后 ``app/`` 源码目录到底在哪（此时还没法 import 适配层，只能自己找）。
+
+    * **Windows** —— 引导器 ``first_run_gui.exe`` 与 app/ 源码同在
+      ``<安装目录>/app/`` 里，``dirname(sys.executable)`` 就是它 → 行为不变
+    * **Unix**    —— 可执行文件在产物根，源码被 PyInstaller 放进
+      ``_internal/app``（macOS 的 .app 可能在外层的 Frameworks/Resources）；
+      ``sys._MEIPASS`` 指向的正是 datas 落点，最可靠
+
+    判据统一为"这一层有没有 ``main.py``"。
+    """
+    here = os.path.dirname(os.path.abspath(sys.executable))
+    meipass = getattr(sys, "_MEIPASS", "") or ""
+    for c in (
+        here,                                        # Windows：exe 与源码同级
+        os.path.join(meipass, "app") if meipass else "",   # Unix：datas 落点
+        os.path.join(here, "app"),
+        os.path.join(here, "_internal", "app"),
+    ):
+        if c and os.path.isfile(os.path.join(c, "main.py")):
+            return os.path.normpath(c)
+    return here
+
+
+if _FROZEN:
+    # 打包后：资源在 _MEIPASS，源码目录按实际布局探测（_internal 等）
     RESOURCE_DIR = sys._MEIPASS
-    APP_DIR = os.path.dirname(sys.executable)
+    APP_DIR = _bootstrap_app_dir()
 else:
     RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
     APP_DIR = RESOURCE_DIR
 
-# runtime\python\python.exe：真正的目标解释器（依赖装在这里、主程序由它启动）
-_runtime_py = os.path.join(os.path.dirname(APP_DIR), "runtime", "python", "python.exe")
-RUNTIME_PY = _runtime_py if os.path.exists(_runtime_py) else sys.executable
-
-sys.path.insert(0, RESOURCE_DIR)
-sys.path.insert(0, os.path.join(RESOURCE_DIR, "core"))
+# 源码目录（APP_DIR）优先入 path：打包后 core/ 可能只在那儿（_internal/app/core）
+for _p in (os.path.join(RESOURCE_DIR, "core"), RESOURCE_DIR,
+           os.path.join(APP_DIR, "core"), APP_DIR):
+    if _p and os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
+del _p
 
 from core import platform_ops  # noqa: E402
 from core import runtime_deps  # noqa: E402
@@ -47,9 +74,47 @@ from core.runtime_deps import (  # noqa: E402
     has_nvidia,
 )
 
-LOG_PATH = os.path.join(APP_DIR, "logs", "first_run.log")
-# 安装根目录（settings.json 所在层级）；APP_DIR 是 app 子目录
-BASE_ROOT = os.path.dirname(APP_DIR)
+# 程序根目录（含 app/ 与 runtime/）：
+#   Windows —— first_run_gui.exe 在 <安装目录>/app/ 里，上一级才是根
+#   Unix    —— PyInstaller 的可执行文件与 app/ 平级，自己就是根
+# 交给适配层按实际布局判断，两种都不写死。
+PROGRAM_ROOT = (
+    platform_ops.program_base_dir(sys.executable) if _FROZEN else os.path.dirname(APP_DIR)
+)
+
+# 数据根目录（settings.json 所在层级）：
+#   Windows —— 与程序根相同（行为与改造前一致）
+#   Unix    —— 用户目录，因为 .app / AppImage 里的包体是只读的
+DATA_ROOT = platform_ops.effective_base_dir(PROGRAM_ROOT)
+BASE_ROOT = DATA_ROOT
+
+# 打包自带的解释器（只读）；Unix 首次启动要先把整个 runtime 复制到用户目录
+BUNDLED_PY = platform_ops.runtime_python(PROGRAM_ROOT)
+# 真正的目标解释器（依赖装在它这里、主程序由它启动）
+_WORK_PY = platform_ops.work_python(PROGRAM_ROOT)
+RUNTIME_PY = _WORK_PY if os.path.exists(_WORK_PY) else sys.executable
+
+
+def refresh_runtime_py():
+    """重新解析目标解释器。
+
+    首次启动会把打包自带的 runtime 复制到可写位置，复制前后路径不同，
+    所以复制完必须调一次（模块级 RUNTIME_PY 是快照）。
+    """
+    global RUNTIME_PY
+    p = platform_ops.work_python(PROGRAM_ROOT)
+    if os.path.exists(p):
+        RUNTIME_PY = p
+    return RUNTIME_PY
+
+
+# 日志：Windows 维持原位置（app/logs，行为不变）；Unix 写到用户数据目录
+LOG_DIR = (
+    os.path.join(APP_DIR, "logs")
+    if platform_ops.IS_WIN
+    else os.path.join(DATA_ROOT, "logs")
+)
+LOG_PATH = os.path.join(LOG_DIR, "first_run.log")
 
 
 # find_spec 不执行代码（快）。
@@ -107,6 +172,22 @@ def torch_ok():
     return module_ok("torch") and module_ok("torchvision")
 
 
+def pip_cwd():
+    """pip 子进程的工作目录（必须是可写的）。
+
+    Windows 维持 app 目录（与改造前一致）；Unix 用数据目录 —— AppImage 是
+    只读的 squashfs 镜像、.app 常在 /Applications 下，在只读目录里跑 pip
+    容易踩到写缓存的坑。任何异常都退回 APP_DIR，不让它成为失败原因。
+    """
+    if platform_ops.IS_WIN:
+        return APP_DIR
+    try:
+        os.makedirs(DATA_ROOT, exist_ok=True)
+        return DATA_ROOT
+    except Exception:
+        return APP_DIR
+
+
 def run_pip_raw(pip_args, on_line):
     """执行 ``pip <pip_args...>``，逐行回调输出，返回退出码。
 
@@ -117,7 +198,7 @@ def run_pip_raw(pip_args, on_line):
     env["PYTHONUNBUFFERED"] = "1"
     proc = subprocess.Popen(
         [RUNTIME_PY, "-m", "pip"] + list(pip_args),
-        cwd=APP_DIR,
+        cwd=pip_cwd(),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -171,15 +252,15 @@ def purge_conflicting(pip_names, log_line):
 
 
 def icon_path():
-    """应用图标路径；源码运行时在 app/assets，打包后在 _MEIPASS/app/assets。"""
-    for p in (
-        os.path.join(RESOURCE_DIR, "app", "assets", "icon.ico"),
-        os.path.join(APP_DIR, "assets", "icon.ico"),
-        os.path.join(RESOURCE_DIR, "assets", "icon.ico"),
-    ):
-        if os.path.exists(p):
-            return p
-    return ""
+    """应用图标路径；按平台挑格式（Windows→.ico / macOS→.icns / Linux→.png）。
+
+    源码运行时在 app/assets，打包后在 _MEIPASS/app/assets。
+    """
+    return platform_ops.find_icon(
+        os.path.join(RESOURCE_DIR, "app", "assets"),
+        os.path.join(APP_DIR, "assets"),
+        os.path.join(RESOURCE_DIR, "assets"),
+    )
 
 
 class FirstRun:
@@ -190,9 +271,12 @@ class FirstRun:
         self.tk, self.ttk = tk, ttk
         self.root = tk.Tk()
         self.root.title(tr("fr_title"))
-        # 窗口 / 任务栏图标（打包进 exe 的资源，缺了也不影响功能）
+        # 窗口 / 任务栏图标（打包进产物的资源，缺了也不影响功能）
+        # Windows 的 tkinter 只认 .ico（iconbitmap）；Unix 上要用 iconphoto + PNG，
+        # 传 .ico 过去会直接抛 TclError。PhotoImage 必须留引用，否则会被回收。
+        self._icon_img = None
         _ico = icon_path()
-        if _ico:
+        if _ico and platform_ops.IS_WIN:
             try:
                 self.root.iconbitmap(default=_ico)
             except Exception:
@@ -200,6 +284,12 @@ class FirstRun:
                     self.root.iconbitmap(_ico)
                 except Exception:
                     pass
+        elif _ico:
+            try:
+                self._icon_img = tk.PhotoImage(file=_ico)
+                self.root.iconphoto(True, self._icon_img)
+            except Exception:
+                self._icon_img = None
         self.root.geometry("620x420")
         self.root.resizable(False, False)
 
@@ -323,17 +413,76 @@ class FirstRun:
     def fatal(self, err):
         self.set_status(tr("fr_fail") % (err, AUTHOR_CONTACT), 0)
 
+    # ---------- 运行环境落地（Unix） ----------
+    def ensure_runtime_local(self):
+        """Unix：把打包自带的解释器复制到可写位置，之后依赖装在副本里。
+
+        为什么要复制：macOS 的 .app 常驻 /Applications、AppImage 是只读镜像，
+        包里那份解释器只能读不能写；而且 AppImage 每次挂载点都不同
+        （/tmp/.mount_xxxx），在挂载点上建环境下次启动就废了。
+
+        Windows 恒为"已就位"，本方法直接返回 —— 行为与改造前一致。
+        """
+        if platform_ops.runtime_is_local(PROGRAM_ROOT):
+            return
+        src = platform_ops.runtime_dir(PROGRAM_ROOT)
+        dst = platform_ops.runtime_root(PROGRAM_ROOT)
+        if not os.path.isdir(src):
+            # 打包了却没有自带运行时：包体不完整，别硬跑
+            raise RuntimeError(tr("fr_no_runtime") % AUTHOR_CONTACT)
+        self.set_status(tr("fr_prep_runtime"), 1)
+        self.log_line(tr("fr_prep_runtime"))
+        self.log_line("%s -> %s" % (src, dst))
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if os.path.exists(dst):
+            shutil.rmtree(dst)  # 清掉上次复制到一半留下的残骸
+        shutil.copytree(src, dst, symlinks=True)
+        try:
+            # 复制过程可能丢掉可执行位
+            os.chmod(platform_ops.work_python(PROGRAM_ROOT), 0o755)
+        except OSError:
+            pass
+
+    def ensure_desktop_entry(self):
+        """Linux：装一个 .desktop 桌面入口（用户级，不需要 root）。
+
+        失败不算致命 —— 入口只是锦上添花，不该拦住用户用软件。
+        """
+        if platform_ops.shortcut_mode() != "desktop":
+            return
+        try:
+            exe = sys.executable if _FROZEN else os.path.join(APP_DIR, "main.py")
+            icon = platform_ops.find_icon(
+                os.path.join(RESOURCE_DIR, "app", "assets"),
+                os.path.join(APP_DIR, "assets"),
+            )
+            p = platform_ops.install_desktop_entry(exe, icon)
+            if p:
+                self.log_line(tr("fr_desktop_done") % p)
+        except Exception as e:  # noqa: BLE001 - 入口失败不影响主流程
+            self._write_log("desktop entry failed: %r" % (e,))
+
     # ---------- 主流程 ----------
     def main(self):
         try:
             self._write_log("=== first_run 启动 ===")
-            self._write_log("RUNTIME_PY = %s" % RUNTIME_PY)
+            self._write_log(platform_ops.describe())
+            self._write_log("PROGRAM_ROOT = %s" % PROGRAM_ROOT)
+            self._write_log("DATA_ROOT    = %s" % DATA_ROOT)
+            self._write_log("RUNTIME_PY   = %s" % RUNTIME_PY)
             apply_env_fix(self.log_line)  # socks 系统代理会让 pip 直接报 SOCKS 错
-            if getattr(sys, "frozen", False) and os.path.normcase(
-                os.path.abspath(RUNTIME_PY)
-            ) == os.path.normcase(os.path.abspath(sys.executable)):
-                # 打包成 exe 却没找到 runtime\python：说明安装不完整，别硬跑
+
+            self.ensure_runtime_local()
+            refresh_runtime_py()
+
+            if _FROZEN and os.path.normcase(os.path.abspath(RUNTIME_PY)) == os.path.normcase(
+                os.path.abspath(sys.executable)
+            ):
+                # 打包了却没解析出自带运行时：说明包体不完整，别硬跑
                 raise RuntimeError(tr("fr_no_runtime") % AUTHOR_CONTACT)
+
+            self.ensure_desktop_entry()
+
             need = deps_missing()
             need_torch = not torch_ok()
             if not need and not need_torch:
@@ -400,18 +549,30 @@ class FirstRun:
         return self.phase_torch_cpu()
 
     def phase_torch_cpu(self):
+        """装 CPU 版 PyTorch。
+
+        ⚠️ Unix 不能顺手用 PyPI 镜像：PyPI 上 **Linux** 的 torch wheel 默认捆了
+        CUDA 运行库（约 2 GB），用户明明选的是"CPU 版"（约 0.2 GB）却下到 CUDA 版，
+        白等几十分钟还吃磁盘。候选源交给 runtime_deps.cpu_mirrors() 决定 ——
+        Windows 返回的就是普通 PyPI 镜像，与改造前完全一致。
+        """
         self.set_status(tr("fr_torch_phase"), 5)
-        rc = run_pip(
-            ["torch", "torchvision", "--index-url", PYPI_MIRROR], self.log_line
-        )
-        if rc != 0 or not torch_ok():
-            raise RuntimeError("PyTorch install failed (rc=%d)" % rc)
-        self.set_status(tr("fr_torch_phase"), 65)
+        last_rc = None
+        for m in runtime_deps.cpu_mirrors():
+            self.log_line(tr("inst_mirror_log") % m)
+            rc = run_pip(["torch", "torchvision", "--index-url", m], self.log_line)
+            if rc == 0 and torch_ok():
+                self.set_status(tr("fr_torch_phase"), 65)
+                return
+            last_rc = rc
+        raise RuntimeError("PyTorch install failed (rc=%s)" % last_rc)
 
     def launch(self):
         """启动主程序并关闭引导窗口。"""
         main_py = os.path.join(APP_DIR, "main.py")
-        err_path = os.path.join(APP_DIR, "logs", "main_stderr.log")
+        # 日志写 LOG_DIR：Windows 仍是 app/logs（行为不变）；Unix 是用户数据目录
+        # —— 包体在只读挂载里，往 APP_DIR 写会失败
+        err_path = os.path.join(LOG_DIR, "main_stderr.log")
         os.makedirs(os.path.dirname(err_path), exist_ok=True)
         err_f = open(err_path, "a", encoding="utf-8")
         err_f.write("\n===== launch %s =====\n" % time.strftime("%Y-%m-%d %H:%M:%S"))

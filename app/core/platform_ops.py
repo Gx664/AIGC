@@ -126,15 +126,110 @@ def runtime_dir(base_dir):
     return os.path.join(base_dir, "runtime", "python")
 
 
-def runtime_python(base_dir):
-    """运行时解释器路径（不存在时也返回候选路径，由调用方判断）。
+def python_in(root):
+    """给定一个 Python 安装根目录，返回其中的解释器路径。
 
-    Windows : <base>\\runtime\\python\\python.exe   ← 安装器解压的嵌入版 Python
-    Unix    : <base>/runtime/python/bin/python3   ← venv 形态的运行时
+    Windows : <root>\\python.exe
+    Unix    : <root>/bin/python3
     """
     if IS_WIN:
-        return os.path.join(runtime_dir(base_dir), "python.exe")
-    return os.path.join(runtime_dir(base_dir), "bin", "python3")
+        return os.path.join(root, "python.exe")
+    return os.path.join(root, "bin", "python3")
+
+
+def runtime_python(base_dir):
+    """**打包自带**解释器的路径（只读用途；不存在时也返回候选路径）。
+
+    Windows : <base>\\runtime\\python\\python.exe   ← 安装器解压的嵌入版 Python
+    Unix    : <base>/runtime/python/bin/python3   ← CI 解入的独立 CPython
+    """
+    return python_in(runtime_dir(base_dir))
+
+
+def runtime_root(base_dir):
+    """真正用来装依赖的运行目录。
+
+    Windows : ``<base>/runtime/python``（安装目录里，本来就可写）
+    Unix    : ``<数据目录>/runtime/python``
+
+    为什么 Unix 要挪个地方：macOS 的 .app 常放在 /Applications、AppImage 是
+    只读的 squashfs 镜像，往包里 ``pip install`` 必然失败；而且 AppImage 每次
+    挂载点都不同（``/tmp/.mount_xxxx``），在那儿建 venv 下次启动就废了。
+    所以 Unix 侧把打包自带的解释器**复制一份**到用户目录，依赖装在副本里。
+    Windows 走 ``effective_base_dir`` 后原样返回，与改造前完全一致。
+    """
+    return runtime_dir(effective_base_dir(base_dir))
+
+
+def work_python(base_dir):
+    """真正装依赖、跑主程序的解释器。
+
+    Windows : ``<base>/runtime/python/python.exe``（与 ``runtime_python`` 相同）
+    Unix    : ``<数据目录>/runtime/python/bin/python3``（打包自带那份的副本）
+    """
+    return python_in(runtime_root(base_dir))
+
+
+def runtime_is_local(base_dir):
+    """运行目录是否已经落在可写位置（Windows 恒为真，Unix 看有没有落地副本）。"""
+    if IS_WIN:
+        return True
+    return os.path.exists(work_python(base_dir))
+
+
+def program_base_dir(exe_path):
+    """由可执行文件位置反推**程序根目录**（含 ``app/`` 与 ``runtime/``）。
+
+    两种打包布局都要认：
+      * Windows —— 引导器 ``first_run_gui.exe`` 放在 ``<安装目录>/app/`` 里，
+        上一层才是程序根；
+      * Unix    —— PyInstaller 的 onedir 可执行文件与 ``app/`` 平级，
+        自己就是程序根。
+    判据是"这个目录看起来像不像 app 目录"（名字叫 app，或直接有 ``main.py``）。
+
+    注意 **不能**用 ``sys._MEIPASS`` 顶替：单文件模式那是临时解包目录，
+    每次启动路径都变，拿它当数据目录会让用户设置凭空消失。
+    """
+    d = os.path.dirname(os.path.abspath(exe_path))
+    name = os.path.basename(os.path.normpath(d))
+    if name == "app" or os.path.isfile(os.path.join(d, "main.py")):
+        return os.path.dirname(os.path.normpath(d))
+    return os.path.normpath(d)
+
+
+def app_source_dir(base_dir):
+    """``app/`` 源码目录的实际位置（含 ``main.py`` / ``core/`` / ``ui/``）。
+
+    为什么不能写死 ``<base>/app``：PyInstaller 6 不再把 datas 摊在产物根，
+    而是塞进 ``_internal/``；macOS 的 .app 里更靠外一层（``Contents/Frameworks``
+    或 ``Contents/Resources``，且相对 ``Contents/MacOS`` 是上一级）。
+    所以按可能性探测，判据是"这一层有没有 ``main.py``"。
+
+    Windows 上安装器会把 app/ 源码放在 ``<安装目录>/app/``（与引导器 exe 同级），
+    第一个候选即命中，行为与改造前一致。
+    """
+    cands = [
+        os.path.join(base_dir, "app"),
+        os.path.join(base_dir, "_internal", "app"),
+        os.path.join(base_dir, os.pardir, "Frameworks", "app"),
+        os.path.join(base_dir, os.pardir, "Resources", "app"),
+        os.path.join(base_dir, "Contents", "Frameworks", "app"),
+        os.path.join(base_dir, "Contents", "Resources", "app"),
+    ]
+    for c in cands:
+        if os.path.isfile(os.path.join(c, "main.py")):
+            return os.path.normpath(c)
+    for c in cands:  # 退一步：main.py 缺失但目录在（让调用方给出更有用的报错）
+        if os.path.isdir(c):
+            return os.path.normpath(c)
+    return os.path.join(base_dir, "app")
+
+
+def export_env(base_dir, key="AIGC_TOOLKIT_HOME"):
+    """把程序根目录与数据根目录写进环境变量，供子进程 / 主程序复用。"""
+    os.environ[key] = os.path.abspath(base_dir)
+    os.environ["AIGC_TOOLKIT_DATA"] = effective_base_dir(base_dir)
+    return os.environ[key]
 
 
 def data_subdir(base_dir, name):

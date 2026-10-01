@@ -17,17 +17,63 @@ PyTorch 有两个发行版：
 import os
 import shutil
 
+from . import platform_ops
 from .settings import Settings
 
 # ---------------------------------------------------------------- 常量
 PYPI_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
-# CUDA 版 torch 的多个候选源，按顺序尝试（清华 → 上交 → 官方）
+# ------------------------------------------------- 慎重修改：torch 源列表
+#
+# 🔴 判断一个源能不能用，**必须用 pip 亲测**，不能只看浏览器能不能打开：
+#
+#       pip index versions torch --index-url <源>
+#
+#   因为 pip 会去请求 ``<源>/torch/``（pip 的 search_scope.get_index_urls_locations
+#   把 index_url 与包名拼起来），只有「按包名分目录」的 **PEP 503 索引**才走得通。
+#   2026-10-01 逐个实测的结果（含踩过的坑）：
+#
+#     mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/   → 整站 404，已死
+#     mirrors.aliyun.com/pytorch-wheels/{cu128,cpu}  → ⚠️ 最坑的一个：根目录打得开、
+#         能列出几千个 .whl，看着非常健康；但它是"所有轮子摊平在根目录"的布局，
+#         ``<源>/torch/`` 是 **404**，pip 一律报
+#         ``No matching distribution found for torch`` —— 完全不能用
+#     腾讯云 / CERNET / 北大 / 浙大 / 华为云 / 南大 / USTC / BFSU → 无此镜像
+#     mirror.sjtu.edu.cn/pytorch-wheels/{cpu,cu128}  → ✅ 唯一可用的国内源
+#         pip 实测返回 2.14.1+cpu / 2.11.0+cu128；平台齐全
+#         （cpu 频道：Linux x86_64/aarch64、macOS arm64/x86_64、Windows x64；
+#           cu128 频道：Linux 两种架构 + Windows，macOS 没有也不该有 —— 苹果无 CUDA）
+#         且自带 torch 的全部纯 Python 依赖（filelock/sympy/networkx/jinja2/
+#         fsspec/mpmath…）与 nvidia-* 分包，`--index-url` 屏蔽 PyPI 也不会缺件
+#
+#   ⚠️ 别把上面这些死源/假可用源加回来：轻则每次安装白等一轮超时，重则直接装不上。
+#   测试 ``_diag/test_unix_adapt.py`` 里有守卫会拦。
+#   清华的 **PyPI** 镜像（PYPI_MIRROR，装普通包用）仍然好使，与这里是两码事。
+
+# CUDA 版 torch 的候选源，按顺序尝试（上交 → 官方）
 TORCH_CUDA_MIRRORS = [
-    "https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/cu128",
     "https://mirror.sjtu.edu.cn/pytorch-wheels/cu128",
     "https://download.pytorch.org/whl/cu128",
 ]
+
+# CPU 版 torch 的候选源（**仅 Unix 用**，见 cpu_mirrors()）
+TORCH_CPU_MIRRORS = [
+    "https://mirror.sjtu.edu.cn/pytorch-wheels/cpu",
+    "https://download.pytorch.org/whl/cpu",
+]
+
+# 已证实不可用、不许再回到候选列表里的源（测试用）
+DEAD_MIRRORS = (
+    "mirrors.tuna.tsinghua.edu.cn/pytorch-wheels",
+    "mirrors.aliyun.com/pytorch-wheels",
+    "mirrors.cloud.tencent.com/pytorch-wheels",
+    "mirrors.cernet.edu.cn/pytorch-wheels",
+)
+
+
+def all_torch_mirrors():
+    """所有可能被用到的 torch 源（供测试守卫统一检查）。"""
+    return tuple(TORCH_CUDA_MIRRORS) + tuple(TORCH_CPU_MIRRORS)
 
 # 界面与检测组件（不含 torch/torchvision，那两个单独按变体安装）
 #
@@ -119,11 +165,33 @@ def variant_label(variant):
 
 
 def has_nvidia():
-    """粗略判断本机有没有 NVIDIA 显卡（引导器与主程序都用这个）。"""
+    """粗略判断本机有没有 NVIDIA 独立显卡（引导器与主程序都用这个）。
+
+    macOS 一律 False —— 苹果机器没有 NVIDIA 驱动（Apple Silicon 走 PyTorch
+    自带支持的 MPS，官方 wheel 直接可用），问用户"要 CUDA 还是 CPU"没有意义。
+    """
+    if platform_ops.IS_MAC:
+        return False
     if shutil.which("nvidia-smi"):
         return True
+    if not platform_ops.IS_WIN:
+        return False
     sysroot = os.environ.get("SystemRoot", r"C:\Windows")
     return os.path.exists(os.path.join(sysroot, "System32", "nvapi64.dll"))
+
+
+def cpu_mirrors():
+    """CPU 版 torch 的候选源，按顺序尝试。
+
+    ⚠️ 为什么 Unix 不能直接用 PyPI 镜像：PyPI 上 **Linux** 的 ``torch`` wheel
+    默认捆了 CUDA 运行库（下载约 2 GB，解压更大）。用户明明选了"CPU 版"
+    （约 0.2 GB），却按普通 PyPI 源去下，会白等几十分钟且磁盘暴涨。
+    Windows 的 PyPI wheel 本身就是 CPU 版，所以保持原样走 PyPI 镜像 ——
+    **这个分支不能动，动了就是改变 Windows 现有行为**。
+    """
+    if platform_ops.IS_WIN:
+        return [PYPI_MIRROR]
+    return list(TORCH_CPU_MIRRORS)
 
 
 def pick_variant(has_gpu, saved="", ask=None):

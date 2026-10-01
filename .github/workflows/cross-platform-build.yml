@@ -1,0 +1,269 @@
+name: 三端构建（Linux / macOS）
+
+# Linux 与 macOS 都在**云端**构建，本地不需要装任何 Linux / macOS 环境。
+# 触发方式：手动（Actions 页面 Run workflow）或打 v* tag。
+#
+# 产物形态：
+#   Linux -> AppImage（单文件，双击即用）
+#   macOS -> dmg（拖进 Applications 即用）
+# 两者内部都带一份便携 Python（runtime/python），首次启动时由 app/first_run.py
+# 复制到用户目录并按需安装 PySide6 / PyTorch 等组件（对应 Windows 的引导器）。
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  # 便携 Python 主次版本（python-build-standalone 的 install_only 包）
+  PY_SERIES: '3.12'
+
+jobs:
+  linux:
+    name: Linux 构建
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装系统库
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1 libegl1 libxkbcommon0 libdbus-1-3 libfontconfig1 libglib2.0-0 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 \
+            tk jq curl
+
+      - name: 安装构建依赖
+        run: |
+          python -m pip install --upgrade pip
+          # 只装打包必需的。torch / PySide6 / transformers 故意不装 ——
+          # app/ 对它们全是延迟 import，靠 PyInstaller 静态分析也不会被收集；
+          # 打进去只会让产物膨胀到 GB 级，它们由用户首次启动时按需安装。
+          python -m pip install 'pyinstaller>=6.6'
+
+      - name: 语法自检
+        run: python -m compileall -q app installer packaging
+
+      - name: 引擎回归测试（不需要 torch）
+        run: python tools/test_engines.py
+
+      - name: 清理字节码缓存（别打进产物）
+        run: find . -name __pycache__ -type d -prune -exec rm -rf {} +
+
+      - name: 下载并解压便携 Python
+        run: |
+          set -euo pipefail
+          if [ "$(uname -m)" = "x86_64" ]; then
+            TRIPLE=x86_64-unknown-linux-gnu
+          else
+            TRIPLE=aarch64-unknown-linux-gnu
+          fi
+          # 从最新 release 里挑一个匹配本机架构的 3.12 install_only 包
+          INFO=$(curl -sSL https://api.github.com/repos/astral-sh/python-build-standalone/releases/latest \
+            | jq -r --arg s "^cpython-${PY_SERIES}\\.[0-9]+\\+[0-9]+-${TRIPLE}-install_only\\.tar\\.gz$" \
+              '.tag_name as $t | .assets[] | select(.name | test($s)) | "\($t) \(.name)"' \
+            | head -1)
+          test -n "$INFO" || { echo "没找到匹配的便携 Python 资产"; exit 1; }
+          TAG=${INFO%% *}; ASSET=${INFO#* }
+          echo "release=$TAG asset=$ASSET"
+          curl -sSL -o /tmp/py.tar.gz \
+            "https://github.com/astral-sh/python-build-standalone/releases/download/$TAG/$ASSET"
+          # install_only 包解压出来就是 python/ 目录
+          mkdir -p runtime
+          tar -xzf /tmp/py.tar.gz -C runtime
+          test -x runtime/python/bin/python3
+          runtime/python/bin/python3 -VV
+
+      - name: PyInstaller 打包
+        run: |
+          pyinstaller --noconfirm --distpath dist-unix --workpath build-unix \
+            packaging/AIGC_Toolkit_unix.spec
+
+      - name: 把便携 Python 放进产物
+        run: |
+          set -euo pipefail
+          cp -a runtime dist-unix/AIGC_Toolkit/
+          test -x dist-unix/AIGC_Toolkit/runtime/python/bin/python3
+          du -sh dist-unix/AIGC_Toolkit
+
+      - name: 产物自检（不启动界面）
+        run: |
+          set -euo pipefail
+          APP=dist-unix/AIGC_Toolkit
+          test -x "$APP/AIGC_Toolkit"
+          # app/ 会被 PyInstaller 放进 _internal/（PyInstaller 6 的 onedir 布局）
+          test -f "$APP/_internal/app/first_run.py" -o -f "$APP/app/first_run.py"
+          # 用产物自带的解释器跑一遍适配层，确认 app/ 与核心模块能被加载
+          cd "$APP"
+          ./runtime/python/bin/python3 -c \
+            "import sys; sys.path.insert(0,'app'); from core import platform_ops; print('OK', platform_ops.describe())"
+
+      - name: 打 AppImage
+        run: |
+          set -euo pipefail
+          VER=$(sed -n 's/.*APP_VERSION *= *"\([^"]*\)".*/\1/p' app/core/meta.py | head -1)
+          APPDIR=AIGC_Toolkit.AppDir
+          rm -rf "$APPDIR"
+          mkdir -p "$APPDIR"
+          cp -a dist-unix/AIGC_Toolkit "$APPDIR/AIGC_Toolkit"
+          cp app/assets/icon.png "$APPDIR/aigc-toolkit.png"
+          cat > "$APPDIR/aigc-toolkit.desktop" <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=AIGC 检测工具箱
+          Comment=中文 AI 生成文本检测（离线运行）
+          Exec=AIGC_Toolkit
+          Icon=aigc-toolkit
+          Categories=Utility;TextTools;
+          Terminal=false
+          EOF
+          cat > "$APPDIR/AppRun" <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/AIGC_Toolkit/AIGC_Toolkit" "$@"
+          EOF
+          chmod +x "$APPDIR/AppRun"
+          # CI 容器里没有 FUSE，用 APPIMAGE_EXTRACT_AND_RUN 直接解包执行。
+          # 主地址优先，拿不到再回退到旧的 AppImageKit 仓库（两处都能用）。
+          if ! curl -fsSL -o /tmp/appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage; then
+            curl -fsSL -o /tmp/appimagetool \
+              https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          fi
+          chmod +x /tmp/appimagetool
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 /tmp/appimagetool \
+            "$APPDIR" "AIGC_Toolkit-${VER}-x86_64.AppImage"
+          ls -lh AIGC_Toolkit-*.AppImage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AIGC-Toolkit-Linux
+          path: |
+            AIGC_Toolkit-*.AppImage
+            dist-unix/AIGC_Toolkit/
+
+  macos:
+    name: macOS 构建
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装构建依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install 'pyinstaller>=6.6'
+
+      - name: 由 PNG 生成 .icns
+        run: |
+          rm -rf packaging/icon.iconset
+          mkdir -p packaging/icon.iconset
+          for s in 16 32 64 128 256 512; do
+            sips -z $s $s app/assets/icon.png --out "packaging/icon.iconset/icon_${s}x${s}.png" >/dev/null
+          done
+          cp app/assets/icon.png packaging/icon.iconset/icon_512x512@2x.png
+          iconutil -c icns packaging/icon.iconset -o packaging/icon.icns
+          ls -l packaging/icon.icns
+
+      - name: 语法自检
+        run: python -m compileall -q app installer packaging
+
+      - name: 引擎回归测试（不需要 torch）
+        run: python tools/test_engines.py
+
+      - name: 清理字节码缓存（别打进产物）
+        run: find . -name __pycache__ -type d -prune -exec rm -rf {} +
+
+      - name: 下载并解压便携 Python
+        run: |
+          set -euo pipefail
+          if [ "$(uname -m)" = "arm64" ]; then
+            TRIPLE=aarch64-apple-darwin
+          else
+            TRIPLE=x86_64-apple-darwin
+          fi
+          INFO=$(curl -sSL https://api.github.com/repos/astral-sh/python-build-standalone/releases/latest \
+            | jq -r --arg s "^cpython-${PY_SERIES}\\.[0-9]+\\+[0-9]+-${TRIPLE}-install_only\\.tar\\.gz$" \
+              '.tag_name as $t | .assets[] | select(.name | test($s)) | "\($t) \(.name)"' \
+            | head -1)
+          test -n "$INFO" || { echo "没找到匹配的便携 Python 资产"; exit 1; }
+          TAG=${INFO%% *}; ASSET=${INFO#* }
+          echo "release=$TAG asset=$ASSET"
+          curl -sSL -o /tmp/py.tar.gz \
+            "https://github.com/astral-sh/python-build-standalone/releases/download/$TAG/$ASSET"
+          mkdir -p runtime
+          tar -xzf /tmp/py.tar.gz -C runtime
+          test -x runtime/python/bin/python3
+          runtime/python/bin/python3 -VV
+
+      - name: PyInstaller 打包
+        run: |
+          pyinstaller --noconfirm --distpath dist-unix --workpath build-unix \
+            packaging/AIGC_Toolkit_unix.spec
+
+      - name: 把便携 Python 放进 .app
+        run: |
+          set -euo pipefail
+          cp -a runtime "dist-unix/AIGC_Toolkit.app/Contents/MacOS/"
+          test -x "dist-unix/AIGC_Toolkit.app/Contents/MacOS/runtime/python/bin/python3"
+          du -sh "dist-unix/AIGC_Toolkit.app"
+
+      - name: 产物自检（不启动界面）
+        run: |
+          set -euo pipefail
+          APP="dist-unix/AIGC_Toolkit.app/Contents/MacOS"
+          test -x "$APP/AIGC_Toolkit"
+          test -f "$APP/_internal/app/first_run.py" -o -f "$APP/app/first_run.py"
+          cd "$APP"
+          ./runtime/python/bin/python3 -c \
+            "import sys; sys.path.insert(0,'app'); from core import platform_ops; print('OK', platform_ops.describe())"
+
+      - name: 打 dmg
+        run: |
+          set -euo pipefail
+          VER=$(sed -n 's/.*APP_VERSION *= *"\([^"]*\)".*/\1/p' app/core/meta.py | head -1)
+          STAGE=dist-dmg
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp -a "dist-unix/AIGC_Toolkit.app" "$STAGE/"
+          cat > "$STAGE/首次打开说明.txt" <<'EOF'
+          AIGC 检测工具箱 · macOS 版
+
+          这个应用没有购买苹果开发者签名证书，刚下载时系统会拦一下，属于正常现象。
+
+          怎么装：
+            1. 把 AIGC_Toolkit.app 拖进「应用程序」文件夹
+            2. 在「应用程序」里按住 Control 点它（或右键）→ 选「打开」→ 再点一次「打开」
+               （只需做一次，之后就正常双击打开了）
+
+          如果还是提示"已损坏"或"无法打开"，打开「终端」执行（把路径换成实际位置）：
+            xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app
+
+          首次启动要下载检测组件（约 0.2 GB，CPU 版），请保持网络畅通；
+          装好之后就能完全离线使用。
+
+          数据与组件都装在你的用户目录，不会写进系统目录：
+            ~/Library/Application Support/AIGC_Toolkit
+          想卸载：把 AIGC_Toolkit.app 拖进废纸篓，再删掉上面那个目录即可。
+          EOF
+          hdiutil create -volname "AIGC 检测工具箱" -srcfolder "$STAGE" -ov -format UDZO \
+            "AIGC_Toolkit-${VER}-macos-$(uname -m).dmg"
+          ls -lh AIGC_Toolkit-*.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AIGC-Toolkit-macOS
+          path: |
+            AIGC_Toolkit-*.dmg
+            dist-unix/AIGC_Toolkit.app/
