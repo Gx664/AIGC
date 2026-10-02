@@ -349,8 +349,16 @@ jobs:
             echo "::error::标签 $TAG 与源码版本 v$VER 不一致，拒绝发布"
             exit 1
           fi
+          # 正文用仓库里的模板（含三端下载安装说明），不用 --generate-notes：
+          # 仓库此前一个 Release 都没有时，它生成不出对比基准，正文会只剩
+          # 一行 "Full Changelog" —— v1.3.4 首发就是这么空着的，得事后补。
+          NOTES=/tmp/release-notes.md
+          sed -e "s/{{TAG}}/$TAG/g" -e "s/{{VER}}/$VER/g" \
+            .github/RELEASE_NOTES.md > "$NOTES"
+          printf '\n---\n\n**本次全部提交**：https://github.com/%s/commits/%s\n' \
+            "$GITHUB_REPOSITORY" "$TAG" >> "$NOTES"
           gh release create "$TAG" release/* \
             --title "AIGC 检测工具箱 $TAG" \
-            --generate-notes
+            --notes-file "$NOTES"
           gh release view "$TAG" --json url,assets \
             --jq '"发布地址: \(.url)", (.assets[] | "  \(.name)  \(.size) B")'
