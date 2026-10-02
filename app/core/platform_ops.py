@@ -122,8 +122,38 @@ def effective_base_dir(base_dir):
 
 
 def runtime_dir(base_dir):
-    """运行时根目录（与安装器实际布局一致：<base>/runtime/python/）。"""
-    return os.path.join(base_dir, "runtime", "python")
+    """打包自带运行时的根目录（``<root>/runtime/python``）。
+
+    布局按平台不同，都是实测定下来的：
+      * Windows —— ``<base>\\runtime\\python\\python.exe``（安装器解压的嵌入版）
+      * Linux   —— ``<base>/runtime/python/bin/python3``（CI 解入的独立 CPython）
+      * macOS   —— ``<.app>/Contents/Resources/runtime/python/bin/python3``
+
+    macOS 为什么**不能**放 ``Contents/MacOS/``（2026-10-02 实跑踩过）：
+    那里是 app 的**代码区**，codesign 会给该目录下每个文件做代码签名校验，
+    而 runtime 的 ``bin/`` 里有 ``pip3``、``pip3.12``、``python3.12-config``
+    这类带 shebang 的**文本脚本** —— codesign 没法给它们签名，于是整步直接失败：
+
+        AIGC_Toolkit.app: code object is not signed at all
+        In subcomponent: .../Contents/MacOS/runtime/python/bin/pip3.12
+
+    挪到 ``Contents/Resources/``（资源区）后，codesign 只把它们当资源做哈希、
+    封进 ``_CodeSignature/CodeResources``，正是我们要的效果。
+    （runtime 内部的 Mach-O 自带 python-build-standalone 的 ad-hoc 签名，
+    ``cp`` 不改内容，签名依旧有效，与放在哪一层无关。）
+
+    这里按"实际存在哪份"探测，因此**新旧两种布局都能认**：
+    v1.3.4 及以前的 macOS 包 runtime 在 ``Contents/MacOS/`` 下，照样可用。
+    """
+    p = os.path.join(base_dir, "runtime", "python")
+    if os.path.isdir(p):
+        return p
+    # macOS .app：base_dir 是 Contents/MacOS，运行时在上一级的 Resources 下
+    alt = os.path.join(os.path.normpath(base_dir), os.pardir,
+                       "Resources", "runtime", "python")
+    if os.path.isdir(alt):
+        return os.path.normpath(alt)
+    return p  # 都不存在 → 返回旧路径，让调用方给出更有用的报错
 
 
 def python_in(root):

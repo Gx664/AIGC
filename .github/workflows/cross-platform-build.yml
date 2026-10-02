@@ -237,8 +237,20 @@ jobs:
       - name: 把便携 Python 放进 .app
         run: |
           set -euo pipefail
-          cp -a runtime "dist-unix/AIGC_Toolkit.app/Contents/MacOS/"
-          test -x "dist-unix/AIGC_Toolkit.app/Contents/MacOS/runtime/python/bin/python3"
+          # 放 Contents/Resources/ 而不是 Contents/MacOS/（2026-10-02 实跑踩过）：
+          # 后者是 app 的**代码区**，codesign 会给该目录下每个文件做签名校验，
+          # 而 runtime 的 bin/ 里有 pip3、pip3.12、python3.12-config 这类带 shebang
+          # 的**文本脚本**，codesign 根本没法给它们签名，于是签名整步失败：
+          #     code object is not signed at all
+          #     In subcomponent: .../Contents/MacOS/runtime/python/bin/pip3.12
+          # 资源区（Resources）不参与代码校验，只把文件当资源算哈希封进
+          # _CodeSignature/CodeResources —— 正是我们要的。
+          # app/core/platform_ops.py 的 runtime_dir() 对两个位置都认，
+          # 优先取实际存在的那份，所以旧布局（v1.3.4 及以前）也照样能跑。
+          RES="dist-unix/AIGC_Toolkit.app/Contents/Resources"
+          mkdir -p "$RES"
+          cp -a runtime "$RES/"
+          test -x "$RES/runtime/python/bin/python3"
           du -sh "dist-unix/AIGC_Toolkit.app"
 
       - name: 重新签名 .app（拷进 runtime 会破坏原有签名）
@@ -294,8 +306,9 @@ jobs:
           APP_SRC=$(dirname "$APP_MAIN")
           test -f "$APP_SRC/first_run.py" || { echo "app/ 里缺 first_run.py"; exit 1; }
           echo "app/ 源码目录 = $APP_SRC"
-          cd "$APP"
-          ./runtime/python/bin/python3 -c \
+          # 运行时在 Contents/Resources/ 下（见「把便携 Python 放进 .app」那步的说明），
+          # 不在 Contents/MacOS/ 里，所以这里不能用相对路径 ./runtime/...
+          "$BUNDLE/Contents/Resources/runtime/python/bin/python3" -c \
             "import sys; sys.path.insert(0, sys.argv[1]); from core import platform_ops; print('OK', platform_ops.describe())" \
             "$APP_SRC"
 
