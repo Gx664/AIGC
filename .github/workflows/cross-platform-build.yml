@@ -254,9 +254,22 @@ jobs:
           # 用户很容易被吓到直接删掉。所以这里必须整体重签一次。
           # 没买开发者证书，只能用 ad-hoc（-）签名：足够让系统加载运行，
           # 但不代表 Apple 认可，用户首次打开仍要手动放行一次。
-          codesign --force --deep --sign - "$APP"
+          #
+          # ⚠️ 这里不要加 --deep（2026-10-02 实跑踩过）：--deep 会递归去"修" bundle
+          # 里每一处嵌套代码，而 runtime/python/include/python3.12 是个纯头文件目录，
+          # 被它判成畸形 bundle，直接报
+          #     bundle format unrecognized, invalid, or unsuitable
+          # In subcomponent: .../Contents/MacOS/runtime/python/include/python3.12
+          # 从而整步失败、连 dmg 都出不来。只签最外层就够了 ——
+          # runtime/ 位于 Contents/MacOS/ 下，不属于标准嵌套代码位置
+          # （Frameworks/ PlugIns/ XPCServices/ 那些才是），codesign 会把它当资源、
+          # 连哈希一起封进 _CodeSignature/CodeResources，这正是我们要的效果；
+          # runtime 内部的 Mach-O（python3、libpython3.12.dylib、*.so）自带
+          # python-build-standalone 的 ad-hoc 签名，cp 不改内容，签名依旧有效，
+          # 所以不需要（也不该）逐个重签。
+          codesign --force --sign - "$APP"
           echo "===== 签名自检 ====="
-          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign --verify --verbose=2 "$APP"
           echo "----- 签名详情 -----"
           codesign -dv --verbose=4 "$APP" 2>&1 | sed -n '1,12p' || true
           echo "----- Gatekeeper 评估（未公证，预期被拒，仅留档）-----"
