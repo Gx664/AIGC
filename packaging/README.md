@@ -164,8 +164,10 @@ macOS `.app` 在 `Contents/Resources/app`（此前只是按候选探测，现在
 
 还缺：
 
-1. **macOS 签名 / 公证** —— 没有苹果开发者证书，产物是未签名的，用户首次打开需右键"打开"
-   或跑 `xattr -dr com.apple.quarantine`（dmg 里已附说明文件）
+1. **macOS 签名 / 公证** —— 没有苹果开发者证书，产物是未签名的，用户首次打开需手动放行一次：
+   macOS 15+ 走「系统设置 → 隐私与安全性 → 仍要打开」，14 及更早才用 Control 点（右键）→「打开」，
+   任何版本也可跑 `xattr -dr com.apple.quarantine`（dmg 里已附说明文件）。
+   注意 Apple 已于 2024-08-06 移除「右键 → 打开」这条绕过途径，别再按老教程写
 2. **Intel 版 macOS 包** —— 目前只出 arm64；需要时把 `macos-14` 换成 `macos-13` 再跑一遍
 3. **Unix 实机验证** —— 流水线跑通了，但还没人在真的 Linux / macOS 上双击打开过，
    Qt 依赖、中文字体、桌面环境差异要实机才看得出来

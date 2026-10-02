@@ -126,8 +126,9 @@ if IS_MAC:
             'LSMinimumSystemVersion': '11.0',
             'CFBundleShortVersionString': VERSION,
             'CFBundleVersion': VERSION,
-            # 没有开发者证书，产物是未签名的 —— 用户在「双击打不开」时
-            # 需要右键→打开，或跑一次 xattr 清除隔离标记（见使用手册）
+            # 没有开发者证书，产物是未签名的 —— 用户首次打开需手动放行一次
+            # （macOS 15+ 用「系统设置 → 隐私与安全性 → 仍要打开」，老版本才用右键→打开；
+            #  也可跑一次 xattr 清掉隔离标记，见使用手册）
             'LSApplicationCategoryType': 'public.app-category.utilities',
         },
     )

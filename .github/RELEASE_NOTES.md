@@ -8,7 +8,7 @@
 |---|---|---|---|
 | **Windows 10 / 11** | `AIGC_Toolkit_Setup.exe` | 22 MB | 双击 → 选安装目录 → 开始安装 |
 | **Linux（x86_64）** | `AIGC_Toolkit-{{VER}}-x86_64.AppImage` | 88 MB | 先 `chmod +x`，再双击（或命令行运行） |
-| **macOS（Apple 芯片）** | `AIGC_Toolkit-{{VER}}-macos-arm64.dmg` | 62 MB | 打开 dmg → 把 App 拖进「应用程序」→ **右键「打开」** |
+| **macOS（Apple 芯片）** | `AIGC_Toolkit-{{VER}}-macos-arm64.dmg` | 62 MB | 打开 dmg → 拖进「应用程序」→ **首次要手动放行一次**，见下方说明 |
 
 三个平台的功能完全一致。首次启动都会弹引导窗口，自动下载运行组件（约 0.2 GB，国内镜像加速，不需要 VPN）；
 有 NVIDIA 显卡会问你要 CUDA 还是 CPU 版，没有则自动用 CPU 版。装好之后完全离线可用。
