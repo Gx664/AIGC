@@ -27,7 +27,7 @@ except ImportError:  # pragma: no cover
     tk = filedialog = messagebox = ttk = None
 
 APP_NAME = "AI 检测工具箱"
-APP_VER = "1.3.4"
+APP_VER = "1.3.5"
 PY_VER = "3.12.10"
 PY_EMBED_NAME = "python-%s-embed-amd64.zip" % PY_VER
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"

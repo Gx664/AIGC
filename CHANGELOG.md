@@ -28,6 +28,39 @@ These rules apply to this project from 2026-09-25 onward:
 
 ---
 
+## v1.3.5 (2026-10-02)
+
+> This release **touches macOS and the docs only**: it fixes a packaging problem that made macOS
+> wrongly report the app as "damaged", and corrects the now-outdated macOS install instructions.
+> Windows / Linux builds are functionally identical to v1.3.4 — only the version number moves.
+
+### Visible to users
+- 🍎 **macOS: the system no longer says the app is "damaged"** — the bundle signature no longer
+  matched its contents, so macOS judged it as "AIGC_Toolkit is damaged and can't be opened. You
+  should move it to the Trash", which easily makes people delete the file. It now shows the normal
+  "unidentified developer" prompt instead: allow it once, following the instructions below.
+- 📖 **Corrected the macOS install instructions** — the old "right-click → Open" route **no longer
+  works on macOS 15 and later** (Apple removed that override in August 2024). They now point at the
+  route that actually works: **System Settings → Privacy & Security → Open Anyway**, plus a
+  terminal command that works on every version.
+- Windows / Linux users: **functionally identical to v1.3.4** — no need to update.
+
+### Fixed: macOS build judged as "damaged"
+The pipeline order was "PyInstaller build (which performs one ad-hoc signature) → then copy the
+portable Python into the `.app`". The 400+ MB copied in afterwards was not covered by that signature,
+so the content hashes recorded in `_CodeSignature` no longer matched the real files and Gatekeeper
+treated the app as corrupt. The bundle is now **re-signed as a whole** after the runtime is copied,
+and the pipeline verifies that signature — a failed verification fails the build, so a broken package
+can no longer be published.
+
+### Note: why macOS still needs one manual approval
+This project has no Apple Developer certificate (USD 99/year), so only an ad-hoc signature is
+possible. That satisfies Apple silicon's "every executable must be signed" requirement and lets the
+app load and run, but it does not mean Apple endorses the software, so Gatekeeper still blocks the
+first launch. Buying the certificate and notarising is the only way to remove that step entirely.
+
+---
+
 ## v1.3.4 (2026-10-01)
 
 > This release mainly **fixes a bug that made Word documents completely unusable**, plus two additions.

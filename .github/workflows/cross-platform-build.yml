@@ -241,6 +241,27 @@ jobs:
           test -x "dist-unix/AIGC_Toolkit.app/Contents/MacOS/runtime/python/bin/python3"
           du -sh "dist-unix/AIGC_Toolkit.app"
 
+      - name: 重新签名 .app（拷进 runtime 会破坏原有签名）
+        run: |
+          set -euo pipefail
+          APP="dist-unix/AIGC_Toolkit.app"
+          # PyInstaller 打包时已经做过一次 ad-hoc 签名（日志里的
+          # "Code signing identity: None" + "Signing the BUNDLE..."），
+          # 但上一步往 Contents/MacOS/ 拷进了 runtime/（400+ MB）。
+          # bundle 的 _CodeSignature/CodeResources 记录的是签名那一刻的内容哈希，
+          # 事后增删文件必然失配 —— 结果 Gatekeeper 会把应用判成
+          # 「已损坏，应该移到废纸篓」，而不是温和的「未识别开发者」，
+          # 用户很容易被吓到直接删掉。所以这里必须整体重签一次。
+          # 没买开发者证书，只能用 ad-hoc（-）签名：足够让系统加载运行，
+          # 但不代表 Apple 认可，用户首次打开仍要手动放行一次。
+          codesign --force --deep --sign - "$APP"
+          echo "===== 签名自检 ====="
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          echo "----- 签名详情 -----"
+          codesign -dv --verbose=4 "$APP" 2>&1 | sed -n '1,12p' || true
+          echo "----- Gatekeeper 评估（未公证，预期被拒，仅留档）-----"
+          spctl -a -t exec -vv "$APP" || true
+
       - name: 产物自检（不启动界面）
         run: |
           set -euo pipefail
@@ -276,15 +297,30 @@ jobs:
           cat > "$STAGE/首次打开说明.txt" <<'EOF'
           AIGC 检测工具箱 · macOS 版
 
-          这个应用没有购买苹果开发者签名证书，刚下载时系统会拦一下，属于正常现象。
+          这个应用没有购买苹果开发者签名证书（未签名），刚下载时系统会拦一下，
+          属于正常现象。放行一次之后就正常了。
 
           怎么装：
             1. 把 AIGC_Toolkit.app 拖进「应用程序」文件夹
-            2. 在「应用程序」里按住 Control 点它（或右键）→ 选「打开」→ 再点一次「打开」
-               （只需做一次，之后就正常双击打开了）
 
-          如果还是提示"已损坏"或"无法打开"，打开「终端」执行（把路径换成实际位置）：
-            xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app
+            2. 放行 —— 按你的 macOS 版本选一种：
+
+               【macOS 15 Sequoia / 26 Tahoe 及更新】
+                 a. 在「应用程序」里双击 AIGC_Toolkit，出现拦截提示后点「完成」
+                    —— 千万别点「移到废纸篓」，那不是真的损坏
+                 b. 打开「系统设置 → 隐私与安全性」，向下滚到底部的「安全性」
+                 c. 点「仍要打开」，输入登录密码或用 Touch ID 确认
+                 d. 再启动一次就能用了，以后正常双击
+
+                 注意：「仍要打开」按钮只在刚才启动失败后的约 1 小时内出现，
+                       看不到就再双击一次 App，然后立刻回到设置页。
+
+               【macOS 14 及更早】
+                 按住 Control 点 App（或右键）→ 选「打开」→ 再点一次「打开」
+
+               【任何版本都通用，终端最省事】
+                 打开「终端」，执行下面这行（路径按实际情况替换）：
+                   xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app
 
           首次启动要下载检测组件（约 0.2 GB，CPU 版），请保持网络畅通；
           装好之后就能完全离线使用。

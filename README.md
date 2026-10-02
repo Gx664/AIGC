@@ -29,7 +29,7 @@
 |---|---|---|
 | **Windows 10 / 11** | `AIGC_Toolkit_Setup.exe`（约 22 MB） | 双击 → 选安装目录 → 开始安装 |
 | **Linux（x86_64）** | `AIGC_Toolkit-x.y.z-x86_64.AppImage`（约 88 MB） | 先 `chmod +x`，再双击（或命令行运行） |
-| **macOS（Apple 芯片）** | `AIGC_Toolkit-x.y.z-macos-arm64.dmg`（约 59 MB） | 打开 dmg → 把 App 拖进「应用程序」→ **右键「打开」** |
+| **macOS（Apple 芯片）** | `AIGC_Toolkit-x.y.z-macos-arm64.dmg`（约 62 MB） | 打开 dmg → 拖进「应用程序」→ **首次要手动放行一次**，见下方说明 |
 
 首次启动都会弹引导窗口，自动下载运行组件（约 0.2 GB，国内镜像加速，不需要 VPN）：
 有 NVIDIA 显卡会问你选 CUDA 还是 CPU 版，没有则自动用 CPU 版。装好之后完全离线可用。
@@ -50,10 +50,26 @@
 <details>
 <summary><b>macOS 用户：未签名 + 只出 Apple 芯片版</b></summary>
 
-- 本项目没有购买苹果开发者签名证书，产物是**未签名**的，第一次打开必须
-  **按住 Control 点它（或右键）→ 选「打开」→ 再点一次「打开」**，只需一次。
-- 若提示「已损坏」或「无法打开」，终端执行：
-  `xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app`
+本项目没有购买苹果开发者签名证书，产物**未签名**，所以第一次打开会被系统拦下。放行一次之后就正常了。
+
+**macOS 15 Sequoia / 26 Tahoe 及更新版本 —— 必须走系统设置：**
+
+1. 在「应用程序」里双击 `AIGC_Toolkit`，弹出拦截提示后点「完成」（**千万别点「移到废纸篓」**）
+2. 打开 **系统设置 → 隐私与安全性**，向下滚到底部的「安全性」一节
+3. 点「**仍要打开**」，输入登录密码或用 Touch ID 确认
+4. 再启动一次即可，以后正常双击
+
+> ⚠️ 「仍要打开」按钮**只在你刚才启动失败后的约 1 小时内出现**。看不到按钮就再双击一次 App，然后立刻回到设置页。
+
+**macOS 14 及更早版本**：按住 Control 点 App（或右键）→ 选「打开」→ 再点一次「打开」。
+
+**任何版本都通用的终端方式**（最省事，复制粘贴即可）：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app
+```
+
+- 看到「**AIGC_Toolkit 已损坏，应该移到废纸篓**」不用慌 —— 这是未签名 + 网络下载标记（quarantine）导致的**误导性提示**，文件本身没坏，按上面的方法放行即可。
 - 目前只发布 **Apple 芯片（arm64）** 版；Intel 芯片的 Mac 请从源码运行，见 [仓库文件说明.md](仓库文件说明.md)。
 </details>
 

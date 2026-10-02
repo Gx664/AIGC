@@ -30,7 +30,7 @@ Builds for all three platforms live under Assets on the **[Releases page](https:
 |---|---|---|
 | **Windows 10 / 11** | `AIGC_Toolkit_Setup.exe` (~22 MB) | Double-click → choose a folder → Install |
 | **Linux (x86_64)** | `AIGC_Toolkit-x.y.z-x86_64.AppImage` (~88 MB) | `chmod +x`, then double-click (or run from a shell) |
-| **macOS (Apple silicon)** | `AIGC_Toolkit-x.y.z-macos-arm64.dmg` (~59 MB) | Open the dmg → drag the app into Applications → **right-click → Open** |
+| **macOS (Apple silicon)** | `AIGC_Toolkit-x.y.z-macos-arm64.dmg` (~62 MB) | Open the dmg → drag the app into Applications → **allow it once on first launch**, see below |
 
 On first launch a setup window downloads the runtime components (~0.2 GB, fast CN mirrors, no VPN needed):
 if you have an NVIDIA GPU it asks whether you want the CUDA or the CPU build; otherwise the CPU build is used. After that it runs fully offline.
@@ -51,10 +51,31 @@ if you have an NVIDIA GPU it asks whether you want the CUDA or the CPU build; ot
 <details>
 <summary><b>macOS users: unsigned build, Apple silicon only</b></summary>
 
-- This project has no Apple Developer certificate, so the build is **unsigned**. The first launch requires
-  **Control-click (or right-click) → Open → Open again** — once only.
-- If macOS says the app "is damaged", run this in Terminal:
-  `xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app`
+This project has no Apple Developer certificate, so the build is **unsigned** and macOS blocks it on the
+first launch. Allow it once and everything works normally afterwards.
+
+**macOS 15 Sequoia / 26 Tahoe and newer — System Settings is the only way:**
+
+1. Double-click `AIGC_Toolkit` in Applications; when the warning appears click **Done**
+   (**never click "Move to Trash"**)
+2. Open **System Settings → Privacy & Security** and scroll down to the **Security** section
+3. Click **Open Anyway**, then confirm with your password or Touch ID
+4. Launch it once more — from then on a normal double-click works
+
+> ⚠️ The **Open Anyway** button only stays there for about **one hour** after the blocked launch.
+> If it is missing, double-click the app again and go straight back to that pane.
+
+**macOS 14 and earlier**: Control-click (or right-click) the app → **Open** → **Open** again.
+
+**Works on every version** — just use Terminal:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app
+```
+
+- Seeing "**AIGC_Toolkit is damaged and can't be opened. You should move it to the Trash**" is a
+  **misleading** message caused by the unsigned build plus the download quarantine flag — the file is
+  fine, just allow it as described above.
 - Only the **Apple silicon (arm64)** build is published. On an Intel Mac, run from source — see [REPO_FILES.md](REPO_FILES.md).
 </details>
 

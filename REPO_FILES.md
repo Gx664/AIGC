@@ -19,7 +19,28 @@
 |---|---|
 | Windows 10 / 11 | `AIGC_Toolkit_Setup.exe` (~22 MB; also kept at the repo root so it's one click away) |
 | Linux x86_64 | `AIGC_Toolkit-x.y.z-x86_64.AppImage` (~88 MB) |
-| macOS Apple silicon | `AIGC_Toolkit-x.y.z-macos-arm64.dmg` (~59 MB) |
+| macOS Apple silicon | `AIGC_Toolkit-x.y.z-macos-arm64.dmg` (~62 MB; **unsigned — must be allowed once on first launch**, see below) |
+
+<details>
+<summary><b>macOS: how to allow the app on first launch</b></summary>
+
+This project has no Apple Developer certificate, so the build is **unsigned** and macOS blocks the first
+launch. Allow it once and it behaves normally from then on.
+
+- **macOS 15 Sequoia / 26 Tahoe and newer**: double-click the app → when the warning appears click
+  **Done** (**never "Move to Trash"**) → open **System Settings → Privacy & Security** → scroll down to
+  the **Security** section → click **Open Anyway** → confirm with your password or Touch ID → launch again.
+  ⚠️ The **Open Anyway** button only stays for about **one hour** after the blocked launch; if it is
+  missing, double-click the app again and go straight back to that pane.
+- **macOS 14 and earlier**: Control-click (or right-click) the app → **Open** → **Open** again.
+- **Any version, easiest route — Terminal**: `xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app`
+
+"App is damaged, move it to the Trash" is a **misleading** message; the file is fine — do not delete it.
+
+> These instructions were updated for the macOS 15 change: Apple announced the removal of the
+> Control-click override on 2024-08-06, so it no longer works on Sequoia or Tahoe. **Open Anyway** in
+> System Settings is the only GUI route there.
+</details>
 
 > All three are produced by the same GitHub Actions pipeline (`.github/workflows/cross-platform-build.yml`),
 > which publishes to Releases whenever a `v*` tag is pushed. The Windows build is the exception: PyInstaller

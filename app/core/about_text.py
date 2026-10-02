@@ -51,6 +51,13 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
      一键复制两者；「关于」窗口、卸载提示、安装器界面、导出日志提示同步更新；
   ② 国际用户赞赏说明改为直接 Telegram 联系打赏（不再需要赠送 API Key）；
   ③ 反馈 / 意见 / 合作统一给出邮箱与 Telegram 两个渠道
+- v1.3.5 修复 / 变更：
+  ① 修正 macOS 安装指引：旧文档写的「右键 → 打开」在 macOS 15 及以后已失效
+     （Apple 于 2024-08 移除了这条绕过途径），改为「系统设置 → 隐私与安全性 → 仍要打开」，
+     并给出任何版本都能用的终端方式；
+  ② 修复 macOS 版被系统判成「已损坏」：打包时把便携 Python 拷进 .app 之后没有重新
+     签名，签名与内容对不上，系统会提示移到废纸篓；现已改为整体重签名并加入签名自检
+     （Windows / Linux 功能不变，仅版本号跟进）
 - v1.3.4 修复 / 新增：
   ① 修复导入 .docx 必崩（报 No module named 'exceptions'）：首启依赖清单把包名写成了
      `docx`，而 PyPI 上那个包是 2011 年的 Python 2 版本，一导入就炸；现改为
@@ -262,6 +269,15 @@ a paragraph-level report.
   2) the international support note now points straight at Telegram tipping
      (no more "gift an API key");
   3) feedback / suggestions / collaboration now list both channels
+- Fixed / changed in v1.3.5:
+  1) corrected the macOS install instructions: the old "right-click -> Open" route no
+     longer works on macOS 15+ (Apple removed it in August 2024). They now point at
+     System Settings -> Privacy & Security -> Open Anyway, plus a terminal command
+     that works on every version;
+  2) fixed macOS builds being reported as "damaged": the portable Python was copied
+     into the .app after signing, so the bundle signature no longer matched its
+     contents. The pipeline now re-signs the whole bundle and verifies the signature.
+     (Windows / Linux behaviour is unchanged; only the version number moves.)
 - Fixed / new in v1.3.4:
   1) fixed .docx imports crashing with "No module named 'exceptions'": the first-run
      dependency list used the package name `docx`, which on PyPI is the 2011 Python 2
