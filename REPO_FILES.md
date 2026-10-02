@@ -9,11 +9,21 @@
 
 | What you want to do | Which file to open |
 |---|---|
-| **Install and use the app** | Download [`AIGC_Toolkit_Setup.exe`](AIGC_Toolkit_Setup.exe) from the repo root and double-click it. Ignore everything else. |
+| **Install and use the app** | Grab the **one file matching your OS** from the [Releases page](https://github.com/Gx664/AIGC/releases/latest) (see the table below). Ignore everything else. |
 | Understand features and usage | [`README.en.md`](README.en.md) (English) / [`README.md`](README.md) (Chinese) |
 | See what changed in each version | [`CHANGELOG.md`](CHANGELOG.md) (English) / [`更新日志.md`](更新日志.md) (Chinese) |
 
-⚠️ **Regular users only need the single file `AIGC_Toolkit_Setup.exe`** (it sits at the top level of this repo). Everything else is for developers.
+⚠️ **Regular users need just one of the three files below.** Everything else is for developers.
+
+| Your OS | Download |
+|---|---|
+| Windows 10 / 11 | `AIGC_Toolkit_Setup.exe` (~22 MB; also kept at the repo root so it's one click away) |
+| Linux x86_64 | `AIGC_Toolkit-x.y.z-x86_64.AppImage` (~88 MB) |
+| macOS Apple silicon | `AIGC_Toolkit-x.y.z-macos-arm64.dmg` (~59 MB) |
+
+> All three are produced by the same GitHub Actions pipeline (`.github/workflows/cross-platform-build.yml`),
+> which publishes to Releases whenever a `v*` tag is pushed. The Windows build is the exception: PyInstaller
+> cannot cross-compile, so it is built locally and committed to the repo root, then uploaded at release time.
 
 ---
 
@@ -21,7 +31,7 @@
 
 | File | Purpose |
 |---|---|
-| **`AIGC_Toolkit_Setup.exe` (22.1 MB)** | **The installer** — the only download entry point for users, placed at the repo root so it's immediately visible. It unpacks the portable Python, copies the application, and creates a desktop shortcut. |
+| **`AIGC_Toolkit_Setup.exe` (22.1 MB)** | **The Windows installer** — kept at the repo root so it's immediately visible. It unpacks the portable Python, copies the application, and creates a desktop shortcut. The Linux / macOS counterparts (AppImage / dmg) are built in the cloud and published under [Releases](https://github.com/Gx664/AIGC/releases/latest) |
 | `README.md` | Chinese main documentation: features, principles, sources of the 9 methods, donation codes |
 | `README.en.md` | English documentation, mirroring `README.md` |
 | `更新日志.md` | **Chinese changelog** — what was added or fixed in each version, with a "visible to users" note per release. **Must be updated on every release** (maintenance rules at the top of the file). |
@@ -144,7 +154,7 @@ How to run (replace `<python>` with your interpreter):
 | File | What breaks if deleted |
 |---|---|
 | `app/first_run_gui.exe` | The next installer build contains no bootstrapper → users end up missing dependencies → **the app won't open** |
-| `AIGC_Toolkit_Setup.exe` | Users lose their only download/install entry point |
+| `AIGC_Toolkit_Setup.exe` | Windows users lose their install entry point (Linux / macOS go through the AppImage / dmg on Releases, so they are unaffected) |
 | `.gitignore` | Build artifacts, caches and logs get committed, and the repo balloons |
 | `engines_manifest.json` | "Check for updates" stops working; engines/models can no longer be added remotely |
 | `app/assets/icon.ico` | Packaging fails to find the icon |
@@ -155,7 +165,8 @@ How to run (replace `<python>` with your interpreter):
 ## 7. Summary in one picture
 
 ```
-The user downloads exactly one file →  AIGC_Toolkit_Setup.exe (at the repo root)
+The user downloads exactly one file →  Windows: AIGC_Toolkit_Setup.exe (at the repo root)
+                                       Linux / macOS: the AppImage / dmg on Releases (cloud-built)
 It contains                        →  app/first_run_gui.exe (bootstrapper) + the app + install logic
 Everything else                    →  source, UI, icons, docs, self-test scripts — for development and maintenance
 ```

@@ -19,7 +19,45 @@
 - 📝 **[更新日志.md](更新日志.md)** —— 每个版本改了什么，都标了**「用户可见变化」**（English: [CHANGELOG.md](CHANGELOG.md)）
 - ❓ 遇到问题？见文末 [Bug 反馈](#bug-反馈)，直接发邮件
 
-> **只想安装使用的话，你只需要下载 [`AIGC_Toolkit_Setup.exe`](AIGC_Toolkit_Setup.exe) 一个文件**（就在本仓库根目录），双击安装即可，其余文件都不用管。
+> **只想安装使用的话，下面对应你系统的那一个文件就够了**，其余文件都不用管。
+
+## 📦 下载与安装
+
+三个平台的成品都在 **[Releases 页面](https://github.com/Gx664/AIGC/releases/latest)** 的 Assets 里，按你的系统挑一个：
+
+| 你的系统 | 下载这个文件 | 怎么装 |
+|---|---|---|
+| **Windows 10 / 11** | `AIGC_Toolkit_Setup.exe`（约 22 MB） | 双击 → 选安装目录 → 开始安装 |
+| **Linux（x86_64）** | `AIGC_Toolkit-x.y.z-x86_64.AppImage`（约 88 MB） | 先 `chmod +x`，再双击（或命令行运行） |
+| **macOS（Apple 芯片）** | `AIGC_Toolkit-x.y.z-macos-arm64.dmg`（约 59 MB） | 打开 dmg → 把 App 拖进「应用程序」→ **右键「打开」** |
+
+首次启动都会弹引导窗口，自动下载运行组件（约 0.2 GB，国内镜像加速，不需要 VPN）：
+有 NVIDIA 显卡会问你选 CUDA 还是 CPU 版，没有则自动用 CPU 版。装好之后完全离线可用。
+
+> **Windows** 装完直接双击桌面图标即可。
+> **Linux / macOS** 的组件装在你的**用户目录**（Linux `~/.local/share/AIGC_Toolkit`，macOS `~/Library/Application Support/AIGC_Toolkit`），
+> 不写系统目录；卸载时删掉 App 本体和这个目录就行。
+
+<details>
+<summary><b>Linux 用户：两件要知道的事</b></summary>
+
+- AppImage 需要 `libfuse2`（Ubuntu 22.04+：`sudo apt install libfuse2`）。
+  装不了也没关系，加环境变量照样跑：`APPIMAGE_EXTRACT_AND_RUN=1 ./AIGC_Toolkit-*.AppImage`
+- 首次运行会往用户目录**复制一份运行时**再装依赖 —— AppImage 每次挂载点都不一样，
+  而且镜像是只读的，就地装依赖下次启动就失效。桌面快捷方式会自动创建。
+</details>
+
+<details>
+<summary><b>macOS 用户：未签名 + 只出 Apple 芯片版</b></summary>
+
+- 本项目没有购买苹果开发者签名证书，产物是**未签名**的，第一次打开必须
+  **按住 Control 点它（或右键）→ 选「打开」→ 再点一次「打开」**，只需一次。
+- 若提示「已损坏」或「无法打开」，终端执行：
+  `xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app`
+- 目前只发布 **Apple 芯片（arm64）** 版；Intel 芯片的 Mac 请从源码运行，见 [仓库文件说明.md](仓库文件说明.md)。
+</details>
+
+> 💡 也可以从源码直接运行（`python app/main.py`），详见 [仓库文件说明.md](仓库文件说明.md)（[English](REPO_FILES.md)）。
 
 ## ✨ 功能介绍
 

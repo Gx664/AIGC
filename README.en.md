@@ -20,7 +20,45 @@
 - 📝 **[Changelog CHANGELOG.md](CHANGELOG.md)** — what changed in each version, with a **"visible to users"** note per release (中文: [更新日志.md](更新日志.md))
 - ❓ Something not covered? See [Bug Reports](#bug-reports) at the end, just send an email
 
-> **If you just want to install and use it, you only need one file: [`AIGC_Toolkit_Setup.exe`](AIGC_Toolkit_Setup.exe)** — it sits right in the repo root. Download, double-click, and ignore everything else.
+> **If you just want to install and use it, you need exactly one file — the one for your OS.** Ignore everything else.
+
+## 📦 Download & Install
+
+Builds for all three platforms live under Assets on the **[Releases page](https://github.com/Gx664/AIGC/releases/latest)**. Pick the one matching your OS:
+
+| Your OS | Download this file | How to install |
+|---|---|---|
+| **Windows 10 / 11** | `AIGC_Toolkit_Setup.exe` (~22 MB) | Double-click → choose a folder → Install |
+| **Linux (x86_64)** | `AIGC_Toolkit-x.y.z-x86_64.AppImage` (~88 MB) | `chmod +x`, then double-click (or run from a shell) |
+| **macOS (Apple silicon)** | `AIGC_Toolkit-x.y.z-macos-arm64.dmg` (~59 MB) | Open the dmg → drag the app into Applications → **right-click → Open** |
+
+On first launch a setup window downloads the runtime components (~0.2 GB, fast CN mirrors, no VPN needed):
+if you have an NVIDIA GPU it asks whether you want the CUDA or the CPU build; otherwise the CPU build is used. After that it runs fully offline.
+
+> **Windows**: just double-click the desktop icon afterwards.
+> **Linux / macOS**: components go into your **user directory** (Linux `~/.local/share/AIGC_Toolkit`, macOS `~/Library/Application Support/AIGC_Toolkit`) — nothing is written to system directories. To uninstall, delete the app plus that directory.
+
+<details>
+<summary><b>Linux users: two things to know</b></summary>
+
+- The AppImage needs `libfuse2` (Ubuntu 22.04+: `sudo apt install libfuse2`).
+  If you can't install it, this still works: `APPIMAGE_EXTRACT_AND_RUN=1 ./AIGC_Toolkit-*.AppImage`
+- On first run it **copies the bundled runtime into your user directory** before installing dependencies —
+  an AppImage is a read-only image and its mount point changes on every launch, so installing in place would be lost.
+  A desktop entry is created automatically.
+</details>
+
+<details>
+<summary><b>macOS users: unsigned build, Apple silicon only</b></summary>
+
+- This project has no Apple Developer certificate, so the build is **unsigned**. The first launch requires
+  **Control-click (or right-click) → Open → Open again** — once only.
+- If macOS says the app "is damaged", run this in Terminal:
+  `xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app`
+- Only the **Apple silicon (arm64)** build is published. On an Intel Mac, run from source — see [REPO_FILES.md](REPO_FILES.md).
+</details>
+
+> 💡 You can also run straight from source (`python app/main.py`) — see [REPO_FILES.md](REPO_FILES.md) ([中文](仓库文件说明.md)).
 
 ## ✨ Features
 

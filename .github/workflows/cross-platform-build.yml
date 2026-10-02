@@ -163,9 +163,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: AIGC-Toolkit-Linux
-          path: |
-            AIGC_Toolkit-*.AppImage
-            dist-unix/AIGC_Toolkit/
+          # 只传单文件 AppImage。AppImage 内部装的就是同一份 onedir 内容，
+          # 再连 dist-unix/AIGC_Toolkit/ 整个目录一起传属于重复上传
+          # （实测 264 MB，其实 88 MB 就够），而且 Release 只需要单文件。
+          path: AIGC_Toolkit-*.AppImage
 
   macos:
     name: macOS 构建
@@ -299,6 +300,57 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: AIGC-Toolkit-macOS
-          path: |
-            AIGC_Toolkit-*.dmg
-            dist-unix/AIGC_Toolkit.app/
+          # 同 Linux job：dmg 里已经装了同一份 .app，不再重复上传整个目录
+          path: AIGC_Toolkit-*.dmg
+
+  release:
+    name: 发布到 GitHub Release
+    # 只在打 v* 标签时发布。推 main、手动触发都只构建，不产生 Release。
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, macos]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write # 建 Release 要写权限；上面两个构建 job 仍只有 read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 取回三端产物
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 整理要发布的文件
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          # Windows 安装器直接从仓库根取：PyInstaller 只能在本平台打包，
+          # Linux runner 打不出 Windows exe，所以仓库根那份就是权威分发件。
+          if [ -f AIGC_Toolkit_Setup.exe ]; then
+            cp AIGC_Toolkit_Setup.exe release/
+          else
+            echo "::warning::仓库根没有 AIGC_Toolkit_Setup.exe，本次只发 Unix 产物"
+          fi
+          find artifacts -maxdepth 3 -name '*.AppImage' -exec cp {} release/ \;
+          find artifacts -maxdepth 3 -name '*.dmg' -exec cp {} release/ \;
+          echo "===== 本次发布 ====="
+          ls -lh release/
+          test -n "$(ls -A release)" || { echo "没有任何文件可发布"; exit 1; }
+
+      - name: 建 Release 并上传
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          # 版本号自检：标签必须与源码里的版本一致，避免把 v1.3.5 发成 v1.3.4 的包
+          VER=$(sed -n 's/.*APP_VERSION *= *"\([^"]*\)".*/\1/p' app/core/meta.py | head -1)
+          echo "tag=$TAG 源码版本=$VER"
+          if [ "$TAG" != "v$VER" ]; then
+            echo "::error::标签 $TAG 与源码版本 v$VER 不一致，拒绝发布"
+            exit 1
+          fi
+          gh release create "$TAG" release/* \
+            --title "AIGC 检测工具箱 $TAG" \
+            --generate-notes
+          gh release view "$TAG" --json url,assets \
+            --jq '"发布地址: \(.url)", (.assets[] | "  \(.name)  \(.size) B")'
