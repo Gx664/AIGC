@@ -23,7 +23,9 @@ tools/ui_verify_*.png
 app/logs/
 tools/screen_*.png
 
-# 本地构建 / 同步辅助脚本（自己留着用，不放到 GitHub 上）
+# 仓库根的临时工作文件（提交消息等），不入库
+# 只匹配根目录且带扩展名的文件 —— 不影响子目录里的 __init__.py
+/_*.*
 build_installer.bat
 build_installer.ps1
 run_dev.bat

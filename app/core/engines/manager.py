@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""引擎注册表：内置清单 + 本地覆盖 + 远端更新 + 用户自定义。
+"""引擎注册表：内置清单 + **标定数据** + 本地覆盖 + 远端更新 + 用户自定义。
 
 合并优先级（后者覆盖前者）
 --------------------------
-``catalog.BUILTIN_ENGINES``  <  ``<base_dir>/engines_remote.json``（远端拉取）
+``catalog.BUILTIN_ENGINES``  <  **``<app>/engines_calibration.json``（标定数据）**
+                            <  ``<base_dir>/engines_remote.json``（远端拉取）
                             <  ``<base_dir>/engines_catalog.json``（本地覆盖）
                             <  ``<base_dir>/engines.json``（用户自己加的）
 
@@ -11,6 +12,25 @@
 1. 用户手动加一条 —— 走 engines.json；
 2. 用户放个 engines_catalog.json 覆盖任意字段；
 3. 点「检查更新」从远端 manifest 拉新条目。
+
+标定数据（engines_calibration.json）为什么单独一层
+--------------------------------------------------
+``catalog.py`` 的 ``params`` 里是**出厂默认阈值**，写死在代码里。
+而阈值是靠实测标定出来的（见 ``tools/`` 的探针），会随样本量变化。
+
+标定值放**独立的 json** 而不是直接改 ``catalog.py``，好处：
+
+* 数字与出处（样本量 / 判据 / 日期）一起落盘，可追溯；
+* 标定工具重新生成文件即可，不用动代码、不用重新打包就换阈值；
+* 出问题时删掉文件就退回出厂默认值。
+
+**为什么放 app 包内**：安装器只复制 ``app/``（``installer.py`` 的
+``copytree``），放包内才能随程序分发到用户机器。放 ``base_dir`` 的文件
+在全新安装后**不存在**（那层的 ``engines_catalog.json`` 是给用户手写覆盖
+用的可选入口，不是必带文件）。
+
+**优先级为什么放在内置之上、用户覆盖之下**：标定值比出厂默认更准，
+所以该盖过它；但用户/远端的显式配置意图更强，仍应能盖过标定值。
 """
 import json
 import os
@@ -19,6 +39,9 @@ from . import catalog
 
 # 向后兼容：老代码 / 老设置里还在用 BUILTIN_ENGINES 这个名字
 BUILTIN_ENGINES = catalog.BUILTIN_ENGINES
+
+# 标定数据文件名（与本文件同目录 = app/core/engines/ 下）
+CALIBRATION_NAME = "engines_calibration.json"
 
 
 class EngineManager:
@@ -30,9 +53,14 @@ class EngineManager:
         self.catalog_path = os.path.join(base_dir, "engines_catalog.json")
         self.remote_path = os.path.join(base_dir, "engines_remote.json")
         self.plugins_dir = os.path.join(base_dir, "engines_plugins")
+        # 标定数据：随包分发，故取本文件所在目录（app/core/engines/）
+        self.calibration_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), CALIBRATION_NAME
+        )
         self.custom = []
         self.local_catalog = []
         self.remote = []
+        self.calibration = []
         self.plugins_loaded = []
         self.plugins_errors = []
         self.load_custom()
@@ -64,6 +92,7 @@ class EngineManager:
         self.custom = self._read_json(self.custom_path, [])
         self.local_catalog = self._read_json(self.catalog_path, [])
         self.remote = self._read_json(self.remote_path, [])
+        self.calibration = self._read_json(self.calibration_path, [])
 
     def _save_custom(self):
         self._write_json(self.custom_path, self.custom)
@@ -81,7 +110,7 @@ class EngineManager:
         engines = {}
         for e in catalog.BUILTIN_ENGINES:
             engines[e["id"]] = dict(e)
-        for src in (self.remote, self.local_catalog, self.custom):
+        for src in (self.calibration, self.remote, self.local_catalog, self.custom):
             for e in src:
                 eid = e.get("id")
                 if not eid:

@@ -2,7 +2,7 @@ import os
 import sys
 import time
 
-from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSlider,
     QSpinBox,
+    QSplitter,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -31,6 +32,7 @@ from core.detector import detect_local, detect_with_cluster
 from core.diagnosis import diagnose
 from core.doc_reader import extract_text, split_paragraphs
 from core.engines import EngineManager, create_engine
+from core.gpuinfo import detect as gpu_detect
 from core.i18n import get_lang, set_lang, tr
 from core.license import License
 from core.logging_setup import export_logs, setup_logging
@@ -43,17 +45,32 @@ from core.meta import (
 )
 from core import platform_ops
 from core.report import build_report
-from core.settings import Settings
+from core.settings import Settings, base_dir
 from ui.engine_dialog import EngineDialog
-from ui.glass import GlassButton, GlassPanel, TitleBar, fit_to_screen
+from ui.glass import EdgeResizer, GlassButton, GlassPanel, TitleBar, fit_to_screen
 from ui.rewrite_dialog import RewriteDialog
 from ui.settings_dialog import SettingsDialog
 
 
-if getattr(sys, "frozen", False):
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 用户数据根目录 = 安装目录（与安装器写 settings.json 的位置一致）。
+# 定义收敛到 core.settings.base_dir()，别再各自算一遍 —— 差一层 `app`
+# 就会引出"安装器写的设置读不到、用户设置被重装覆盖、卸载器删不到模型"那一串。
+BASE_DIR = base_dir()
+
+
+# 窗口尺寸：**中英统一**（按英文需求定 —— 英文标签更长，此前按中文定宽度，
+# 英文界面下按钮文字会被裁："Import presets"、"Run as worker" 都被切掉）。
+_WIN_W = 1240
+_WIN_H = 780
+# 左栏初始宽度：英文标签更长，给它多一点（用户可拖分隔条自行调整）
+_LEFT_W_ZH = 400
+_LEFT_W_EN = 470
+
+
+def _mmss(sec):
+    """秒 → ``mm:ss``（耗时 / 剩余时间显示用）。"""
+    sec = max(0, int(sec))
+    return "%02d:%02d" % (sec // 60, sec % 60)
 
 # BASE_DIR  = 程序目录：代码、app/assets 等**只读**资源从这儿找
 # DATA_DIR  = 数据目录：settings.json / logs / models 等**要写**的东西落这儿
@@ -64,7 +81,8 @@ DATA_DIR = platform_ops.effective_base_dir(BASE_DIR)
 
 class DetectWorker(QThread):
     step = Signal(str, int)
-    finished_ok = Signal(list, list, float, str, str)
+    # 第 6 项是逐段四档占比（GLTR Test-2），非统计派引擎为 None
+    finished_ok = Signal(list, list, float, str, str, object)
     failed = Signal(str)
 
     def __init__(self, path, engine_id, engine_name, params, base_dir, master):
@@ -96,28 +114,52 @@ class DetectWorker(QThread):
             self.step.emit(tr("preparing_model"), 4)
             engine.install(lambda pct, msg: self.step.emit(msg, 4 + int(pct * 0.10)))
 
-            eparams = dict(cfg.get("params", {}))
-            if "max_len" in self.params:
-                eparams["max_len"] = self.params["max_len"]
-            run_params = dict(self.params)
-            run_params.update(eparams)
+            # 参数合并：先铺引擎清单里的默认值，再用界面参数覆盖 ——
+            # 顺序反了会让用户调好的阈值被清单默认值悄悄改回去。
+            run_params = dict(cfg.get("params", {}))
+            run_params.update(self.params)
 
             def prog(done, total):
                 pct = 15 + int(82 * done / max(total, 1))
-                self.step.emit(tr("detecting_para") % (done, total), pct)
+                elapsed = time.time() - self.start_ts
+                eta = (elapsed / done * (total - done)) if done else 0.0
+                # 带上耗时与剩余时间：只有百分比时用户不知道还要等多久。
+                # `start_ts` 是原作者留下的字段，此前一直没人用。
+                self.step.emit(
+                    tr("detecting_para_eta")
+                    % (done, total, _mmss(elapsed), _mmss(eta)),
+                    pct,
+                )
 
             if self.params.get("use_cluster") and self.master and self.master.nodes_snapshot():
                 probs = detect_with_cluster(
                     cfg, self.base_dir, paras, run_params, self.master, prog
                 )
+                use_cluster = True
+                ran_engine = None
             else:
-                probs = detect_local(cfg, self.base_dir, paras, run_params, prog)
+                # detect_local 一并回传**真正跑检测的那个引擎实例** ——
+                # 上面的 self 里那个 engine 只用于 install()，检测是在
+                # detect_local 内部另建实例跑的，从它上面取不到四档。
+                probs, ran_engine = detect_local(
+                    cfg, self.base_dir, paras, run_params, prog
+                )
+                use_cluster = False
 
             valid = [p for p in probs if p is not None]
             ratio = sum(valid) / len(valid) if valid else 0.0
             self.step.emit(tr("generating_report"), 99)
+            # 四档（GLTR Test-2）走旁路：统计派引擎跑完存在实例属性上，
+            # 其他引擎没有这个概念（为 None）。走旁路而非改返回值，
+            # 是因为 `predict_paragraphs` 的 `list[float]` 被三处共用。
+            #
+            # 注：**集群模式暂不传四档** —— 分片在各节点跑，`last_buckets`
+            # 留在节点进程内，主窗口只拿到合并后的 probs。跨节点合并需另
+            # 设计协议，非本次范围（论文原产物是逐段涂色图）。
             self.finished_ok.emit(
-                paras, probs, ratio, os.path.basename(self.path), self.engine_name
+                paras, probs, ratio, os.path.basename(self.path),
+                self.engine_name,
+                None if use_cluster else getattr(ran_engine, "last_buckets", None)
             )
         except Exception as e:
             self.failed.emit(str(e))
@@ -128,8 +170,11 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setWindowTitle(APP_NAME)
-        # 初始尺寸按屏幕可用区域收敛，避免小屏（如 1440x900）上一开窗就超出屏幕底部
-        fit_to_screen(self, 1120, 780)
+        # 初始尺寸按屏幕可用区域收敛，避免小屏（如 1440x900）上一开窗就超出屏幕底部；
+        # 宽度中英统一（见 _WIN_W 的说明）
+        fit_to_screen(self, _WIN_W, _WIN_H)
+        # 无边框窗口要自己实现边缘拖拽缩放（系统边框被 FramelessWindowHint 去掉了）
+        self._resizer = EdgeResizer(self)
         self.base_dir = DATA_DIR
         self.settings = Settings(self.base_dir)
         set_lang(self.settings.get("ui", "language", default="zh"))
@@ -173,11 +218,17 @@ class MainWindow(QMainWindow):
         )
         root.addWidget(_nc)
 
-        body = QHBoxLayout()
-        body.setSpacing(12)
-        body.addWidget(self._build_left(), 2)
-        body.addWidget(self._build_right(), 3)
-        root.addLayout(body, 1)
+        # 左/右栏用 QSplitter：中间那条是**可以左右拖**的分隔条。此前是写死的
+        # 2:3 布局，用户想拉宽左栏只能看着滚动条把「管理」按钮挤掉。
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.setChildrenCollapsible(False)
+        self.splitter.addWidget(self._build_left())
+        self.splitter.addWidget(self._build_right())
+        self.splitter.setStretchFactor(0, 2)
+        self.splitter.setStretchFactor(1, 3)
+        left_w = _LEFT_W_EN if get_lang() == "en" else _LEFT_W_ZH
+        self.splitter.setSizes([left_w, _WIN_W - left_w])
+        root.addWidget(self.splitter, 1)
         self.setCentralWidget(central)
 
     def _section(self, text):
@@ -199,6 +250,9 @@ class MainWindow(QMainWindow):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll.viewport().setStyleSheet("background:transparent;")
+        # 左栏最小宽度：滚动条（10px）+ 引擎行的「管理」按钮都要放得下，
+        # 否则窄屏上按钮会被压出可视区
+        scroll.setMinimumWidth(360)
 
         content = QWidget()
         content.setStyleSheet("background:transparent;")
@@ -237,6 +291,11 @@ class MainWindow(QMainWindow):
         self.thr_spin.setSuffix("%")
         self.thr_slider.valueChanged.connect(self.thr_spin.setValue)
         self.thr_spin.valueChanged.connect(self.thr_slider.setValue)
+        # 两个控件必须**显式对齐初值**：QSpinBox 默认值是 0，被 setRange 夹到 10，
+        # 而 slider 已经是 50；后面 `_apply_params_from_settings` 再设 50 时值没变、
+        # 不发 valueChanged —— 于是数字框永远显示 10% 而滑块居中（v1.0 起就有的 bug，
+        # 全新安装必现：默认阈值恰好等于滑块初值）。
+        self.thr_spin.setValue(self.thr_slider.value())
         thr_row.addWidget(self.thr_slider, 1)
         thr_row.addWidget(self.thr_spin)
         lay.addLayout(thr_row)
@@ -271,8 +330,24 @@ class MainWindow(QMainWindow):
         self.chk_gpu.setChecked(True)
         self.chk_cluster = QCheckBox(tr("chk_cluster"))
         self.chk_cluster.stateChanged.connect(self.on_cluster_toggled)
-        lay.addWidget(self.chk_gpu)
-        lay.addWidget(self.chk_cluster)
+        # 两个勾旁边各给一个「检测」按钮：勾了却用不上（驱动旧 / 装了 CPU 版
+        # torch / 局域网上根本没别的机器）时，用户只会觉得"慢"，不会知道原因。
+        # 检测不通过就**自动取消勾选**并说明。
+        gpu_row = QHBoxLayout()
+        gpu_row.addWidget(self.chk_gpu)
+        gpu_row.addStretch()
+        self.btn_check_gpu = GlassButton(tr("btn_check_gpu"))
+        self.btn_check_gpu.clicked.connect(self.check_gpu)
+        gpu_row.addWidget(self.btn_check_gpu)
+        lay.addLayout(gpu_row)
+
+        clu_chk_row = QHBoxLayout()
+        clu_chk_row.addWidget(self.chk_cluster)
+        clu_chk_row.addStretch()
+        self.btn_check_cluster = GlassButton(tr("btn_check_cluster"))
+        self.btn_check_cluster.clicked.connect(self.check_cluster)
+        clu_chk_row.addWidget(self.btn_check_cluster)
+        lay.addLayout(clu_chk_row)
 
         lay.addWidget(self._section(tr("label_presets")))
         pre_row = QHBoxLayout()
@@ -395,10 +470,17 @@ class MainWindow(QMainWindow):
 
     # ---- 引擎 ----
     def _reload_engines(self):
-        """检测引擎下拉只列「检查」类；修复 / 评测类在引擎管理里单独入口。"""
+        """检测引擎下拉只列「检查」类；修复 / 评测类在引擎管理里单独入口。
+
+        名称带语言标注（🌐 中文 / 🌐 英文）：项目定位是中英双语查重，而除
+        simpleai 外其余引擎都源自英文模型，拿它们测中文会得到完全错误的
+        结果（实测 binoculars 的中文 FNR 100%），标注可避免误用。
+        """
+        from ui.engine_dialog import engine_label
+
         self.engine_combo.clear()
         for e in self.mgr.runnable():
-            self.engine_combo.addItem(e["name"], e["id"])
+            self.engine_combo.addItem(engine_label(e), e["id"])
         idx = self.engine_combo.findData(self.settings.get("detect", "engine", default="simpleai"))
         if idx >= 0:
             self.engine_combo.setCurrentIndex(idx)
@@ -431,6 +513,40 @@ class MainWindow(QMainWindow):
 
     def open_download_settings(self):
         SettingsDialog(self.settings, DATA_DIR, self).exec()
+
+    # ---- 勾选自检（GPU / 集群）----
+    def check_gpu(self):
+        """检测"勾了 GPU 到底能不能用"；不能用就取消勾选并说明原因。
+
+        两层信息：``gpuinfo`` 说明"机器上有什么卡、驱动支持到哪版 CUDA"，
+        ``torch`` 说明"装到本机的这套 torch 现在能不能调起来"—— 两者都能用
+        才算真的可用（驱动升级后 torch 版本不匹配是最常见的坏法）。
+        """
+        info = gpu_detect()
+        lines = [info.get("reason", "")]
+        ok = False
+        try:
+            import torch
+
+            ok = bool(torch.cuda.is_available())
+            if ok:
+                lines.append(tr("gpu_ok_runtime") % torch.cuda.get_device_name(0))
+        except Exception as e:  # noqa: BLE001
+            lines.append(tr("gpu_no_torch") % e)
+        if not ok:
+            self.chk_gpu.setChecked(False)
+        QMessageBox.information(self, tr("btn_check_gpu"), "\n".join(lines))
+
+    def check_cluster(self):
+        """检测局域网上有没有工作节点；没有就取消勾选并给出下一步。"""
+        nodes = self.master.nodes_snapshot()
+        if not nodes:
+            self.chk_cluster.setChecked(False)
+            QMessageBox.information(self, tr("btn_check_cluster"),
+                                    tr("cluster_no_node"))
+            return
+        QMessageBox.information(self, tr("btn_check_cluster"),
+                                tr("cluster_ok") % len(nodes))
 
     # ---- 文件 ----
     def choose_file(self):
@@ -473,7 +589,9 @@ class MainWindow(QMainWindow):
 
     def _apply_params_from_settings(self):
         d = self.settings.get("detect", default={})
-        self.thr_slider.setValue(int(d.get("threshold", 0.5) * 100))
+        # 设数字框（会经信号同步滑块）—— 直接设滑块时若值未变就不发信号，
+        # 数字框会留在旧值上
+        self.thr_spin.setValue(int(d.get("threshold", 0.5) * 100))
         self.suggest_thr.setValue(int(
             self.settings.get("rewrite", "suggest_threshold", default=0.30) * 100
         ))
@@ -497,7 +615,7 @@ class MainWindow(QMainWindow):
         if not name:
             return
         p = self.settings.load_preset(name)
-        self.thr_slider.setValue(int(p.get("threshold", 0.5) * 100))
+        self.thr_spin.setValue(int(p.get("threshold", 0.5) * 100))
         if p.get("suggest_threshold") is not None:
             self.suggest_thr.setValue(int(p["suggest_threshold"] * 100))
         self.min_len.setValue(p.get("min_para_len", 20))
@@ -665,12 +783,29 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def _donate_image_path(self, name):
-        if getattr(sys, "frozen", False):
-            meipass = getattr(sys, "_MEIPASS", "")
-            p = os.path.join(meipass, "app", "assets", "donate", name)
+        """赞赏码图片（``alipay.jpg`` / ``wechat_pay.jpg``）的绝对路径。
+
+        **别把 ``app`` 拼两次**：``BASE_DIR`` 本身已经是 app 目录
+        （``ui/main_window.py`` 上溯两级 = ``<安装目录>\\app``），所以
+        ``BASE_DIR + "app/assets/donate/..."`` 会得到 ``app\\app\\assets\\...``，
+        永远找不到文件，界面上只能显示"赞赏码图片缺失"（v1.0 起就错了）。
+
+        候选顺序：
+            1. PyInstaller 解包目录 ``<_MEIPASS>/app/assets/donate``
+            2. ``<BASE_DIR>/assets/donate`` —— 正常路径
+            3. ``<BASE_DIR 的上一级>/app/assets/donate`` —— 兜底
+        """
+        meipass = getattr(sys, "_MEIPASS", "")
+        cands = []
+        if meipass:
+            cands.append(os.path.join(meipass, "app", "assets", "donate", name))
+        cands.append(os.path.join(BASE_DIR, "app", "assets", "donate", name))
+        cands.append(os.path.join(
+            os.path.dirname(BASE_DIR), "app", "assets", "donate", name))
+        for p in cands:
             if os.path.exists(p):
                 return p
-        return os.path.join(BASE_DIR, "app", "assets", "donate", name)
+        return ""
 
     def copy_author_email(self):
         QApplication.clipboard().setText(AUTHOR_CONTACT)
@@ -734,7 +869,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("%s  v%s  |  %s" % (tr("app_name"), APP_VERSION, msg))
         self.title_bar.title.setText("%s  v%s  |  %s" % (tr("app_name"), APP_VERSION, msg))
 
-    def on_done(self, paras, probs, ratio, name, engine_name):
+    def on_done(self, paras, probs, ratio, name, engine_name, buckets=None):
         self.progress.setValue(100)
         self.result_label.setText("AI 生成占比：%.1f%%" % (ratio * 100))
         threshold = self.thr_slider.value() / 100.0
@@ -754,6 +889,7 @@ class MainWindow(QMainWindow):
                 engine_name,
                 threshold,
                 self.last_diag,
+                buckets,
             )
         )
         self.btn_start.setEnabled(True)

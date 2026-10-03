@@ -51,6 +51,21 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
      一键复制两者；「关于」窗口、卸载提示、安装器界面、导出日志提示同步更新；
   ② 国际用户赞赏说明改为直接 Telegram 联系打赏（不再需要赠送 API Key）；
   ③ 反馈 / 意见 / 合作统一给出邮箱与 Telegram 两个渠道
+- v1.3.6 修复 / 新增（重点：检测准确率）：
+  ① 修掉一批让引擎「乱判」的公式错误：Binoculars 恒判 AI 修复后准确率 46.7% → 94.17%，
+     三个引擎共用的平均对数概率口径修正（量纲偏差 34~67% → 0.000%）；中文长文不再因超长度
+     崩溃，DetectGPT 系超长输入改为两侧正确截断；
+  ② 每个引擎标注适用语言（✅ 可用 / ⚠️ 中文弱 / ❌ 中文勿用 / ❔ 未标定），不再盲选
+     （此前 DetectGPT 的中文判定是反的：人写的分反而更高）；
+  ③ 修好「设置一保存，模型就全下不动」（网络端点被写坏，丢了协议头）；
+  ④ 真机装机实测修掉 11 个安装 / 界面问题：首次启动下载进度条不再卡死或越过 100%、
+     阈值框与滑块初始同步、左右面板改为可拖动分隔条、窗口加宽到 1240（英文标签不再被裁）、
+     无边框窗口可拖边缩放、显卡 / 集群勾选加「检测」按钮、关于窗口的赞赏码图片重新找得到、
+     PDF 按行坐标重建成段落（一篇真论文 152 段）、用户数据统一放安装目录、卸载器不再一闪而过；
+  ⑤ 显卡按驱动 CUDA 版本自动选档（cu129 ~ cu118），无卡自动装 CPU 版并说明原因；装了 CUDA 版
+     却看不到显卡会自动回退 CPU；卸载器改成独立 exe，缓存 / 环境 / 模型三个勾默认都不打；
+  ⑥ 阈值标定值改走 engines_calibration.json（不再写死在代码里），判据统一为
+     FPR≤5% 约束下的准确率（查重工具误报比漏报严重）
 - v1.3.5 修复 / 变更：
   ① 修正 macOS 安装指引：旧文档写的「右键 → 打开」在 macOS 15 及以后已失效
      （Apple 于 2024-08 移除了这条绕过途径），改为「系统设置 → 隐私与安全性 → 仍要打开」，
@@ -269,6 +284,27 @@ a paragraph-level report.
   2) the international support note now points straight at Telegram tipping
      (no more "gift an API key");
   3) feedback / suggestions / collaboration now list both channels
+- Fixed / new in v1.3.6 (headline: detection accuracy):
+  1) repaired formula defects that made engines misfire: Binoculars no longer always says AI
+     (accuracy 46.7% -> 94.17%), and the shared average log-probability backbone was corrected
+     (unit bias 34~67% -> 0.000%); long Chinese text no longer crashes on the length cap and
+     over-long DetectGPT inputs are truncated on both sides;
+  2) every engine now states the language it works for (usable / weak on Chinese / do not use on
+     Chinese / uncalibrated) - no more blind picking (DetectGPT's Chinese verdict used to be
+     inverted: human text scored higher);
+  3) fixed "save settings once and every model download breaks" (the endpoint had lost its scheme);
+  4) a real install surfaced 11 installer / UI problems, all fixed: the first-run progress bar no
+     longer stalls or overshoots 100%, the threshold box and slider start in sync, the panels are a
+     draggable splitter, the window is 1240 wide (English labels were clipped), the frameless window
+     resizes by its edges, the GPU / cluster checkboxes gained a Check button, the About window finds
+     its donation QR images again, PDF text is rebuilt into paragraphs (152 instead of one), user
+     data moved to the install directory, and the uninstaller window no longer vanishes;
+  5) the GPU tier is auto-selected from the driver's CUDA version (cu129 down to cu118), with an
+     automatic CPU build and an explanation when no card is usable; a CUDA install that cannot see
+     the GPU falls back to CPU; the uninstaller is now a standalone exe whose three checkboxes
+     (cache / runtime / models) default to off;
+  6) calibration values now live in engines_calibration.json instead of the source, judged by
+     accuracy under an FPR <= 5% constraint
 - Fixed / changed in v1.3.5:
   1) corrected the macOS install instructions: the old "right-click -> Open" route no
      longer works on macOS 15+ (Apple removed it in August 2024). They now point at

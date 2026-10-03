@@ -6,7 +6,7 @@
 
 | 你的系统 | 下载这个文件 | 体积 | 怎么装 |
 |---|---|---|---|
-| **Windows 10 / 11** | `AIGC_Toolkit_Setup.exe` | 22 MB | 双击 → 选安装目录 → 开始安装 |
+| **Windows 10 / 11** | `AIGC_Toolkit_Setup.exe` | 32 MB | 双击 → 选安装目录 → 开始安装 |
 | **Linux（x86_64）** | `AIGC_Toolkit-{{VER}}-x86_64.AppImage` | 88 MB | 先 `chmod +x`，再双击（或命令行运行） |
 | **macOS（Apple 芯片）** | `AIGC_Toolkit-{{VER}}-macos-arm64.dmg` | 62 MB | 打开 dmg → 拖进「应用程序」→ **首次要手动放行一次**，见下方说明 |
 

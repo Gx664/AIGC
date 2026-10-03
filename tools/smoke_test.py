@@ -2,7 +2,7 @@
 """AIGC_Toolkit 全功能冒烟测试（不依赖 torch 可用）。"""
 import sys, os, re, traceback
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app"))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 ok, fail = [], []
@@ -19,8 +19,11 @@ def check(name, fn):
 
 # 1) 核心模块导入
 def t_imports():
-    import core.detector, core.diagnosis, core.therapy, core.settings, core.i18n, core.meta
-    import core.engines
+    # 这里的导入**本身就是被测对象**（测各模块能否 import 成功），
+    # 故用 ignore 抑制"未存取导入"告警 —— 不是漏用，是刻意为之。
+    import core.detector, core.diagnosis, core.therapy  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    import core.settings, core.i18n, core.meta  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    import core.engines  # noqa: F401  # pyright: ignore[reportUnusedImport]
     assert core.engines.EngineManager
     return "version=" + core.meta.APP_VERSION
 check("核心模块导入", t_imports)
@@ -108,7 +111,7 @@ check("规则降重+导出", t_treat)
 
 # 7) torch 降级路径
 def t_torch():
-    from core.engines import TORCH_OK, TORCH_ERROR
+    from core.engines import TORCH_OK
     from core.detector import detect_local
     if TORCH_OK:
         return "torch正常（意外但更好）"
@@ -131,7 +134,7 @@ check("引擎管理器", t_mgr)
 
 # 9) 双语切换冒烟
 def t_lang():
-    from core.i18n import set_lang, tr, get_lang
+    from core.i18n import set_lang, tr
     set_lang("en")
     v = tr("app_name")
     set_lang("zh")
@@ -142,8 +145,9 @@ check("双语切换", t_lang)
 
 # 10) UI 模块导入（不显示窗口）
 def t_ui():
-    from PySide6.QtWidgets import QApplication
-    import ui.main_window, ui.rewrite_dialog, ui.settings_dialog, ui.glass
+    # 同上：导入即测试，用 ignore 抑制"未存取导入"告警
+    import ui.main_window, ui.rewrite_dialog  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    import ui.settings_dialog, ui.glass  # noqa: F401  # pyright: ignore[reportUnusedImport]
     return "ui模块OK"
 check("UI模块导入", t_ui)
 

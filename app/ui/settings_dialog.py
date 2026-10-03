@@ -4,9 +4,8 @@ import shutil
 
 from core.i18n import tr
 from ui.glass import fit_to_screen
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
-    QComboBox,
     QDialog,
     QFileDialog,
     QGroupBox,
@@ -194,9 +193,12 @@ class SettingsDialog(QDialog):
         return "huggingface.co", MIRRORS["HuggingFace 官方"]
 
     def _save(self):
-        mid, _ = self._current_mirror()
+        mid, url = self._current_mirror()
+        # mirror 存短名（用于界面回显与判断选中项），hf_endpoint 必须是
+        # 带协议头的完整 URL（main.py 会直接塞进 HF_ENDPOINT 环境变量，
+        # 少 https:// 会让 huggingface_hub 拿到相对地址而下载失败）。
         self.settings.set(mid, "download", "mirror")
-        self.settings.set(mid, "download", "hf_endpoint")
+        self.settings.set(url, "download", "hf_endpoint")
         self.settings.set(self.models_dir_edit.text().strip(), "download", "models_dir")
         self.accept()
 

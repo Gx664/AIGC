@@ -16,6 +16,7 @@
 
 换模型不用改这里的代码：清单里 ``models`` 写什么就用什么。
 """
+import math
 import random
 import re
 
@@ -74,6 +75,18 @@ class CurvatureEngine(BaseEngine):
         self, paragraphs, device, samples, threshold, scale,
         max_tokens, prompt_ratio, progress_cb,
     ):
+        """Fast-DetectGPT（arXiv:2310.05130v3 §2.3 式 3）。
+
+        ::
+
+            d = ( log p_theta(x|x) - mu_tilde ) / sigma_tilde
+
+        其中 mu_tilde / sigma_tilde 是采样样本分数的均值与**标准差**
+        （式 4：``sigma_tilde^2`` 是方差，故式 3 的分母取 sqrt）。
+        论文 §3.2 的消融明确：这个归一化是有效性的关键，不能省。
+
+        归一化后 d 是无量纲量，阈值才具备跨文本长度/领域的可比性。
+        """
         tok = self.tok(0)
         model = self.mdl(0, device)
         out = []
@@ -92,9 +105,18 @@ class CurvatureEngine(BaseEngine):
                 lp = self.avg_logprob(fake, model, tok, device, max_tokens=max_tokens)
                 if lp != float("-inf"):
                     perturbed.append(lp)
-            if perturbed:
+            if len(perturbed) >= 2:
                 mean_pert = sum(perturbed) / len(perturbed)
-                out.append(squash(base - mean_pert, threshold, scale))
+                # 样本标准差（分母 n-1，与论文 Algorithm 1 第 4 步一致）
+                var = sum((x - mean_pert) ** 2 for x in perturbed) / (
+                    len(perturbed) - 1
+                )
+                sigma = math.sqrt(var)
+                curvature = (base - mean_pert) / sigma if sigma > 1e-9 else 0.0
+                out.append(squash(curvature, threshold, scale))
+            elif perturbed:
+                # 只有 1 个样本时估不出方差，退化为未归一化的旧行为
+                out.append(squash(base - perturbed[0], threshold, scale))
             else:
                 out.append(0.5)
             self._tick(progress_cb, i, total)
@@ -102,7 +124,27 @@ class CurvatureEngine(BaseEngine):
 
     @staticmethod
     def _self_sample(text, model, tok, device, max_tokens, prompt_ratio):
-        """以原文前半为前缀让模型自己续写，得到扰动样本 x̃。"""
+        """构造扰动样本 x̃ —— 论文 §2.3 的 **Conditional Independent Sampling**。
+
+        为什么不能用 ``model.generate()``
+        ----------------------------------
+        论文（arXiv:2310.05130v3 §2.3）原文：
+
+        > This sampling strategy is named **Conditional Independent Sampling**
+        > ... we sample each token x̃_j **independently** from
+        > q_phi(x̃_j | x_<j), where the conditioning is **only on the original
+        > prefix** x_<j and **not on the previously sampled tokens**.
+
+        即：每个 x̃_j 都只依赖**原文前缀**，彼此之间**不依赖**。
+        而 `model.generate()` 是自回归的 —— 后一个 token 依赖前一个**已生成的**
+        token，产出的分布不是论文要的 q_φ，样本多样性也偏低。
+
+        做法：一次前向拿到整段 logits，再对每个位置**从各自的条件分布里
+        独立抽样**。N 次采样因此可压成「1 次前向 + N 次抽样」，
+        比 N 次串行 generate 快得多 —— 这也是论文叫 Fast 的原因之一。
+
+        :param prompt_ratio: 原文保留作前缀的比例（其余位置待采样）
+        """
         import torch
 
         enc = tok(text, return_tensors="pt", truncation=True, max_length=max_tokens)
@@ -111,25 +153,40 @@ class CurvatureEngine(BaseEngine):
         if n < 4:
             return None
         plen = max(1, min(n - 1, int(n * prompt_ratio)))
-        pad = getattr(tok, "pad_token_id", None)
-        if pad is None:
-            pad = getattr(tok, "eos_token_id", 0) or 0
         with torch.no_grad():
-            seq = model.generate(
-                ids[:, :plen],
-                do_sample=True,
-                top_p=0.96,
-                temperature=1.0,
-                max_new_tokens=n - plen,
-                pad_token_id=pad,
-            )
-        return tok.decode(seq[0], skip_special_tokens=True)
+            logits = model(ids).logits[0]          # (n, vocab)
+        # 位置 j 的条件分布来自前一位 j-1 的 logits（因果 LM 的 shift）
+        # 逐位独立采样：每个位置各抽一次，互不影响
+        gen = []
+        for j in range(plen, n):
+            probs = torch.softmax(logits[j - 1].float(), dim=-1)
+            gen.append(int(torch.multinomial(probs, 1).item()))
+        if not gen:
+            return None
+        new_ids = torch.cat([ids[0, :plen], torch.tensor(gen, device=device)])
+        return tok.decode(new_ids.tolist(), skip_special_tokens=True)
 
     # ---------------------------------------------------------- DetectGPT
     def _run_detect(
         self, paragraphs, device, samples, mask_ratio, span_max,
         threshold, scale, max_tokens, progress_cb,
     ):
+        """DetectGPT（arXiv:2301.11305v2 §4 Algorithm 1）。
+
+        ::
+
+            d_hat_x = ( log p_theta(x) - mu_tilde ) / sqrt( sigma_tilde )
+
+        论文 Algorithm 1 第 3~5 步：
+            3: mu_tilde  <- (1/k) * sum_i log p_theta(x_tilde_i)
+            4: sigma_tilde^2 <- (1/(k-1)) * sum_i (log p_theta(x_tilde_i) - mu_tilde)^2
+            5: d_hat_x <- ( log p_theta(x) - mu_tilde ) / sqrt(sigma_tilde)
+
+        注意第 4 步算的是**方差**，第 5 步取 sqrt 才是标准差 —— 与
+        Fast-DetectGPT 式 (3) 的记号不同，这里以各论文自身的写法为准。
+        论文 §5.3 指出：正因为有了这个归一化，阈值（"slightly below 0.1"）
+        才能跨数据分布通用。
+        """
         tok = self.tok(0)
         model = self.mdl(0, device)
         t5tok = self.tok(1)
@@ -152,9 +209,16 @@ class CurvatureEngine(BaseEngine):
                 lp = self.avg_logprob(fake, model, tok, device, max_tokens=max_tokens)
                 if lp != float("-inf"):
                     perturbed.append(lp)
-            if perturbed:
+            if len(perturbed) >= 2:
                 mean_pert = sum(perturbed) / len(perturbed)
-                out.append(squash(base - mean_pert, threshold, scale))
+                var = sum((x - mean_pert) ** 2 for x in perturbed) / (
+                    len(perturbed) - 1
+                )
+                # Algorithm 1 第 5 步：除以 sqrt(sigma_tilde^2)
+                curvature = (base - mean_pert) / math.sqrt(var) if var > 1e-18 else 0.0
+                out.append(squash(curvature, threshold, scale))
+            elif perturbed:
+                out.append(squash(base - perturbed[0], threshold, scale))
             else:
                 out.append(0.5)
             self._tick(progress_cb, i, total)
@@ -174,6 +238,13 @@ class CurvatureEngine(BaseEngine):
             return None
         left = t5tok.decode(ids[:s], skip_special_tokens=True)
         right = t5tok.decode(ids[e:], skip_special_tokens=True)
+        # T5 输入上限 512，拼接后可能超限 -> 两侧各自截断，保证总量可控
+        budget = 380
+        half = budget // 2
+        if len(left) > half:
+            left = left[-half:]
+        if len(right) > half:
+            right = right[:half]
         prompt = "<extra_id_0> %s <extra_id_1> %s" % (left, right)
         enc = t5tok(prompt, return_tensors="pt", truncation=True, max_length=512)
         enc = {k: v.to(device) for k, v in enc.items()}

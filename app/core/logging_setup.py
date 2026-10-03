@@ -3,7 +3,6 @@
 import logging
 import os
 import platform
-import sys
 import zipfile
 from logging.handlers import RotatingFileHandler
 

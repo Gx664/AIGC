@@ -18,7 +18,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
-    QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QInputDialog,
@@ -52,8 +51,111 @@ def _pick_lang(zh, en):
     return zh or en or ""
 
 
+# 语言适配标注（2026-09-23 由 AUC / acc 实测得出，见 docs/FIXES.md §3.3）
+#
+# **本项目不是每个引擎都适合中英文**，实测结论：
+#
+#   simpleai        中文 AUC 0.9998            -> 只中文可用
+#   zh_perplexity   中文 acc 0.6300 (FPR 4%)   -> 只中文可用（弱）
+#   gltr            英文 0.9400 / 中文无阈值    -> 双语，英文好、中文不可交付
+#   binoculars      英文 0.9250 / 中文 0.7250  -> 双语，英文好、中文弱
+#   detectgpt       英文 0.7100 / 中文 0.2800  -> 双语，英文弱、中文反向
+#   fastdetectgpt   **中英均未标定**           -> 无法下结论
+#
+# 两种标注各管一件事，**不要混用**：
+#   _LANG_MARK   适用语言（只中文 / 只英文 / 双语）
+#   _USABILITY   该语言下的可用性（仅在有实测数据时才给）
+#
+# ⚠️ 没有实测数据的引擎不得标可用性 —— 那会让用户以为有依据。
+#    未标定时由 `engine_lang_mark()` 回落到单个符号 ❔。
+#
+# 判据取条目 tags 里的语言标记，故改 tags 即改界面显示。
+_LANG_MARK = {"zh": "🌐 中文", "en": "🌐 英文"}
+
+# 中文可用性标记。分档依据是**实测**，不是推测。
+#
+# 「中文极弱」与「中文弱」的区别：弱是"能用但差"（binoculars，最优阈值下
+# 0.7250）；极弱是**实际上没法交付** —— gltr 的中文 AUC 看着有 0.7816，
+# 但在查重工具真正关心的 FPR<=5% 约束下**中文不存在可行阈值**（英文有）。
+_USABILITY_TAG = {
+    "中文可用": "✅ 可用",
+    "中文弱": "⚠️ 中文弱",
+    "中文极弱": "⚠️ 中文勿用",
+    "中文不可用": "❌ 中文勿用",
+}
+
+# 未标定：没有实测数据时用，明确告诉用户"这个结论还没有"。
+# 与「中文不可用」不同 —— 后者是**测出来不可用**，前者是**还没测**。
+_UNMEASURED_TAG = "未标定"
+# 界面上**只显示这一个符号**，不带文字：列表列宽有限，文字会把引擎名挤掉；
+# 含义由该行的**悬停提示**说明（i18n 的 mark_tip_unmeasured，鼠标移上去弹出）。
+# **必须用 ❔ 而不是 ⚠️** —— ⚠️ 已被「有结论但弱」占用，两者语义恰相反：
+# ⚠️ 是"测出来差"，❔ 是"还没测"。
+_UNMEASURED_MARK = "❔"
+
+
+def engine_lang_mark(engine):
+    """返回语言与可用性标记（2026-09-23 起区分中/英两侧）。
+
+    格式：``🌐 语言`` + 可用性后缀。
+    例：``🌐 中文 / 英文 ⚠️ 中文弱``、``🌐 英文 ❌ 中文勿用``
+
+    **未标定的引擎只回一个符号 ``❔``**（不带语言前缀，也不带文字）——
+    没有实测数据时"适用哪门语言"同样未知，标语言反而是编造。
+    含义由该行悬停提示说明（见 ``refresh()`` 里的 ``setToolTip``）。
+
+    实测依据（docs/FIXES.md §3.3）：
+        simpleai       中文 AUC 0.9998    ✅ 中文可交付
+        zh_perplexity  中文 acc 0.6300    ⚠️ 中文弱
+        gltr           中文无可行阈值     ⚠️ 中文勿用
+        binoculars     中文 0.7250        ⚠️ 中文弱
+        detectgpt      中文 AUC 0.2800    ❌ 中文反向
+        fastdetectgpt  中英均未标定        ❔（不猜）
+
+    注意 1：**语言无关的引擎返回空串**（修复 / 评测类 —— 规则降重、
+    知网诊断、评测基准），它们不该显示语言前缀。
+
+    注意 2：**英文侧目前只测了 acc/AUC，未做 FPR<=5% 复核**，
+    所以英文不给可用性结论，只标「🌐 英文」。等英文侧也标定后再补。
+    """
+    tags = engine.get("tags") or []
+    tagset = {str(t) for t in tags}
+    has_zh = any("中文" in str(t) for t in tags)
+    has_en = any("英文" in str(t) for t in tags)
+
+    # 「未标定」比语言归属更重要：它表示**连适用哪门语言都还没测**。
+    # 这种情况单独显示，不参与中/英前缀拼接 —— 只回一个符号。
+    if _UNMEASURED_TAG in tagset:
+        return _UNMEASURED_MARK
+
+    # **语言无关**的引擎不标语言（修复 / 评测类：规则降重、知网诊断、
+    # 评测基准）。它们的 tags 里既无「中文」也无「英文」，此前会落进
+    # else 分支被误标成「🌐 英文」—— 那是凭空捏造的标注。
+    # 修复 2026-09-23：这种情况返回空串，让调用方不显示语言前缀。
+    if not has_zh and not has_en:
+        return ""
+
+    if has_zh and has_en:
+        base = "%s / 英文" % _LANG_MARK["zh"]
+    elif has_zh:
+        base = _LANG_MARK["zh"]
+    else:
+        base = _LANG_MARK["en"]
+
+    # 中文侧：只给有实测依据的结论
+    if has_zh:
+        for tag, mark in _USABILITY_TAG.items():
+            if tag in tagset:
+                return "%s %s" % (base, mark)
+    return base
+
+
 def engine_label(engine):
-    return _pick_lang(engine.get("name"), engine.get("name_en")) or engine.get("id", "")
+    mark = engine_lang_mark(engine)
+    name = _pick_lang(engine.get("name"), engine.get("name_en")) or engine.get("id", "")
+    if mark and mark not in name:
+        return "%s %s" % (mark, name)
+    return name
 
 
 def model_state(base_dir, engine):
@@ -147,6 +249,11 @@ class EngineDialog(QDialog):
                     tag = "%s · %s" % (tag, tr("tag_custom"))
                 child = QTreeWidgetItem([engine_label(e), tag])
                 child.setData(0, Qt.UserRole, e["id"])
+                # 未标定的引擎名字前只有一个 ❔，没有文字说明 —— 含义靠悬停提示补。
+                # 只给这一种设提示：其余标记自带文字（"✅ 可用"、"⚠️ 中文弱"、
+                # "❌ 中文勿用"），看一眼就懂，再加提示是冗余。
+                if engine_lang_mark(e) == _UNMEASURED_MARK:
+                    child.setToolTip(0, tr("mark_tip_unmeasured"))
                 head.addChild(child)
             head.setExpanded(True)
         if self.tree.topLevelItemCount():

@@ -51,15 +51,15 @@ def test_catalog_entries():
     from core.engines import catalog
 
     engines = catalog.BUILTIN_ENGINES
-    assert len(engines) == 11, "应有 11 个条目，实际 %d" % len(engines)
+    assert len(engines) == 12, "应有 12 个条目，实际 %d" % len(engines)
     ids = [e["id"] for e in engines]
-    assert len(set(ids)) == 11, "id 有重复：%s" % ids
+    assert len(set(ids)) == 12, "id 有重复：%s" % ids
     for e in engines:
         for key in ("id", "name", "category", "impl", "desc"):
             assert e.get(key), "%s 缺字段 %s" % (e.get("id"), key)
         assert e["category"] in ("detect", "repair", "benchmark"), e["category"]
         assert isinstance(e.get("models", []), list)
-    assert len(catalog.by_category("detect")) == 7
+    assert len(catalog.by_category("detect")) == 8
     assert len(catalog.by_category("repair")) == 2
     assert len(catalog.by_category("benchmark")) == 2
     # 2026-10 新增的两个检测引擎必须落在清单里
@@ -93,15 +93,15 @@ def test_manager_categories():
     tmp = _tmp()
     try:
         mgr = EngineManager(tmp)
-        assert len(mgr.all()) == 11
-        assert len(mgr.by_category("detect")) == 7
+        assert len(mgr.all()) == 12
+        assert len(mgr.by_category("detect")) == 8
         assert len(mgr.by_category("repair")) == 2
         assert len(mgr.by_category("benchmark")) == 2
         # 检测流程只应看到检查类引擎
         names = [e["id"] for e in mgr.runnable()]
         assert sorted(names) == sorted(
             [
-                "simpleai", "gltr", "fastdetectgpt", "detectgpt", "binoculars",
+                "simpleai", "gltr", "zh_perplexity", "fastdetectgpt", "detectgpt", "binoculars",
                 "aigc_zh_v3", "pan_modernbert",
             ]
         ), names
@@ -128,7 +128,7 @@ def test_manager_local_override():
         assert e["name"] == "我的 GLTR", e["name"]
         assert e["model_id"] == "gpt2-medium"
         assert e["category"] == "detect", "覆盖时不应丢掉未声明的字段"
-        assert len(mgr.all()) == 11
+        assert len(mgr.all()) == 12
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -165,7 +165,7 @@ def test_manager_remote_manifest():
         assert ok is True, "拉取失败：%s" % added
         assert added == 1, added
         assert mgr.get("future_detector") is not None
-        assert len(mgr.by_category("detect")) == 8
+        assert len(mgr.by_category("detect")) == 9
         # 重新打开（模拟重启）后依然在
         mgr2 = EngineManager(tmp)
         assert mgr2.get("future_detector")["name"] == "未来新检测器"

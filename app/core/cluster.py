@@ -57,13 +57,29 @@ class ClusterMaster:
         self.running = False
 
     def _discover_loop(self):
+        """广播 AIGC_QUERY 并收集工作节点应答。
+
+        端口分工（这里踩过一个坑）
+        --------------------------
+        只有**工作节点**绑定 ``DISCOVERY_PORT`` 收广播；主节点**不绑**该端口，
+        而是绑一个临时端口（bind 到 0）再发广播。原因：若 master 与 worker
+        都用 ``SO_REUSEADDR`` 绑同一个 UDP 端口，内核只会把单播回包投递给
+        其中一个 socket —— 实测本机同开 master + worker 时，回包全被 worker
+        收走，master 的 ``nodes`` 恒为空，集群分支（main_window 里要求
+        ``nodes_snapshot()`` 非空）永远不会触发。
+
+        worker 用 ``sendto(..., addr)`` 回包，``addr`` 就是 master 的实际源
+        地址（临时端口），所以不需要 master 占着发现端口。
+        """
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
-            s.bind(("", DISCOVERY_PORT))
-        except OSError:
-            pass
+            # 绑随机可用端口，避免与 worker 的发现端口冲突
+            s.bind(("", 0))
+        except OSError as e:
+            self.log("发现服务初始化失败：%s" % e)
+            return
         while self.running:
             try:
                 s.sendto(b"AIGC_QUERY", (BROADCAST_ADDR, DISCOVERY_PORT))

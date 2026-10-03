@@ -27,7 +27,7 @@ except ImportError:  # pragma: no cover
     tk = filedialog = messagebox = ttk = None
 
 APP_NAME = "AI 检测工具箱"
-APP_VER = "1.3.5"
+APP_VER = "1.3.6"
 PY_VER = "3.12.10"
 PY_EMBED_NAME = "python-%s-embed-amd64.zip" % PY_VER
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"
@@ -179,6 +179,107 @@ sys.path.insert(0, _i18n_dir())
 from i18n import get_lang, set_lang, tr  # noqa: E402
 from meta import AUTHOR_CONTACT, AUTHOR_EMAIL, AUTHOR_TG  # noqa: E402
 from netfix import apply_env_fix, sanitize_env, unusable_system_proxy  # noqa: E402
+from gpuinfo import detect as gpu_detect  # noqa: E402
+
+
+# --------------------------------------------------------------------------
+# 运行环境路径校验（「新建」模式）
+# --------------------------------------------------------------------------
+# Windows 文件名非法字符 —— **不含 \ 和 /**（它们在路径里是分隔符），
+# 也**不含盘符那个冒号**：``D:\...`` 里的 ``:` 合法，故查之前先把盘符剥掉。
+_BAD_PATH_CHARS = '<>:"|?*'
+# Windows 保留设备名：这些名字做目录会创建失败或行为诡异
+_RESERVED_NAMES = frozenset(
+    ["CON", "PRN", "AUX", "NUL"]
+    + ["COM%d" % i for i in range(1, 10)]
+    + ["LPT%d" % i for i in range(1, 10)]
+)
+# 长度上限留余量给 site-packages 的深层嵌套（Windows 路径上限 260）
+_MAX_PATH_LEN = 200
+
+
+def _danger_reason(norm):
+    """危险位置判据：命中返回原因文案，否则空串。
+
+    拒绝的都是"一旦按覆盖逻辑清空、后果不可挽回"的位置：盘根、Windows 目录、
+    用户主目录或桌面**本身**、Program Files / ProgramData。
+    **不拒绝**它们的子目录（如 ``C:\\Users\\me\\AIGC`` 是允许的）。
+    """
+    low = norm.lower().rstrip("\\")
+    if len(low) <= 3 and low.endswith(":"):
+        return tr("inst_rt_danger_root")
+    sysroot = os.environ.get("SystemRoot", r"C:\Windows").lower().rstrip("\\")
+    home = os.path.expanduser("~").lower().rstrip("\\")
+    desktop = os.path.join(os.path.expanduser("~"), "Desktop").lower().rstrip("\\")
+    for p, key in ((sysroot, "inst_rt_danger_system"),
+                   (home, "inst_rt_danger_home"),
+                   (desktop, "inst_rt_danger_desktop")):
+        if low == p:
+            return tr(key)
+    drive = sysroot[:2]
+    for frag in ("\\program files", "\\program files (x86)", "\\programdata"):
+        if low.startswith(drive + frag):
+            return tr("inst_rt_danger_programs")
+    return ""
+
+
+def check_runtime_path(path):
+    """检查「新建运行环境」的目标路径是否可用。
+
+    顺序即优先级：**先挑出必须改的（error），再看能不能带警告继续（warn）**，
+    最后才是干净可用（ok）。一次只报第一个问题 —— 用户改完再点检测。
+
+    :param path: 用户输入的原始路径
+    :return: ``(level, msg)``；``level`` ∈ ``{"ok", "warn", "error"}``
+    """
+    raw = (path or "").strip()
+    if not raw:
+        return "error", tr("inst_rt_err_empty")
+
+    # 盘符里的冒号是合法的（``D:\...``），先剥掉盘符再查非法字符 ——
+    # 否则每个正常路径都会被判成"含非法字符 :"（实测踩过这个坑）
+    body = raw[2:] if (len(raw) >= 2 and raw[1] == ":" and raw[0].isalpha()) else raw
+    bad = [c for c in _BAD_PATH_CHARS if c in body]
+    if bad:
+        return "error", tr("inst_rt_err_char") % bad[0]
+
+    if len(raw) > _MAX_PATH_LEN:
+        return "error", tr("inst_rt_err_long") % _MAX_PATH_LEN
+
+    if raw.endswith(".") or raw.endswith(" "):
+        return "error", tr("inst_rt_err_tail")
+
+    # 保留名：逐个路径分量比对（去掉扩展名后的主体，如 "con.txt" 也是保留的）
+    for part in raw.replace("/", "\\").split("\\"):
+        if part.split(".")[0].upper() in _RESERVED_NAMES:
+            return "error", tr("inst_rt_err_reserved") % part
+
+    drive, _rest = os.path.splitdrive(raw)
+    if drive:
+        if not os.path.exists(drive + "\\"):
+            return "error", tr("inst_rt_err_drive") % drive
+    elif not raw.startswith("\\\\"):
+        # 既没有盘符也不是 UNC（\\server\share）—— 相对路径不能用来装环境
+        return "error", tr("inst_rt_err_absolute")
+
+    norm = os.path.normpath(raw)
+    danger = _danger_reason(norm)
+    if danger:
+        return "error", tr("inst_rt_err_danger") % danger
+
+    if os.path.isdir(norm):
+        try:
+            n = len(os.listdir(norm))
+        except OSError:
+            n = 0
+        if n:
+            return "warn", tr("inst_rt_warn_not_empty") % n
+    elif os.path.exists(norm):
+        return "warn", tr("inst_rt_warn_is_file")
+
+    if any(ord(c) > 127 for c in raw) or " " in raw:
+        return "warn", tr("inst_rt_warn_nonascii")
+    return "ok", tr("inst_rt_ok")
 
 
 # --------------------------------------------------------------------------
@@ -535,25 +636,71 @@ def make_shortcut(target, args, workdir, log=print, icon=""):
     log(tr("inst_shortcut_done") % lnk)
 
 
-def register_uninstall(target, pythonw_runtime, log=print):
-    """写入卸载器并注册到 Windows「设置 > 应用 / 控制面板卸载程序」。"""
+def uninstaller_source():
+    """打包好的卸载器 exe 在哪（安装时复制到安装目录）。
+
+    打包后在 ``_MEIPASS``；源码模式看 ``dist\\uninstaller.exe`` —— 需要先跑
+    ``tools\\build_exe.ps1``，否则注册卸载入口这步会被跳过并写进日志
+    （不静默失败）。
+    """
+    cands = [
+        os.path.join(getattr(sys, "_MEIPASS", ""), "uninstaller.exe"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "dist", "uninstaller.exe"),
+    ]
+    for p in cands:
+        if p and os.path.exists(p):
+            return p
+    return ""
+
+
+def register_uninstall(target, runtime_dir, log=print):
+    """放置卸载器 exe 并注册到 Windows「设置 > 应用 / 控制面板卸载程序」。
+
+    为什么是 exe，而不是"生成 .py 让 pythonw 去跑"（2026-09 改）：
+      1. 一般软件的卸载入口都是 exe，用户看到 pythonw.exe 会以为装错了东西；
+      2. 那个 .py 依赖运行环境 —— 环境被删或损坏后，卸载器自己也跑不起来，
+         用户只能手动删目录 + 手动清注册表。exe 自带解释器，与环境解耦。
+
+    ``runtime_dir`` 必须写进注册表（``RuntimeDir``），卸载器读它决定删哪个目录。
+    **不能从 pythonw.exe 反推父目录** —— 用户若把环境放在 ``D:\\myenv``（只一层），
+    反推得到 ``D:\\``，``rd /s /q`` 会把磁盘根删掉（旧版的真实缺陷）。
+    """
+    src = uninstaller_source()
+    dst = os.path.join(target, "uninstaller.exe")
     unw = os.path.join(target, "uninstall.pyw")
-    try:
-        with open(unw, "w", encoding="utf-8") as f:
-            f.write(
-                UNINSTALLER_TEMPLATE
-                .replace("@TARGET@", target)
-                .replace("@EMAIL@", AUTHOR_CONTACT)
-            )
-    except OSError as e:
-        log("写入卸载器失败: %s" % e)
-        return
+    uninstall_cmd = ""
+    if src:
+        # 首选独立卸载器 exe：自带解释器，运行环境被删或损坏也照样能卸载
+        try:
+            shutil.copyfile(src, dst)
+            uninstall_cmd = '"%s"' % dst
+        except OSError as e:
+            log(tr("inst_uninstall_reg_fail") % _err_text(e))
+    if not uninstall_cmd:
+        # 回退方案：生成 .py，交给运行环境里的 pythonw 执行 —— 安装器没把卸载器 exe
+        # 打进去时，仍要保证「设置 > 应用」里有卸载入口，不能静默留白
+        log(tr("inst_uninstaller_missing"))
+        pythonw = os.path.join(
+            runtime_dir or os.path.join(target, "runtime", "python"), "pythonw.exe")
+        try:
+            with open(unw, "w", encoding="utf-8") as f:
+                f.write(
+                    UNINSTALLER_TEMPLATE
+                    .replace("@TARGET@", target)
+                    .replace("@EMAIL@", AUTHOR_CONTACT)
+                )
+        except OSError as e:
+            log(tr("inst_uninstall_reg_fail") % _err_text(e))
+            return
+        uninstall_cmd = '"%s" "%s"' % (pythonw, unw)
+        dst = pythonw
     try:
         import winreg
 
-        # 卸载项图标也用程序自己的图标（原来是 pythonw.exe 的 Python 图标，很难看）
+        # 卸载项图标用程序自己的图标（否则是 exe 自带图标 / Python 图标）
         _ico = os.path.join(target, "app", "assets", "icon.ico")
-        display_icon = _ico if os.path.exists(_ico) else pythonw_runtime
+        display_icon = _ico if os.path.exists(_ico) else dst
 
         key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, UNINSTALL_KEY)
         vals = [
@@ -562,7 +709,8 @@ def register_uninstall(target, pythonw_runtime, log=print):
             ("Publisher", "gxgx3456"),
             ("DisplayIcon", display_icon),
             ("InstallLocation", target),
-            ("UninstallString", '"%s" "%s"' % (pythonw_runtime, unw)),
+            ("RuntimeDir", runtime_dir or ""),
+            ("UninstallString", uninstall_cmd),
             ("HelpLink", "mailto:%s" % AUTHOR_EMAIL),
             ("URLInfoAbout", "https://t.me/%s" % AUTHOR_TG.lstrip("@")),
             ("Contact", AUTHOR_CONTACT),
@@ -584,14 +732,18 @@ def register_uninstall(target, pythonw_runtime, log=print):
 
 
 def perform_install(target, log=None, status=None, cancelled=None, ask_manual=None,
-                    opt_shortcut=True, opt_launch=True, lang=None):
-    """完整安装流程（GUI / CLI 共用）：Python 便携运行时 -> 程序本体 -> 注册卸载 -> 快捷方式。"""
+                    opt_shortcut=True, opt_launch=True, lang=None, runtime_dir=None):
+    """完整安装流程（GUI / CLI 共用）：Python 便携运行时 -> 程序本体 -> 注册卸载 -> 快捷方式。
+
+    ``runtime_dir`` 是运行环境的落地目录（用户安装时可自选，默认
+    ``<target>\\runtime\\python``）—— 环境约 4.8GB，允许放到别的盘。
+    """
     log = log or (lambda m: None)
     status = status or (lambda m, p=None: None)
     cancelled = cancelled or (lambda: False)
 
     dl = os.path.join(target, "_downloads")
-    pydir = os.path.join(target, "runtime", "python")
+    pydir = runtime_dir or os.path.join(target, "runtime", "python")
     appdir = os.path.join(target, "app")
     os.makedirs(dl, exist_ok=True)
 
@@ -719,9 +871,9 @@ def perform_install(target, log=None, status=None, cancelled=None, ask_manual=No
         json.dump(cfg, f, ensure_ascii=False, indent=2)
     _write_launchers(target, appdir, pydir, log)
 
-    # 4. 卸载入口
+    # 4. 卸载入口（复制卸载器 exe + 写注册表，注册表里带上 RuntimeDir）
     status(tr("inst_register_uninstall"), 90)
-    register_uninstall(target, os.path.join(pydir, "pythonw.exe"), log)
+    register_uninstall(target, pydir, log)
 
     # 5. 快捷方式 + 启动
     status(tr("inst_create_shortcut"), 94)
@@ -751,6 +903,125 @@ def perform_install(target, log=None, status=None, cancelled=None, ask_manual=No
     else:
         log(tr("inst_done_log_noshortcut"))
     return target
+
+
+# --------------------------------------------------------------------------
+# 运行环境选择对话框（「新建」模式）
+# --------------------------------------------------------------------------
+class RuntimeDialog(tk.Toplevel if tk else object):
+    """让用户选「新建运行环境」的目标路径。
+
+    为什么单独弹一个框
+    ------------------
+    环境路径和"安装目录"是两件事：默认在安装目录下，但用户可以放到别的盘
+    （环境 4.8GB + 模型若干，系统盘吃紧时很需要）。单独一个框才有地方放
+    「检测」按钮和逐条校验结果。
+
+    交互约定
+    --------
+    * 打开即先检测一次（不用用户先点一下才知道行不行）
+    * 点「检测」重跑校验，结果显示在提示行并按等级着色
+    * 点「确定」时若等级是 ``error`` 则**不关闭**（弹提示说明为什么按不动）；
+      若是 ``warn``（文件夹非空等）再弹一次确认 —— 不可恢复的操作必须二次确认
+    """
+
+    def __init__(self, parent, default_path):
+        super().__init__(parent)
+        self.title(tr("inst_rt_title"))
+        self.resizable(False, False)
+        self.result = None          # 点「确定」后写入最终路径
+        self.level = "ok"
+
+        tk.Label(self, text=tr("inst_rt_title"),
+                 font=("Microsoft YaHei UI", 13, "bold")).pack(
+            anchor="w", padx=18, pady=(16, 2))
+        tk.Label(self, text=tr("inst_rt_note"), justify="left", fg="#475569",
+                 wraplength=540, anchor="w").pack(fill="x", padx=18, pady=(0, 6))
+
+        # 显卡探测：提前告诉用户会装 GPU 版还是 CPU 版，以及"为什么只能用 CPU"
+        # （没 N 卡 / 驱动太旧）。这直接决定首次启动下载 2.6GB 还是 200MB，
+        # 也解释得清后面检测为什么慢 —— 别让用户装完才发现走了 CPU。
+        try:
+            gpu_text = gpu_detect()["reason"]
+        except Exception as e:  # noqa: BLE001
+            gpu_text = "显卡探测失败：%s" % e
+        tk.Label(self, text=gpu_text, justify="left", fg="#475569",
+                 wraplength=540, anchor="w").pack(
+            fill="x", padx=18, pady=(0, 6))
+
+        row = tk.Frame(self)
+        row.pack(fill="x", padx=18, pady=6)
+        tk.Label(row, text=tr("inst_rt_path_label")).pack(side="left")
+        self.path_var = tk.StringVar(value=default_path)
+        self.entry = tk.Entry(row, textvariable=self.path_var, width=50)
+        self.entry.pack(side="left", fill="x", expand=True, padx=6)
+        self.btn_browse = tk.Button(row, command=self.browse, width=8)
+        self.btn_browse.pack(side="left")
+
+        self.msg_var = tk.StringVar(value="")
+        self.msg_label = tk.Label(self, textvariable=self.msg_var, justify="left",
+                                  fg="#475569", wraplength=560, anchor="w")
+        self.msg_label.pack(fill="x", padx=18, pady=(4, 10))
+
+        btns = tk.Frame(self)
+        btns.pack(fill="x", padx=18, pady=(0, 16))
+        self.btn_ok = tk.Button(btns, command=self.on_ok, width=10)
+        self.btn_ok.pack(side="right")
+        # 左「检测」右「确定」（按约定的布局）
+        self.btn_check = tk.Button(btns, command=self.on_check, width=10)
+        self.btn_check.pack(side="right", padx=6)
+
+        self.btn_browse.config(text=tr("inst_rt_browse"))
+        self.btn_check.config(text=tr("inst_rt_detect"))
+        self.btn_ok.config(text=tr("inst_rt_ok_btn"))
+
+        self.update_idletasks()
+        self._center(parent)
+        self.transient(parent)
+        self.grab_set()
+        self.entry.focus_set()
+        self.after(120, self.on_check)   # 打开就检测一次
+
+    def _center(self, parent):
+        try:
+            x = parent.winfo_rootx() + max(
+                0, (parent.winfo_width() - self.winfo_width()) // 2)
+            y = parent.winfo_rooty() + max(
+                0, (parent.winfo_height() - self.winfo_height()) // 3)
+            self.geometry("+%d+%d" % (x, y))
+        except Exception:
+            pass
+
+    def browse(self):
+        d = filedialog.askdirectory(initialdir=self.path_var.get() or "D:\\")
+        if d:
+            self.path_var.set(os.path.normpath(d))
+            self.on_check()
+
+    def on_check(self):
+        """跑一遍校验并把结果写到提示行；返回等级（供「确定」判断）。"""
+        self.level, msg = check_runtime_path(self.path_var.get())
+        self.msg_var.set(msg)
+        self.msg_label.config(fg={"ok": "#15803d", "warn": "#b45309",
+                                  "error": "#b91c1c"}.get(self.level, "#475569"))
+        return self.level
+
+    def on_ok(self):
+        level = self.on_check()
+        path = os.path.normpath(self.path_var.get().strip())
+        if level == "error":
+            # 不许带着错误继续；说明原因，别让用户以为按钮坏了
+            messagebox.showwarning(tr("inst_rt_title"), tr("inst_rt_cannot_ok"),
+                                   parent=self)
+            return
+        if level == "warn":
+            # 非空目录/同名文件都会走"清空后新建"，不可恢复 -> 二次确认
+            if not messagebox.askyesno(tr("inst_rt_confirm_title"),
+                                       tr("inst_rt_confirm_clear") % path,
+                                       parent=self):
+                return
+        self.result = path
+        self.destroy()
 
 
 # --------------------------------------------------------------------------
@@ -912,7 +1183,24 @@ class Installer(tk.Tk if tk else object):
                 return None
         return box["path"]
 
+    def default_runtime_dir(self):
+        """环境路径默认值：``<安装目录>\\runtime\\python``。
+
+        **实时读安装目录**（用户改了目录再点开始，默认值得跟着变），
+        不缓存上次的选择 —— 缓存会让两者不一致。
+        """
+        target = self.dir_var.get().strip() or r"D:\AIGC_Detector"
+        return os.path.join(target, "runtime", "python")
+
     def start(self):
+        # 先在主线程弹「运行环境」对话框（tkinter 不能在子线程弹窗）；
+        # 用户直接关掉对话框 = 取消安装，不往下走
+        dlg = RuntimeDialog(self, self.default_runtime_dir())
+        self.wait_window(dlg)
+        if not dlg.result:
+            return
+        self.runtime_dir = dlg.result
+
         self.cancel_flag = False
         self.btn_start.config(state="disabled")
         self.btn_cancel.config(state="normal")
@@ -930,20 +1218,28 @@ class Installer(tk.Tk if tk else object):
                 opt_shortcut=self.chk_shortcut.get(),
                 opt_launch=self.chk_launch.get(),
                 lang=get_lang(),
-            )
-            self._ui(
-                lambda: messagebox.showinfo(
-                    tr("inst_done_title"),
-                    tr("inst_done_box") % APP_NAME,
-                )
+                runtime_dir=getattr(self, "runtime_dir", None),
             )
         except Exception as e:
             self.set_status(tr("inst_failed_prefix") % e)
             self.log_msg(tr("inst_fail_log") % e)
             self._ui(lambda: messagebox.showerror(tr("inst_fail_title"), str(e)))
-        finally:
-            self.btn_start.config(state="normal")
-            self.btn_cancel.config(state="disabled")
+            # 失败才复位按钮，让用户能改目录 / 重试
+            self._ui(self._idle_buttons)
+            return
+        # 成功：提示一次后**关掉安装器**。
+        # 留着这个窗口有两个坏处：① 用户以为还没装完；② "开始安装"又能点了，
+        # 顺手再点一次就是把几 GB 依赖重装一遍（实测用户正好停在这一步）。
+        self._ui(self._finish_ok)
+
+    def _idle_buttons(self):
+        self.btn_start.config(state="normal")
+        self.btn_cancel.config(state="disabled")
+
+    def _finish_ok(self):
+        messagebox.showinfo(tr("inst_done_title"),
+                            tr("inst_done_box") % APP_NAME, parent=self)
+        self.destroy()
 
 
 def _cli(argv):

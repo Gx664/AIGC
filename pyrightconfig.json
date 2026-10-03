@@ -1,0 +1,34 @@
+{
+    "extraPaths": [
+        "app",
+        "app/core"
+    ],
+    "pythonVersion": "3.12",
+    "pythonPlatform": "Windows",
+    "exclude": [
+        "**/__pycache__",
+        "**/node_modules",
+        ".git",
+        "build",
+        "dist*"
+    ],
+    "reportMissingImports": "warning",
+    "reportRedeclaration": "error",
+    "reportUndefinedVariable": "error",
+    "reportOptionalOperand": "none",
+    "reportOptionalSubscript": "none",
+    "reportOptionalMemberAccess": "none",
+    "reportOptionalCall": "none",
+    "reportOptionalIterable": "none",
+    "reportGeneralTypeIssues": "none",
+    "reportArgumentType": "none",
+    "reportAttributeAccessIssue": "none",
+    "reportReturnType": "none",
+    "reportIndexIssue": "none",
+    "reportOperatorIssue": "none",
+    "reportCallIssue": "none",
+    "reportAssignmentType": "none",
+    "reportIncompatibleMethodOverride": "none",
+    "reportUnusedImport": "warning",
+    "reportUnusedVariable": "none"
+}

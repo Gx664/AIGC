@@ -6,7 +6,6 @@
 """
 
 import json
-import os
 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
@@ -19,7 +18,6 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QProgressBar,
-    QPushButton,
     QSpinBox,
     QSplitter,
     QTabWidget,
@@ -28,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.diagnosis import diagnose, pattern_name, risk_label
+from core.diagnosis import diagnose, risk_label
 from core.detector import detect_local
 from core.engines import create_engine
 from core.i18n import get_lang, tr
@@ -84,7 +82,9 @@ class AutoWorker(QThread):
         engine.install(None)  # 已装好的模型这里直接通过
         run_params = dict(self.detect_params)
         run_params.update(cfg.get("params", {}))
-        return detect_local(cfg, self.base_dir, paras, run_params)
+        # detect_local 返回 (probs, engine)；这里只要 probs（四档本流程不用）
+        probs, _eng = detect_local(cfg, self.base_dir, paras, run_params)
+        return probs
 
     def run(self):
         try:

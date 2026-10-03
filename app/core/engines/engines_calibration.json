@@ -1,0 +1,216 @@
+{
+  "version": "1.0",
+  "updated": "2026-09-24",
+  "note": "标定结果覆盖表。由 tools/export_calibration.py 生成，优先级高于内置 catalog.py（见 manager.EngineManager 的合并顺序）。每一项的 _calibration 记录样本量、判据与出处，便于追溯。",
+  "engines": [
+    {
+      "id": "binoculars",
+      "params": {
+        "threshold": 0.8152,
+        "scale": 0.12
+      },
+      "_calibration": {
+        "n": 5984,
+        "lang": "en",
+        "data": "Ghostbuster essay+wp+reuter，1:1 配平",
+        "criterion": "FPR<=5%",
+        "acc": 0.8422,
+        "fpr": 0.0498,
+        "fnr": 0.2657,
+        "tool": "python tools/audit_probes.py --only bino_cal",
+        "date": "2026-09-23",
+        "note": "旧值 0.615 标自 essay 120 条，在本数据上 FNR=0.9980、acc=0.5010（几乎一条 AI 都抓不出）。本值在 B 口径下按 FPR<=5% 搜得；判据 B <= threshold 判 AI。",
+        "dist": {
+          "ai_median_B": 0.7892,
+          "human_median_B": 0.8756
+        }
+      }
+    },
+    {
+      "id": "detectgpt",
+      "params": {
+        "mode": "detect",
+        "samples": 10,
+        "mask_ratio": 0.15,
+        "threshold": 0.0,
+        "scale": 0.6
+      },
+      "_calibration": {
+        "n": 60,
+        "lang": "en/zh",
+        "data": "Ghostbuster Essay",
+        "criterion": "最优阈值（英文）",
+        "acc": 0.7,
+        "fpr": null,
+        "method": "docs/FIXES.md §3",
+        "date": "2026-09-23",
+        "note": "英文 AUC 0.7100（论文 0.9554，差 0.245）；中文 AUC 0.2800 **排序反向**，任何阈值都救不了 -> 勿用于中文。threshold 仍为 0.0（未细化标定）。"
+      }
+    },
+    {
+      "id": "fastdetectgpt",
+      "params": {
+        "mode": "fast",
+        "samples": 5,
+        "threshold": 0.0,
+        "scale": 0.6
+      },
+      "_calibration": {
+        "n": 0,
+        "lang": "-",
+        "data": "-",
+        "criterion": "**未标定**",
+        "acc": null,
+        "fpr": null,
+        "method": "-",
+        "date": "2026-09-23",
+        "note": "中英两侧都未测（需可用显存 >=7GB，本机常不足）。threshold=0.0 / scale=0.6 是**未经标定的默认值**，界面标「未标定」以免误导。见 docs/FIXES.md §6。"
+      }
+    },
+    {
+      "id": "gltr",
+      "params": {
+        "method": "ppl",
+        "ppl_low": 8.69,
+        "ppl_high": 25.64,
+        "ppl_low_zh": 5.22,
+        "ppl_high_zh": 17.31
+      },
+      "_calibration": {
+        "n": 21200,
+        "lang": "zh+en",
+        "data": "HC3 中文（按问题配平） + Ghostbuster 英文（1:1 配平）",
+        "criterion": "FPR<=5%",
+        "acc": 0.7659,
+        "fpr": 0.0488,
+        "tool": "python tools/audit_probes.py --only gltr_cal",
+        "date": "2026-09-24",
+        "note": "旧值抄自 docs 文档（英文 12/25、中文 11.35/18.72）。在同一批数据上实测：英文旧值 FPR=0.0799（超标）、中文旧值 FPR=0.2374（超标）；本次按 FPR<=5% 重标得英文 8.69/25.64（acc 0.7659、FPR 0.0488）、中文 5.22/17.31（acc 0.6096、FPR 0.0485）。**新旧 acc 不可直接比**：旧值 acc 较高是因为 FPR 超标（宁可错杀）；本次是用 acc 换回合格误报率。注意中文即便 FPR 合格，FNR 仍约 73% —— 检出能力不足，**确认中文不可交付**（界面标「中文勿用」）。",
+        "by_lang": {
+          "en": {
+            "n": 5984,
+            "old": [
+              12.0,
+              25.0
+            ],
+            "old_acc": 0.7975,
+            "old_fpr": 0.0799,
+            "new": [
+              8.69,
+              25.64
+            ],
+            "new_acc": 0.7659,
+            "new_fpr": 0.0488,
+            "ai_med": 16.01,
+            "hu_med": 28.33
+          },
+          "zh": {
+            "n": 15216,
+            "old": [
+              11.35,
+              18.72
+            ],
+            "old_acc": 0.725,
+            "old_fpr": 0.2374,
+            "new": [
+              5.22,
+              17.31
+            ],
+            "new_acc": 0.6096,
+            "new_fpr": 0.0485,
+            "ai_med": 13.28,
+            "hu_med": 18.32
+          }
+        }
+      }
+    },
+    {
+      "id": "mgtbench",
+      "params": {
+        "threshold": 0.5,
+        "max_samples": 200
+      },
+      "_calibration": {
+        "n": 0,
+        "lang": "-",
+        "data": "-",
+        "criterion": "**不适用**（评测基准，非检测引擎）",
+        "acc": null,
+        "fpr": null,
+        "method": "-",
+        "date": "2026-09-23",
+        "note": "MGTBench 是**评测基准**，同上。"
+      }
+    },
+    {
+      "id": "raid",
+      "params": {
+        "threshold": 0.5,
+        "max_samples": 200
+      },
+      "_calibration": {
+        "n": 0,
+        "lang": "-",
+        "data": "-",
+        "criterion": "**不适用**（评测基准，非检测引擎）",
+        "acc": null,
+        "fpr": null,
+        "method": "-",
+        "date": "2026-09-23",
+        "note": "RAID 是**评测基准**：拿它去测别的检测器。threshold=0.5 是判 AI 的分界、max_samples=200 是抽样上限，都不是标定值。"
+      }
+    },
+    {
+      "id": "simpleai",
+      "params": {
+        "max_len": 500
+      },
+      "_calibration": {
+        "n": 15216,
+        "lang": "zh+en",
+        "data": "HC3 中文 / Ghostbuster 英文（各 1:1 配平）",
+        "criterion": "判定点 0.50（分类器无阈值可调）",
+        "acc": 0.9902,
+        "fpr": 0.018,
+        "auc": 0.9998,
+        "tool": "python tools/audit_probes.py --only simpleai",
+        "date": "2026-09-24",
+        "note": "实测（非抄录）：中文 acc=0.9902 FPR=0.0180 AUC=0.9998；英文 acc=0.5015 FPR=0.9950 AUC=0.4397。分类器无阈值可调，故只复核指标。中文为唯一可交付引擎；英文 AUC 约 0.5，等于抛硬币。",
+        "by_lang": {
+          "zh": {
+            "n": 15216,
+            "acc": 0.9902,
+            "fpr": 0.018,
+            "fnr": 0.0016,
+            "auc": 0.9998
+          },
+          "en": {
+            "n": 5984,
+            "acc": 0.5015,
+            "fpr": 0.995,
+            "fnr": 0.002,
+            "auc": 0.4397
+          }
+        }
+      }
+    },
+    {
+      "id": "zh_perplexity",
+      "params": {
+        "ppl_low": 4.33,
+        "ppl_high": 11.55
+      },
+      "_calibration": {
+        "n": 15216,
+        "lang": "zh",
+        "data": "HC3 中文，按问题配对 1:1（论文 §4.1）",
+        "criterion": "FPR<=5%",
+        "acc": 0.8623,
+        "fpr": 0.0434,
+        "method": "tools/audit_probes.py --only zh_threshold",
+        "date": "2026-09-23",
+        "note": "阈值随样本量右移：200 条 (2.88,7.68) acc 0.6300 / 400 条 (3.72,9.92) acc 0.7875 / 15216 条 (4.33,11.55) acc 0.8623。**仍未收敛**，扩数据后需重标。"
+      }
+    }
+  ]
+}

@@ -28,6 +28,76 @@ These rules apply to this project from 2026-09-25 onward:
 
 ---
 
+## v1.3.6 (2026-10-03)
+
+> This release merges a batch of community fixes back into the main line:
+> **14 detection-engine defects** (each with measured data) plus **11 installer / UI problems**
+> surfaced by a **real installation**. The goal is to make the software actually match the papers —
+> more accurate detection, sturdier installation, a friendlier UI. Windows / Linux / macOS in step.
+
+### Visible to users
+- 🎯 **Detection is noticeably more accurate**:
+  - **Binoculars no longer "always says AI"** — its denominator escaped the log domain, a
+    cross term was missing and the units were mixed. Accuracy **46.7% → 94.17%**
+    (same model, code fix only);
+  - the shared "average log-probability" backbone was corrected, unit bias **34~67% → 0.000%**;
+  - long Chinese text no longer crashes on the length cap; over-long DetectGPT inputs are
+    now truncated properly on both sides.
+- 🏷️ **Every engine now states the language it works for** — the list shows
+  ✅ usable / ⚠️ weak on Chinese / ❌ do not use on Chinese / ❔ uncalibrated.
+  Previously **DetectGPT's Chinese verdict was inverted** (human text scored higher); it now
+  says so plainly instead of misleading you.
+- 🔧 **Fixed "save settings once and every model download breaks"** — the endpoint had been
+  written without its scheme; it is repaired now.
+- 🧩 **Real install surfaced 11 problems, all fixed**: the first-run progress bar no longer
+  stalls, overshoots 100% or shows a fake "00:00 left"; detection progress reports elapsed and
+  remaining time again; the threshold box and its slider start in sync; left/right panels are now
+  a **draggable splitter**, the window is 1240 wide (English labels were clipped) and the frameless
+  window **resizes by dragging its edges**; the GPU / cluster checkboxes gained a **Check** button
+  (a failed check unticks them and explains why); the About window finds its donation QR images
+  again; **PDF text is rebuilt into paragraphs from line coordinates** (a real paper yields 152
+  paragraphs instead of one); user data moved to the install directory; and the uninstaller window
+  no longer flashes and vanishes.
+- 🖥️ **The GPU tier is picked for you** — the driver's CUDA version selects cu129 down to cu118;
+  with no usable card it installs the CPU build and says why that is slower; a CUDA install that
+  cannot see the GPU falls back to CPU.
+- 🗑️ **The uninstaller is now a standalone exe** — it works even if the runtime is deleted or
+  broken, and its three checkboxes (cache / runtime / models) are **off by default**, so nobody
+  wipes 10 GB of models while trying to clear a cache.
+- 📊 **GLTR's four buckets render correctly** — as a stacked bar with matching legend numbers, and a
+  largest-remainder split makes them sum to exactly **100%** (they used to add up to 99% or 101%).
+
+### Fixed: detection engines (14)
+Binoculars constant-AI verdict · shared `avg_logprob` backbone · corrupted `hf_endpoint` on save ·
+cluster discovery killed by a port-binding race · missing σ normalisation in DetectGPT /
+Fast-DetectGPT · engine-manifest params overriding user params · crash on long Chinese text past
+`n_positions` · silent slowdown when VRAM is short (fp32 overflow) · T5 inputs over 512 tokens ·
+unescaped report filename · engines lacking a language mark · non-portable thresholds
+(recalibrated) · `zh_perplexity` threshold fixed (FPR 95% → 4%) · 17 unused imports removed.
+
+### Fixed: installer / UI (11)
+First-run download progress and ETA maths · single-GPU path dropping the detection callback ·
+threshold box and slider out of sync · draggable splitter and window width · frameless edge resize ·
+GPU / cluster "Check" button · donation-image path (`app` repeated) · PDF paragraph rebuild ·
+user data moved to the install directory · uninstaller window kept alive ·
+report's four GLTR buckets rounded independently.
+
+### Notes
+- Calibration values are **no longer hard-coded**; they live in
+  `app/core/engines/engines_calibration.json`
+  (precedence: `catalog.py` factory values < calibrated < remote < user override). The criterion is
+  uniformly **accuracy under an FPR ≤ 5% constraint** — for a plagiarism-style checker a false
+  positive is worse than a miss, so the raw "best accuracy" is not the target.
+- The full technical record (measured numbers per item, differences from the papers, how to
+  reproduce) is in the repository at `docs/FIXES.md`.
+
+### Not done in this release (recorded honestly)
+- `fastdetectgpt` calibration in Chinese and English (about 5.5 h); switching `detectgpt`'s Chinese
+  perturbation model to `google/mt5-xl` and recalibrating; and one true end-to-end reinstall with the
+  new exe (this round covers static analysis and probes only).
+
+---
+
 ## v1.3.5 (2026-10-02)
 
 > This release **touches macOS and the docs only**: it fixes a packaging problem that made macOS

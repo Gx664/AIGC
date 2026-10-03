@@ -1,6 +1,6 @@
 import os
 
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -246,3 +246,70 @@ class TitleBar(QWidget):
 
     def mouseReleaseEvent(self, e):
         self._drag = False
+
+
+class EdgeResizer(QObject):
+    """给无边框窗口加"拖边缘改大小"（Qt6 的 ``startSystemResize``）。
+
+    为什么需要：``Qt.FramelessWindowHint`` 去掉了系统边框，Qt 也就不会再帮你
+    缩放窗口 —— 右上角三个按钮照常能用，但窗口大小从此固定死（用户抱怨的就是
+    这个）。装上本过滤器后，鼠标贴到窗口边缘 6px 内按下即交给系统拖拽缩放。
+
+    交给系统而不是自己算，是因为最大化、多屏、DPI 缩放、贴边吸附这些边界
+    情况由系统处理才正确；手写 ``move() + resize()`` 这些全要自己踩。
+    """
+
+    MARGIN = 6
+
+    # (左, 右, 上, 下) → 光标形状；四角用对角箭头
+    _CURSORS = {
+        (False, False, True, False): Qt.SizeVerCursor,
+        (False, False, False, True): Qt.SizeVerCursor,
+        (True, False, False, False): Qt.SizeHorCursor,
+        (False, True, False, False): Qt.SizeHorCursor,
+        (True, False, True, False): Qt.SizeFDiagCursor,
+        (False, True, False, True): Qt.SizeFDiagCursor,
+        (False, True, True, False): Qt.SizeBDiagCursor,
+        (True, False, False, True): Qt.SizeBDiagCursor,
+    }
+
+    def __init__(self, win):
+        super().__init__(win)
+        self.win = win
+        win.setMouseTracking(True)
+        win.installEventFilter(self)
+
+    def _hit(self, pos):
+        """鼠标位置 → ``(Qt.Edges, (左,右,上,下))``；不在边缘时 Edges 为空。"""
+        m = self.MARGIN
+        rect = self.win.rect()
+        left = pos.x() <= m
+        right = pos.x() >= rect.width() - m
+        top = pos.y() <= m
+        bottom = pos.y() >= rect.height() - m
+        edges = Qt.Edges()
+        if left:
+            edges |= Qt.LeftEdge
+        if right:
+            edges |= Qt.RightEdge
+        if top:
+            edges |= Qt.TopEdge
+        if bottom:
+            edges |= Qt.BottomEdge
+        return edges, (left, right, top, bottom)
+
+    def eventFilter(self, obj, ev):
+        if obj is not self.win:
+            return False
+        kind = ev.type()
+        if kind == QEvent.MouseButtonPress and ev.button() == Qt.LeftButton:
+            edges, _flags = self._hit(ev.position().toPoint())
+            if edges:
+                handle = self.win.windowHandle()
+                if handle is not None:
+                    handle.startSystemResize(edges)
+                    return True
+        elif kind == QEvent.MouseMove:
+            _edges, flags = self._hit(ev.position().toPoint())
+            self.win.setCursor(self._CURSORS.get(flags, Qt.ArrowCursor))
+        return False

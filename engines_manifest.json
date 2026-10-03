@@ -69,10 +69,10 @@
       "size_hint": "约 400MB",
       "paper": "uer/gpt2-chinese-cluecorpussmall",
       "venue": "中文 GPT-2（CLUECorpusSmall 训练）",
-      "desc": "把 GLTR 的困惑度方法用到中文语料模型上，作为中文文本的统计派参考。阈值已按中文调整（PPL 20~45）。",
-      "desc_en": "GLTR's perplexity method on a Chinese LM. Thresholds adjusted for Chinese (PPL 20-45).",
+      "desc": "把 GLTR 的困惑度方法用到中文语料模型上，作为中文文本的统计派参考。注意：中文 PPL 远低于英文，阈值与英文组不通用。",
+      "desc_en": "GLTR's perplexity method on a Chinese LM. Note: Chinese PPL is far lower than English, so thresholds are not interchangeable.",
       "tags": ["中文", "统计派"],
-      "params": { "ppl_high": 45.0, "ppl_low": 20.0 },
+      "params": { "ppl_high": 7.68, "ppl_low": 2.88 },
       "update_channel": "models"
     }
   ]

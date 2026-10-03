@@ -6,6 +6,9 @@ torch 加载失败（如被安全软件驱动拦截）时不再拖垮整个应�
 """
 import importlib
 
+# 下面两行是包对外接口（`from core.engines import EngineManager` 等），本模块
+# 自身不引用 —— pyright 的 reportUnusedImport 会报出来，**暂未处理**，
+# 见 docs/FIXES.md §6「未做」。
 from .manager import BUILTIN_ENGINES, EngineManager  # noqa: F401
 from .registry import get_impl, load_plugins, register, registered  # noqa: F401
 

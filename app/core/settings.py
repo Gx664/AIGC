@@ -1,5 +1,7 @@
 import json
 import os
+import shutil
+import sys
 
 DEFAULTS = {
     "app": {
@@ -46,6 +48,67 @@ DEFAULTS = {
     },
     "presets": {},
 }
+
+
+def base_dir():
+    """用户数据（设置 / 模型 / license / 日志）的根目录 = **安装目录**。
+
+    为什么必须与安装器一致（2026-09-24 修）
+    ---------------------------------------
+    主程序是用 runtime 解释器跑 ``app/main.py`` 的，``sys.frozen`` 为 False。
+    此前这里（以及 ``ui/main_window.py`` 的 ``BASE_DIR``）取的是 ``app\\`` 目录，
+    而安装器把设置写在 ``<安装目录>\\settings.json`` —— 两边差一层 ``app``：
+
+    * 安装器写的语言 / 安装目录记录**永远读不到**；
+    * 用户改的设置落在 ``app\\settings.json``，而重装时安装器会 ``rmtree(app)``
+      再整目录复制 → **用户的阈值与参数预设一起丢**；
+    * 模型落在 ``app\\models``，卸载器找的却是 ``<安装目录>\\models`` ——
+      勾了"同时删除已下载的模型"也删不掉（它算出的大小恒为 0）。
+
+    源码模式下上溯三级 = 仓库根，与安装布局同构（``<根>\\settings.json``）。
+    """
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def migrate_legacy_layout(base_dir_path):
+    """把旧布局（用户数据在 ``app/`` 里）搬到安装目录根 —— 只做一次。
+
+    旧路径 → 新路径：
+        ``<base>/app/settings.json``        → ``<base>/settings.json``
+        ``<base>/app/license.key``          → ``<base>/license.key``
+        ``<base>/app/engines_catalog.json`` → ``<base>/engines_catalog.json``
+        ``<base>/app/engines_remote.json``  → ``<base>/engines_remote.json``
+        ``<base>/app/models/``              → ``<base>/models/``
+
+    **目标已存在就不动**（用户当前的数据优先，宁可少搬不可覆盖）；
+    任何异常都吞掉 —— 启动路径上不能因为搬文件失败而打不开程序。
+
+    :param base_dir_path: 安装目录（见 ``base_dir()``）
+    :return: 实际搬过的条目名列表（调用方写日志用）
+    """
+    moved = []
+    for name in ("settings.json", "license.key",
+                 "engines_catalog.json", "engines_remote.json"):
+        src = os.path.join(base_dir_path, "app", name)
+        dst = os.path.join(base_dir_path, name)
+        if os.path.exists(src) and not os.path.exists(dst):
+            try:
+                shutil.move(src, dst)
+                moved.append(name)
+            except OSError:
+                pass
+    models_src = os.path.join(base_dir_path, "app", "models")
+    models_dst = os.path.join(base_dir_path, "models")
+    if os.path.isdir(models_src) and not os.path.isdir(models_dst):
+        try:
+            shutil.move(models_src, models_dst)
+            moved.append("models/")
+        except OSError:
+            pass
+    return moved
 
 
 def models_root(base_dir):
