@@ -80,8 +80,10 @@ class AutoWorker(QThread):
         cfg = self.engine_cfg
         engine = create_engine(cfg, self.base_dir)
         engine.install(None)  # 已装好的模型这里直接通过
-        run_params = dict(self.detect_params)
-        run_params.update(cfg.get("params", {}))
+        # 参数合并：先铺引擎清单里的默认值，再用界面参数覆盖 ——
+        # 顺序反了会让用户调好的阈值被清单默认值悄悄改回去。
+        run_params = dict(cfg.get("params", {}))
+        run_params.update(self.detect_params)
         # detect_local 返回 (probs, engine)；这里只要 probs（四档本流程不用）
         probs, _eng = detect_local(cfg, self.base_dir, paras, run_params)
         return probs

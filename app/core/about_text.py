@@ -84,6 +84,17 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
      （约 1.58 GB，英文）；模型仍在「引擎管理」里按需下载，不预置；
   ④ 为 Windows / Linux / macOS 三端做准备（Windows 行为不变），本版尚未发布
      Linux / macOS 包
+- v1.3.7 修复 / 变更：
+  ① 修复首次启动装运行组件时可能直接报错退出：检测到独立显卡并选择「CUDA 版」后，
+     引导器调用装 torch 的那一步仍是旧的无参写法，而实现已改为需要档位参数，于是弹出
+     「加载失败: phase_torch_cuda() missing 1 required positional argument」并中断。
+     现已收敛为唯一入口，按显卡驱动信息自动选档位；万一拿不到可用档位，自动改用
+     CPU 版并说明原因，不再报错；
+  ② 修复「自动降重」里用户参数被引擎清单默认值顶掉：降重闭环每一轮复检时，界面调好的
+     判定阈值与文本长度上限被清单默认值悄悄改回去，而同一轮诊断用的却是用户值，两边口径
+     对不上；现改为「先铺清单默认值、再用界面参数覆盖」，与主检测流程一致；
+  ③ 安装失败后重试，沿用你已经选过的版本（CUDA / CPU），不会偷偷换成另一套；
+  ④ 清理：入口文件去掉一个未使用的导入（不影响功能）
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -328,6 +339,20 @@ a paragraph-level report.
      on demand in Engine Manager, never bundled;
   4) groundwork for Windows / Linux / macOS (Windows behaviour unchanged); no
      Linux / macOS build ships in this release
+- Fixed / changed in v1.3.7:
+  1) fixed a crash during first-run component download: with an NVIDIA GPU and the "CUDA"
+     option chosen, the launcher still called the torch install step the old way (no argument)
+     while the implementation now requires the build index, aborting with
+     "phase_torch_cuda() missing 1 required positional argument"; installs now go through a
+     single entry point that picks the build from the driver info, and falls back to the CPU
+     build with an explanation when none can be determined;
+  2) fixed user settings being overridden by engine-list defaults in the auto-rewrite flow:
+     every re-check round silently reset the threshold and the text length cap back to the list
+     values, while the diagnosis in the same round used the user's values, so the two disagreed;
+     the merge order is now "list defaults first, then UI params on top", matching the main path;
+  3) retrying a failed install now keeps the build you already chose (CUDA or CPU) instead of
+     silently switching to the other one;
+  4) cleanup: dropped one unused import in the entry file (no functional change)
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis

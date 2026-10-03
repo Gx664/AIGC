@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core import platform_ops
-from core.settings import Settings, base_dir, migrate_legacy_layout
+from core.settings import Settings, migrate_legacy_layout
 from core.netfix import apply_env_fix
 
 # 系统代理若是 socks（VPN 客户端常见写法），Python 侧一律走直连，否则模型下载必挂

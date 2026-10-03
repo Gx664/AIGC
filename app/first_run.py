@@ -754,12 +754,9 @@ class FirstRun:
                     self.ask_variant,
                 )
                 runtime_deps.set_variant(BASE_ROOT, variant)
-                if variant == runtime_deps.VARIANT_CUDA:
-                    self.log_line(tr("fr_cuda_chosen"))
-                    self.phase_torch_cuda()
-                else:
-                    self.log_line(tr("fr_cpu_chosen") if gpu else tr("fr_gpu_none"))
-                    self.phase_torch_cpu()
+                self.log_line(tr("fr_cuda_chosen") if variant == runtime_deps.VARIANT_CUDA
+                              else (tr("fr_cpu_chosen") if gpu else tr("fr_gpu_none")))
+                self.install_torch(variant)
 
             need = deps_missing()
             if need:
@@ -806,14 +803,12 @@ class FirstRun:
         self.log_line(tr("fr_need_deps"))
 
         if need_torch:
-            # 探测显卡与 CUDA，决定装 GPU 版还是 CPU 版 ——
-            # 探测结果是 i18n 文案，直接写进日志，用户能看懂为什么快/慢
-            info = gpu_detect()
-            self.log_line(info["reason"])
-            if info["device"] == "cuda":
-                self.phase_torch_cuda(info["index"])
-            else:
-                self.phase_torch_cpu()
+            # 重试**沿用用户已经选过的那一套**（settings.json 里的 torch_variant）：
+            # 首轮问过就不再问，更不能偷偷换成另一套 —— 否则选了 CPU 的用户重试时
+            # 会被换成 CUDA 版，白等几十分钟、多占几个 GB。
+            variant = runtime_deps.get_variant(BASE_ROOT) or runtime_deps.default_variant(
+                has_nvidia())
+            self.install_torch(variant)
 
         need = deps_missing()
         if need:
@@ -856,13 +851,38 @@ class FirstRun:
         ev.wait()
         return box["v"]
 
-    def phase_torch_cuda(self, index):
+    def install_torch(self, variant):
+        """按 ``variant`` 装 torch —— **全程唯一的入口**。
+
+        首轮（``main``）与失败重试（``install_all``）都走这里，于是
+        ``phase_torch_cuda`` 只有一个调用点，不会再出现"调用点漏传 index"
+        这类签名错配（v1.3.6 的线上事故就是这么来的）。具体 CUDA 档位由
+        ``gpuinfo`` 按**驱动支持的版本**选，探测理由直接写进日志，用户能
+        看懂为什么快/慢。
+        """
+        info = gpu_detect()
+        self.log_line(info["reason"])
+        if variant == runtime_deps.VARIANT_CUDA:
+            self.phase_torch_cuda(info["index"])
+        else:
+            self.phase_torch_cpu()
+
+    def phase_torch_cuda(self, index=None):
         """装 GPU 版 torch。
 
         ``index`` 是索引名（``cu129`` / ``cu128`` / …），由 ``gpuinfo`` 按
         **驱动支持的 CUDA 版本**选出 —— 选高了会报
         "CUDA driver version is insufficient"，选低了浪费卡的性能。
+        不传时自己探测一次，兜住漏传的调用点。
         """
+        if not index:
+            index = gpu_detect()["index"]
+        if not index:
+            # 驱动太老 / CUDA 版本串认不出 → 拿不到可用档位。不能拿 "<base>/"
+            # 这种目录当索引源（pip 解析不出包，只会白等一轮超时），直接走 CPU 版。
+            self.log_line(tr("fr_cuda_no_index"))
+            runtime_deps.set_variant(BASE_ROOT, runtime_deps.VARIANT_CPU)
+            return self.phase_torch_cpu()
         self.set_status(tr("fr_torch_phase"), 5)
         last_err = None
         for base in TORCH_MIRRORS:

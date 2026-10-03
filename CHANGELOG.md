@@ -28,6 +28,46 @@ These rules apply to this project from 2026-09-25 onward:
 
 ---
 
+## v1.3.7 (2026-10-03)
+
+> Fix release: touches the first-run launcher plus two leftovers from the v1.3.6 merge,
+> **no engine algorithm or threshold changed**. The first item is a **production crash fix** —
+> on v1.3.6, any machine with a discrete GPU that chose the "CUDA" build crashed while
+> downloading the runtime components on first start. If you already installed v1.3.6, update.
+
+### Visible to users
+- 🚑 **Fixed "first start aborts half-way with an error"** — on v1.3.6, users whose machine has a
+  discrete GPU and who picked "CUDA PyTorch" got
+  `Load failed: FirstRun.phase_torch_cuda() missing 1 required positional argument: 'index'`
+  and the launcher aborted (CPU-build users and machines without a discrete GPU were unaffected).
+  Installs now go through a **single entry point** that picks the CUDA build from the driver info;
+  if no usable build can be determined it falls back to the CPU build with an explanation.
+- 🔧 **The threshold you set in Auto-rewrite now actually takes effect** — previously, on every
+  re-check round of the rewrite loop, the **decision threshold** and the **text length cap** you
+  had tuned in the UI were silently reset back to the engine-list defaults, while the diagnosis in
+  the same round used *your* values, so the two disagreed (score scale vs. decision point). The
+  merge order is now "list defaults first, then UI params on top", matching the main detection path.
+- 🔁 **Retrying a failed install no longer swaps the build** — you picked CPU, the retry switched
+  to CUDA (several GB more to download).
+
+### Fixed
+- `app/first_run.py`: the torch install call site no longer matched the implementation signature
+  (called without an argument, implementation requires one). **Root cause: the v1.3.6 merge took
+  the function body from one side but kept the call site from the other.** Installs now funnel
+  through a single `install_torch()` entry, `phase_torch_cuda(index=None)` has a default as a
+  safety net, and a new branch falls back to the CPU build when no usable CUDA build is found.
+- `app/first_run.py`: the retry path (`install_all`) used to re-detect the GPU and ignore the
+  user's first-round choice — it now reuses the variant remembered in `settings.json`.
+- `app/ui/rewrite_dialog.py`: the auto-rewrite parameter merge order was reversed (list defaults
+  overriding user values). v1.3.6 fixed the same issue in the main path `app/ui/main_window.py`
+  but missed this one.
+- `app/main.py`: dropped one unused import (cleanup, no behaviour change).
+
+### Changed
+- One new bilingual string (explaining the CUDA-build fallback); i18n keys 384 → 385 (ZH/EN in sync).
+
+---
+
 ## v1.3.6 (2026-10-03)
 
 > This release merges a batch of community fixes back into the main line:
