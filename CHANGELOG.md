@@ -43,6 +43,9 @@ These rules apply to this project from 2026-09-25 onward:
   - the shared "average log-probability" backbone was corrected, unit bias **34~67% → 0.000%**;
   - long Chinese text no longer crashes on the length cap; over-long DetectGPT inputs are
     now truncated properly on both sides.
+- 🆕 **A new 8th detection engine: Chinese perplexity (GPT2-Chinese)** — judges AI traces by
+  Chinese GPT2 perplexity, with thresholds calibrated on HC3 (the same FPR ≤ 5% criterion); the
+  model is still downloaded on demand in Engine Manager.
 - 🏷️ **Every engine now states the language it works for** — the list shows
   ✅ usable / ⚠️ weak on Chinese / ❌ do not use on Chinese / ❔ uncalibrated.
   Previously **DetectGPT's Chinese verdict was inverted** (human text scored higher); it now

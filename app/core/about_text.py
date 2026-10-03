@@ -5,9 +5,9 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 一款本地运行的 AIGC 检测桌面工具：拖入论文（PDF/DOCX/TXT），
 选择检测引擎，得到整篇 AI 生成占比与段落级报告。
 - 全程离线推理：论文内容不上传任何平台，保护隐私
-- 7 个可切换检测引擎：SimpleAI 中文检测（默认）、AIGC 中文检测 v3、GLTR 困惑度、
-  Fast-DetectGPT、DetectGPT、Binoculars、PAN ModernBERT（英文），
-  也可接入任意 HuggingFace 模型
+- 8 个可切换检测引擎：SimpleAI 中文检测（默认）、AIGC 中文检测 v3、GLTR 困惑度、
+  中文困惑度（GPT2-Chinese）、Fast-DetectGPT、DetectGPT、Binoculars、
+  PAN ModernBERT（英文），也可接入任意 HuggingFace 模型
 - 模型不预置、按需下载：用到哪个下哪个，下载一次之后完全离线可用
 - 参数可自定义并存档
 - 同机多卡自动并行；局域网可把室友电脑、Pad、手机加入并行计算
@@ -169,7 +169,7 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 
 【技术架构】
 界面：Python + PySide6（自绘现代工具风 UI）
-检测：transformers（7 个可切换引擎，模型按需下载、全程离线推理）
+检测：transformers（8 个可切换引擎，模型按需下载、全程离线推理）
 修复：本地规则引擎（9 维扫描 + 知网 5 种语言模式 + 11 种深度 AI 痕迹，段落级 JSON）
 评测：RAID / MGTBench 指标（准确率 / 假阳性率 / 假阴性率 / F1，按生成模型分项）
 扩展：引擎插件目录（engines_plugins/*.py）+ 可远端更新的引擎清单
@@ -218,9 +218,9 @@ A local AIGC detection desktop tool: drop in a paper (PDF/DOCX/TXT),
 choose a detection engine, and get the overall AI-written ratio plus
 a paragraph-level report.
 - Fully offline inference: your paper never leaves your computer
-- 7 switchable detectors: SimpleAI Chinese (default), AIGC Chinese detector v3,
-  GLTR perplexity, Fast-DetectGPT, DetectGPT, Binoculars and PAN ModernBERT
-  (English) - or any HuggingFace model you like
+- 8 switchable detectors: SimpleAI Chinese (default), AIGC Chinese detector v3,
+  GLTR perplexity, Chinese perplexity (GPT2-Chinese), Fast-DetectGPT, DetectGPT,
+  Binoculars and PAN ModernBERT (English) - or any HuggingFace model you like
 - Models are never bundled: download only the ones you use, then work offline
 - Highly customizable parameters, with savable presets
 - Automatic multi-GPU parallelism on one machine; LAN cluster lets you add
@@ -428,7 +428,7 @@ Thanks to those projects and their communities.
 
 [Tech Stack]
 UI: Python + PySide6 (custom modern-tool UI)
-Detection: transformers (7 switchable engines; models downloaded on demand,
+Detection: transformers (8 switchable engines; models downloaded on demand,
           inference always local)
 Rewrite: local rule engine (9-dimension scan + CNKI 5 patterns + 11 deep AI
          patterns, paragraph-level JSON)

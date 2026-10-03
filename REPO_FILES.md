@@ -53,7 +53,7 @@ launch. Allow it once and it behaves normally from then on.
 | File | Purpose |
 |---|---|
 | **`AIGC_Toolkit_Setup.exe` (22.1 MB)** | **The Windows installer** — kept at the repo root so it's immediately visible. It unpacks the portable Python, copies the application, and creates a desktop shortcut. The Linux / macOS counterparts (AppImage / dmg) are built in the cloud and published under [Releases](https://github.com/Gx664/AIGC/releases/latest) |
-| `README.md` | Chinese main documentation: features, principles, sources of the 9 methods, donation codes |
+| `README.md` | Chinese main documentation: features, principles, sources of the 12 methods, donation codes |
 | `README.en.md` | English documentation, mirroring `README.md` |
 | `更新日志.md` | **Chinese changelog** — what was added or fixed in each version, with a "visible to users" note per release. **Must be updated on every release** (maintenance rules at the top of the file). |
 | `CHANGELOG.md` | English changelog, mirroring `更新日志.md` one-to-one |
@@ -101,6 +101,8 @@ launch. Allow it once and it behaves normally from then on.
 | `benchmark.py` | Benchmarks: RAID / MGTBench metric computation (accuracy, false-positive rate, F1) |
 | `report.py` | Report export (Markdown and other formats) |
 | `doc_reader.py` | Reads PDF / DOCX / TXT and extracts plain text |
+| `gpuinfo.py` | **GPU detection** (new in v1.3.6): reads the driver's CUDA version to choose between the CUDA and CPU builds |
+| `selfcheck.py` | **Startup self-check** (new in v1.3.6): confirms in the background that real dependencies still import and CUDA still works, and speaks up only when something is broken |
 
 ### 3.3 `app/core/engines/` — pluggable detection engines
 
@@ -108,13 +110,14 @@ launch. Allow it once and it behaves normally from then on.
 |---|---|
 | `base.py` | Common base class for engines, defining interfaces such as `predict_paragraphs()` |
 | `registry.py` | **Plugin registry.** Implementations register via the `@register("impl")` decorator; new algorithm files dropped into `engines_plugins/` are auto-discovered at startup |
-| `catalog.py` | Built-in definitions of the 9 methods (zero dependencies — safe to import from both the UI and the installer) |
+| `catalog.py` | Built-in definitions of the 12 methods (zero dependencies — safe to import from both the UI and the installer) |
 | `manager.py` | Engine manager: merges four sources — built-in catalog, local overrides, remote updates, user-defined |
 | `simpleai_engine.py` | **SimpleAI Chinese engine** (default): RoBERTa sequence classification, per-paragraph AI probability |
 | `perplexity_engine.py` | **GLTR perplexity engine**: scores by linear interpolation between perplexity thresholds |
 | `curvature_engine.py` | **Probability-curvature engines**: Fast-DetectGPT (self-sampled perturbation) and DetectGPT (masked perturbation) |
 | `binoculars_engine.py` | **Binoculars**: cross-perplexity ratio of two models; no threshold tuning needed |
 | `rule_engine.py` | **Rule engine**: used for repair/diagnosis methods that need no model download |
+| `engines_calibration.json` | **Calibration data** (new in v1.3.6): thresholds measured by the probes, applied over the factory values at startup; change thresholds here, not in `catalog.py` |
 
 > All engine modules **import torch lazily** — so even if torch is blocked by security software, the engine list still displays correctly.
 
@@ -146,6 +149,7 @@ launch. Allow it once and it behaves normally from then on.
 | File | Purpose |
 |---|---|
 | `installer.py` | **All installer logic.** It does three things:<br>1. Downloads and unpacks the official embeddable portable Python (with mirror fallback)<br>2. Patches `._pth` and bootstraps pip<br>3. Copies the application, creates a desktop shortcut, writes the uninstall entry<br>The UI is tkinter-based; no admin rights, no registry changes. |
+| `uninstaller.py` | **Standalone uninstaller** (new in v1.3.6): shipped as an exe beside the program and carrying its own interpreter, so it still works if the runtime is deleted or broken; its cache / runtime / models checkboxes default to off |
 
 > Installation only gets the *environment* ready — heavy dependencies like torch / PySide6 are installed over the network by `app/first_run_gui.exe` on first launch.
 
@@ -161,6 +165,13 @@ These are used **for acceptance testing during development**; regular users neve
 | `smoke_test.py` | Full-feature smoke test: verifies the main flow works even without torch |
 | `test_detect.py` | Offline detection-engine self-test, pure CLI, no UI |
 | `fusion_selftest.py` | "Detect → diagnose → rewrite" closed-loop self-test, fully offline |
+| `audit_probes.py` + `probes/` | **Probe suite** (new in v1.3.6): 29 reproducible checks in `safe` / `heavy` groups; `--list` shows all, `--only <name>` runs one |
+| `export_calibration.py` | Exports probe calibration results to `app/core/engines/engines_calibration.json` (thresholds kept out of the source) |
+| `prepare_datasets.py` | Prepares the HC3 / Ghostbuster datasets (several GB, **not committed**; paths are constants at the top of the file) |
+| `build_exe.ps1` | **Windows packaging script** (new in v1.3.6): uninstaller → bootstrapper → installer, in that order |
+| `estimate_timing.py` | Estimates calibration / detection timings |
+
+> There is also `docs/FIXES.md` — the v1.3.6 merge record: measured numbers per fix, differences from the papers, threshold-calibration criteria, and how to reproduce and repackage.
 
 How to run (replace `<python>` with your interpreter):
 
