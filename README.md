@@ -1,4 +1,4 @@
-# AI 检测工具箱（AIGC Detector Toolkit）
+# AI 检测工具箱（AIGC Detector Toolkit）  我的网站：何钰刚.xyz
 
 <p align="center">
   <img src="app/assets/icon.png" width="120" alt="AI 检测工具箱">
@@ -220,15 +220,15 @@ xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app
 
 <p align="center">支付宝（Alipay）｜微信支付（WeChat Pay）</p>
 
-也欢迎发邮件到 **gxgx3456@qq.com**，或 Telegram 私信 **@A9100010** 说声加油。
+也欢迎发邮件到 **gxgx3456@qq.com**，或 Telegram 私信 **@AaAa9100** 说声加油。
 
-> 💬 **反馈 / 意见 / 合作都欢迎联系：gxgx3456@qq.com ｜ Telegram: @A9100010**
+> 💬 **反馈 / 意见 / 合作都欢迎联系：gxgx3456@qq.com ｜ Telegram: @AaAa9100**
 
 ### For international users
 
 If you'd like to tip but don't use either of the two payment methods above, you can contact me on Telegram to send a tip instead - thank you!!!
 
-**Telegram: @A9100010** (not my personal account; it is a purchased one)
+**Telegram: @AaAa9100** (not my personal account; it is a purchased one)
 
 ## 技术架构
 
@@ -244,7 +244,7 @@ If you'd like to tip but don't use either of the two payment methods above, you 
 
 ## Bug 反馈
 
-软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**，或 Telegram 私信 **@A9100010**。
+软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**，或 Telegram 私信 **@AaAa9100**。我的网站：何钰刚.xyz
 
 反馈 / 意见 / 合作都欢迎联系，两个渠道都可以。
 
@@ -269,6 +269,6 @@ If you'd like to tip but don't use either of the two payment methods above, you 
 
 ### 如需商业授权
 
-请邮件联系 **gxgx3456@qq.com**，或 Telegram 私信 **@A9100010**，说明用途与范围。
+请邮件联系 **gxgx3456@qq.com**，或 Telegram 私信 **@AaAa9100**，说明用途与范围。
 
 > 本协议限制的是**他人**的商业使用，不影响作者本人对项目收费或提供商业授权。
