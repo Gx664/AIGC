@@ -13,7 +13,6 @@ import re
 
 from .aigc_rules import (
     ABSTRACT_NOUN_CHAIN,
-    COLLOQUIAL_TERMS,
     DEEP_PATTERNS,
     OVERLAP_CONNECTIVES,
     PARA_END_META,
@@ -22,6 +21,8 @@ from .aigc_rules import (
     REPORT_TEMPLATES,
     SUGGESTIONS,
     TEMPLATE_PATTERNS,
+    count_colloquial,
+    find_colloquial,
 )
 
 
@@ -106,11 +107,11 @@ def scan_9dim(paragraphs):
     colon_lists = len(re.findall(r"[：:]\s*.+?[；;]\s*.+?[；;]", text))
     comma_count = text.count("，") + text.count(",")
     commas_per_sent = round(comma_count / max(len(sentences), 1), 2)
+    # 必须走 count_colloquial（词边界匹配），不能用 `term in text`——
+    # 子串匹配会把英文论文的 haemorrhagic / occupied / remove 误判成 "emo"/"cpu"。
     colloquial_hits = []
-    for term in COLLOQUIAL_TERMS:
-        c = text.count(term)
-        if c:
-            colloquial_hits.extend([term] * c)
+    for term, c in count_colloquial(text):
+        colloquial_hits.extend([term] * c)
     dash_over_paras = sum(1 for p in paragraphs if p.count(EM_DASH) >= 2)
 
     risk_count = 0
@@ -367,7 +368,7 @@ def _analyze_deep_11(para, doc_paired_contrast_count):
 # ─────────────────────────────────────────────────────────────
 def _style_guard(para):
     issues = []
-    hits = [t for t in COLLOQUIAL_TERMS if t in para]
+    hits = find_colloquial(para)
     if hits:
         issues.append("口语化/网络用语：%s" % "、".join(hits))
     if para.count(EM_DASH) >= 2:

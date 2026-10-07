@@ -957,6 +957,21 @@ class FirstRun:
 
 
 if __name__ == "__main__":
+    # CI 冒烟开关（对应 .github/workflows/cross-platform-build.yml 的「冒烟自测」）：
+    # 能走到这里，说明**模块级 import 与常量计算已全部成功** —— 正是要验的东西。
+    #
+    # 为什么需要它：本文件在 Unix 侧由 unix_launcher.py 用 runpy **运行时**加载，
+    # PyInstaller 的静态分析看不见它；若打包时没把 "first_run" 交给分析器
+    # （见 packaging/AIGC_Toolkit_unix.spec 的 hiddenimports），它模块级 import 的
+    # 那些标准库一个都不会进 PYZ，在干净机器上首启直接：
+    #   ModuleNotFoundError: No module named 'queue'
+    # （v1.3.7 的 AppImage 就是这样被 appimage.github.io 收录测试打回的。）
+    #
+    # ⚠️ 这个开关**必须**只依赖 os.environ，绝不能为了自测在本文件里新增任何 import
+    #   —— 那会让分析器顺着它把模块收进去，自测就永远通过、彻底失去意义。
+    if os.environ.get("AIGC_TOOLKIT_SELFTEST") == "1":
+        print("SELFTEST_OK: first_run module-level imports resolved")
+        raise SystemExit(0)
     try:
         FirstRun()
     except Exception:

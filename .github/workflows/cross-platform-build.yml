@@ -123,6 +123,30 @@ jobs:
             "import sys; sys.path.insert(0, sys.argv[1]); from core import platform_ops; print('OK', platform_ops.describe())" \
             "$APP_SRC"
 
+      - name: 冒烟自测（真跑冻结入口，验 PYZ 依赖闭包）
+        run: |
+          set -euo pipefail
+          APP="$PWD/dist-unix/AIGC_Toolkit"
+          # ⚠️ 上一步用的是**便携 Python**（自带完整标准库），永远测不到冻结 PYZ
+          #    里缺没缺模块 —— v1.3.7 的 AppImage 就是这么溜过去的：first_run.py
+          #    由 runpy 运行时加载、静态分析看不见，PYZ 里漏收 queue，干净机器
+          #    首启即 `ModuleNotFoundError: No module named 'queue'`
+          #    （appimage.github.io 收录测试打回）。
+          #    这一步真跑冻结出来的启动器本体，让它 import 一遍依赖闭包
+          #    （AIGC_TOOLKIT_SELFTEST=1 → first_run 跑完模块级 import 就打印标记退出，
+          #      不弹界面）。没等到标记（例如它先崩在 import 上）= 失败。
+          OUT=$(AIGC_TOOLKIT_SELFTEST=1 "$APP/AIGC_Toolkit" 2>&1) || { echo "$OUT"; exit 1; }
+          echo "$OUT"
+          case "$OUT" in
+            *SELFTEST_OK*) ;;
+            *) echo "::error::自测未输出 SELFTEST_OK —— first_run 的依赖闭包不完整（PYZ 漏收模块）"; exit 1 ;;
+          esac
+          # core/ 源码副本也必须躺在产物里：冻结包 core 的 __path__ 指向
+          # <_MEIPASS>/core，没被 first_run 静态引用的子模块（core.engines.*）
+          # 只能从磁盘解析。顺手钉一下，别再丢 --add-data / datas。
+          CORE_PY=$(find "$APP" -maxdepth 4 -type f -path '*/core/platform_ops.py' | head -1)
+          test -n "$CORE_PY" || { echo "产物里找不到 core/platform_ops.py"; exit 1; }
+
       - name: 打 AppImage
         run: |
           set -euo pipefail
@@ -311,6 +335,23 @@ jobs:
           "$BUNDLE/Contents/Resources/runtime/python/bin/python3" -c \
             "import sys; sys.path.insert(0, sys.argv[1]); from core import platform_ops; print('OK', platform_ops.describe())" \
             "$APP_SRC"
+
+      - name: 冒烟自测（真跑冻结入口，验 PYZ 依赖闭包）
+        run: |
+          set -euo pipefail
+          BUNDLE="$PWD/dist-unix/AIGC_Toolkit.app"
+          APP="$BUNDLE/Contents/MacOS"
+          # 理由同 Linux job：便携 Python 测不到冻结 PYZ，必须真跑启动器本体。
+          # AIGC_TOOLKIT_SELFTEST=1 → first_run 跑完模块级 import 打印标记即退出，
+          # 不弹界面（CI 无显示也能跑）；没等到标记 = 失败。
+          OUT=$(AIGC_TOOLKIT_SELFTEST=1 "$APP/AIGC_Toolkit" 2>&1) || { echo "$OUT"; exit 1; }
+          echo "$OUT"
+          case "$OUT" in
+            *SELFTEST_OK*) ;;
+            *) echo "::error::自测未输出 SELFTEST_OK —— first_run 的依赖闭包不完整（PYZ 漏收模块）"; exit 1 ;;
+          esac
+          CORE_PY=$(find "$BUNDLE" -maxdepth 6 -type f -path '*/core/platform_ops.py' | head -1)
+          test -n "$CORE_PY" || { echo "产物里找不到 core/platform_ops.py"; exit 1; }
 
       - name: 打 dmg
         run: |

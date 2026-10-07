@@ -51,6 +51,22 @@ _CUDA_BY_DRIVER = (
 # 低于这个版本直接走 CPU 版（再老的驱动连 cu118 都跑不动）
 MIN_CUDA = (11, 8)
 
+# 驱动版本号 -> 它支持的最高 CUDA 版本。**新驱动不一定在 nvidia-smi 里打
+# ``CUDA Version`` 字段**（610.x 起改成 ``CUDA UMD Version``，字段名还会继续变），
+# 正则一旦落空就只剩这张表可兜底，否则会把好卡误判成"驱动过旧"。
+# 取值来源：NVIDIA 每个 CUDA  Toolkit 的最低驱动要求（R525→12.0，R580→13.0）。
+_DRIVER_MAJOR_CUDA = (
+    (580, "13.0"),
+    (570, "12.8"),
+    (550, "12.4"),
+    (525, "12.0"),
+    (470, "11.4"),
+)
+
+# nvidia-smi 里表示"驱动支持的最高 CUDA 版本"的字段名。按新旧顺序逐个试，
+# 后面每加一种新写法只需往这里追加一条，不用改正则。
+_CUDA_FIELDS = ("CUDA Version", "CUDA UMD Version")
+
 
 def nvidia_smi_path():
     """找 nvidia-smi.exe：先 PATH，再 System32（装驱动时固定落这儿）。"""
@@ -106,6 +122,44 @@ def pick_torch_index(cuda_version):
     return ""
 
 
+def cuda_from_driver(driver):
+    """``nvidia-smi`` 没报 CUDA 字段时，用驱动版本号反推它支持的最高 CUDA。
+
+    新驱动（610+）把 ``CUDA Version`` 改名成 ``CUDA UMD Version``，再往后还会变；
+    正则落空时如果就此判定"驱动过旧"，好卡会被误杀成CPU。所以最后用驱动主版本
+    兜底：R525 起支持 12.0，R580 起支持 13.0。
+
+    :param driver: 形如 ``"610.47"`` / ``"580.65"`` 的驱动版本
+    :return: 形如 ``"12.8"`` 的字符串，认不出返回 ``""``
+    """
+    if not driver:
+        return ""
+    m = re.match(r"\s*(\d+)", str(driver))
+    if not m:
+        return ""
+    major = int(m.group(1))
+    for need_major, cuda in _DRIVER_MAJOR_CUDA:
+        if major >= need_major:
+            return cuda
+    return ""
+
+
+def parse_cuda_from_smi(full_output):
+    """从 ``nvidia-smi`` 默认输出里取"驱动支持的最高 CUDA 版本"。
+
+    字段名按 ``_CUDA_FIELDS`` 逐个试，谁先命中用谁——不同驱动版本报的名字不一样。
+
+    :param full_output: ``nvidia-smi`` 无参数运行的完整输出
+    :return: 形如 ``"12.9"`` 的字符串，没有则 ``""``
+    """
+    text = full_output or ""
+    for field in _CUDA_FIELDS:
+        m = re.search(re.escape(field) + r"\s*:\s*([\d.]+)", text)
+        if m:
+            return m.group(1)
+    return ""
+
+
 def detect():
     """探测显卡与 CUDA，返回「该装哪套 torch」的建议。
 
@@ -156,8 +210,11 @@ def detect():
 
     # CUDA Version 只在默认输出里（--query-gpu 不提供这一项）
     _, full = _run([smi])
-    m = re.search(r"CUDA Version:\s*([\d.]+)", full or "")
-    info["cuda"] = m.group(1) if m else ""
+    info["cuda"] = parse_cuda_from_smi(full)
+    if not info["cuda"]:
+        # 新驱动换了字段名（610+ 报 "CUDA UMD Version"），正则落空就用驱动号反推，
+        # 不能因为读不到字段就断言"驱动过旧"——那是把好卡误判成 CPU 的最常见原因。
+        info["cuda"] = cuda_from_driver(info["driver"])
 
     idx = pick_torch_index(info["cuda"])
     gpu_name = info["gpu"] or "NVIDIA 显卡"

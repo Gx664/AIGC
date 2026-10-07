@@ -95,6 +95,29 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
      对不上；现改为「先铺清单默认值、再用界面参数覆盖」，与主检测流程一致；
   ③ 安装失败后重试，沿用你已经选过的版本（CUDA / CPU），不会偷偷换成另一套；
   ④ 清理：入口文件去掉一个未使用的导入（不影响功能）
+- v1.3.8 修复 / 变更（用户反馈修复；三处均为线上 Bug，引擎与阈值不动）：
+  ① 「检测显卡」不再自相矛盾：此前同一弹窗上半句说「驱动过旧（CUDA ?），只能用 CPU」、
+     下半句却说「torch 已能调用显卡」。根因是 NVIDIA 从 610 系驱动起把 nvidia-smi 的字段
+     名从 `CUDA Version:` 改成 `CUDA UMD Version:`，而正则只认旧名，读空后被当成
+     「驱动真的老」。现已改为多字段名依次尝试 + 字段彻底缺失时用驱动号反推 CUDA 上限，
+     并以 torch 实测为唯一权威。RTX 4060 Laptop（驱动 610.47）已验证正确判为GPU 可用；
+  ② 英文 SCI 论文不再被误判成「口语化」：此前全文刷出「语体警告：口语化/网络用语：emo」，
+     原因是 haemorrhagic（出血性的）里含 emo 四个字母。口语化检测现按**整词**匹配
+     （`emo了`、`cpu崩了` 这类贴边写法仍能抓到），且纯英文文本不查这类网络用语词。
+     中文口语化检测能力不受影响；
+  ③ 英文降重从「几乎不动」变成「真降」：此前英文段落只能被把 `(1)` 换成「其一，」
+     （既破坏英文句子，修改率也只有 1%），其余全部跳过。现英文走独立的学术英语规则：
+     删除 AI 元话语壳（It is important to note that / In conclusion…）、替换冗余连接词、
+     词级同义替换并保持大小写，同时修英文特有语法损伤（句首大写、a/an 协调）。
+     实测同类段落修改率 1% → 77%，且数字、引用与专业术语原样保留；
+  ④ 修复 Linux AppImage 首次启动立刻闪退：在一台从没装过本软件的机器上双击，只会看到
+     进程一闪而过；日志报 `ModuleNotFoundError: No module named 'queue'`。根因是打包时
+     引导脚本 app/first_run.py 由 unix_launcher.py 在**运行时**加载，静态分析看不见它，
+     于是它模块级 import 的标准库（queue / re / shutil / subprocess / threading / time /
+     traceback / importlib.util）一个都没进包体；现已显式交给打包器收集。Windows 安装包
+     不受该缺陷影响；
+  ⑤ 打包自检加强：三端构建增加一步「真跑冻结产物」的冒烟自测 —— 原先的自检用的是自带完整
+     标准库的便携 Python，碰不到冻结包体，才让上面这个问题漏到线上
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -106,6 +129,13 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 - 治疗：按三轮协议做确定性改写——去除 AI 痕迹（词级替换/句级重构/拆排比）、
   注入书面学术特征（确定性长句拆分，绝不编造）、Anti-AI 审计与语体守门。
   数字、术语、引用、图表编号、公式原样保留；不口语化，不编造事实；语体优先于修改率。
+  **中英文分流**：中文走词级/句级替换表 + 拆排比；英文（SCI/学术论文）走独立规则——
+  删除 AI 元话语壳（It is important to note that、In conclusion…）、冗余连接词
+  （Due to the fact that → Because）、空壳名词化（is able to → can），并保持大小写。
+  英文路径**不动参考文献编号**（`(1)` 在英文里是引用，不是排比项），也不套中文破折号规则。
+  另有三道防护保证不改坏句子：两张规则表不得有同一条目（否则互相打架、留下悬空的
+  "that"）；不破坏主谓一致（所以 `play a crucial role in` 这类转换刻意不做）；
+  「multiple many」这类量词叠用成对丢弃。
 - 检测到 AI 率高于阈值会自动建议进入降重；降重参数可自定义并存档。
 
 【灵感故事】
@@ -353,6 +383,37 @@ a paragraph-level report.
   3) retrying a failed install now keeps the build you already chose (CUDA or CPU) instead of
      silently switching to the other one;
   4) cleanup: dropped one unused import in the entry file (no functional change)
+- Fixed / changed in v1.3.8 (user-feedback fix; three live bugs, no engine or threshold changes):
+  1) "Check GPU" no longer contradicts itself: the same dialog used to say "driver too old
+     (CUDA ?), CPU only" on top and "torch can already use the GPU" below. Root cause: from the
+     610 driver family NVIDIA renamed the nvidia-smi field from `CUDA Version:` to
+     `CUDA UMD Version:`, the regex only knew the old name, and the empty result was then read
+     as "the driver really is old". Now several field names are tried in order, a missing field
+     falls back to deriving the CUDA ceiling from the driver version, and the torch measurement
+     is the single authority. Verified on an RTX 4060 Laptop (driver 610.47);
+  2) English SCI papers are no longer flagged as colloquial: the whole document used to report
+     "register warning: colloquial/online slang: emo" because `haemorrhagic` contains the four
+     letters `emo`. Matching is now whole-word (glued spellings like `emo了` / `cpu崩了` still
+     hit), and pure-English text is not checked for those slang terms at all. Chinese colloquialism
+     detection is unaffected;
+  3) English rewrite goes from "almost nothing" to "actually rewriting": English paragraphs used
+     to get `(1)` turned into `其一，` (mangling an English sentence for a 1% change ratio) with
+     everything else skipped. English now runs its own academic-English rule set: strips AI
+     meta-discourse shells (It is important to note that / In conclusion...), swaps redundant
+     connectives, does word-level synonym replacement with case preservation, and repairs
+     English-specific grammar damage (capitalisation after shell removal, a/an agreement).
+     Measured on comparable paragraphs: 1% -> 77% change ratio, with numbers, citations, and
+     technical terms left untouched;
+  4) fixed the Linux AppImage crashing instantly on first launch: on a machine that had never
+     run the app, double-clicking only produced a process that flashed by, with the log
+     showing `ModuleNotFoundError: No module named 'queue'`. Root cause: the bootstrap script
+     app/first_run.py is loaded at *runtime* by unix_launcher.py, so static analysis never
+     sees it and every stdlib module it imports at module level (queue / re / shutil /
+     subprocess / threading / time / traceback / importlib.util) was left out of the bundle;
+     it is now handed to the packager explicitly. The Windows installer was never affected;
+  5) stronger build self-check: the three-platform build now runs a smoke test that actually
+     executes the frozen artifact - the old check used the portable Python (full standard
+     library) and never touched the frozen bundle, which is how the problem reached production
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis
@@ -370,6 +431,17 @@ and rewriting (treatment):
   sentence splitting, never fabricating), then Anti-AI audit + register guard.
   Numbers, terms, citations, figure/table refs and formulas stay untouched;
   no colloquialisms, no invented facts; register comes before change ratio.
+  **Chinese and English route separately**: Chinese uses the word/sentence
+  replacement tables plus parallel-structure splitting; English (SCI / academic
+  papers) uses its own rule set - stripping AI meta-discourse shells
+  (It is important to note that, In conclusion, ...), redundant connectives
+  (Due to the fact that -> Because), and empty nominalisations (is able to -> can),
+  all with case preservation. The English path **never touches reference numbers**
+  (`(1)` is a citation in English, not a list item) and does not apply the Chinese
+  em-dash rule. Rewrites are guarded against broken output: the two rule tables may
+  not contain the same entry (they would fight and leave a dangling "that"),
+  subject-verb agreement is never broken (so "play a crucial role in" is left alone),
+  and quantifier pile-ups such as "multiple many" are rejected as a pair.
 - When the AI ratio exceeds the threshold you set, the app suggests entering
   the rewrite flow. Rewrite parameters are customizable and savable.
 [Inspiration]

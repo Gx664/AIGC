@@ -19,6 +19,9 @@ telemetry_queue.json
 build[0-9]*/
 dist[0-9]*/
 dist_first/
+# Unix 侧打包产物（命令见 packaging/AIGC_Toolkit_unix.spec 顶部；CI 与本地都会生成）
+build-unix/
+dist-unix/
 tools/ui_verify_*.png
 app/logs/
 tools/screen_*.png

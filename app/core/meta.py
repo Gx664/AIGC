@@ -1,5 +1,5 @@
 APP_NAME = "AI 检测工具箱"
-APP_VERSION = "1.3.7"
+APP_VERSION = "1.3.8"
 AUTHOR_NAME = "gxgx3456"
 AUTHOR_EMAIL = "gxgx3456@qq.com"
 # Telegram 联系方式（用户 2026-09-25 指定：非本人注册，为购买的账号）

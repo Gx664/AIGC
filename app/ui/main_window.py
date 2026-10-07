@@ -518,24 +518,35 @@ class MainWindow(QMainWindow):
     def check_gpu(self):
         """检测"勾了 GPU 到底能不能用"；不能用就取消勾选并说明原因。
 
-        两层信息：``gpuinfo`` 说明"机器上有什么卡、驱动支持到哪版 CUDA"，
-        ``torch`` 说明"装到本机的这套 torch 现在能不能调起来"—— 两者都能用
-        才算真的可用（驱动升级后 torch 版本不匹配是最常见的坏法）。
+        以``torch`` 为唯一权威：只有"这台机器上实际装着的这套 torch 现在能不能
+        调起CUDA"才算数。``gpuinfo`` 只提供机器侧参考（卡名/驱动/CUDA 上限），
+        它的结论**不能**推翻 torch 的实测——早期版本两行都打出来时会自相矛盾
+        （上半句"驱动过旧只能用 CPU"、下半句"torch 已能调用显卡"），
+        原因是 nvidia-smi 的字段名变了（``CUDA Version`` → ``CUDA UMD Version``）
+        而正则没跟上，于是把好卡读成CUDA 未知。
         """
         info = gpu_detect()
-        lines = [info.get("reason", "")]
         ok = False
+        runtime = ""
         try:
             import torch
 
             ok = bool(torch.cuda.is_available())
             if ok:
-                lines.append(tr("gpu_ok_runtime") % torch.cuda.get_device_name(0))
+                runtime = tr("gpu_ok_runtime") % torch.cuda.get_device_name(0)
         except Exception as e:  # noqa: BLE001
-            lines.append(tr("gpu_no_torch") % e)
-        if not ok:
+            runtime = tr("gpu_no_torch") % e
+        if ok:
+            # torch 说能用就是能用，只报实际状态，不叠加机器侧的悲观结论
+            lines = [runtime]
+            if info.get("driver"):
+                lines.append(tr("gpu_env_ok") % (info["gpu"] or tr("gpu_generic_card"),
+                                                info["driver"]))
+        else:
+            # torch 说不能用才需要解释原因，这时gpuinfo 的结论才有参考价值
+            lines = [info.get("reason", ""), runtime]
             self.chk_gpu.setChecked(False)
-        QMessageBox.information(self, tr("btn_check_gpu"), "\n".join(lines))
+        QMessageBox.information(self, tr("btn_check_gpu"), "\n".join(l for l in lines if l))
 
     def check_cluster(self):
         """检测局域网上有没有工作节点；没有就取消勾选并给出下一步。"""

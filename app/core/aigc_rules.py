@@ -99,6 +99,57 @@ COLLOQUIAL_TERMS = [
     "真的强", "真的行", "拉满", "没跑偏", "谁懂",
 ]
 
+# 清单里的 ASCII 项（emo / cpu / yyds…）必须按**词边界**匹配，不能用 `in`。
+# 否则英文论文会被整片误判：haemorrhagic 里含 "emo"、occupied 里含 "cpu"、
+# remove 里含 "emo"，全是子串巧合，与语体无关。中文项没有词边界概念，保持子串。
+#
+# 边界不能用 ``\b``：Python 的 \w 把中文也算单词字符，于是"emo了""cpu崩了"
+# 这种 ASCII 词紧贴中文的写法会漏检（o 与 了 之间没有 \b）。改用显式的
+# ASCII 字母/数字/下划线否定环视——只要左右不是 ASCII 单词字符就算独立成词，
+# 紧贴中文照样命中，而 remove / occupied 里的内嵌子串不会。
+_COLLOQUIAL_ASCII = re.compile(
+    r"(?<![A-Za-z0-9_])(?:%s)(?![A-Za-z0-9_])"
+    % "|".join(re.escape(t) for t in COLLOQUIAL_TERMS if t.isascii()),
+    re.IGNORECASE,
+)
+# 中文文本判定：只有含中日韩字符的文本才去查ASCII 口语词——
+# 纯英文文本里的 "cpu"/"emo" 是正常词汇，不是网络用语。
+_HAS_CJK = re.compile(r"[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+
+
+def count_colloquial(text):
+    """统计口语化命中，**按词边界匹配 ASCII 项**，返回 ``[(词, 次数), ...]``。
+
+    为什么不能直接 ``term in text``：``in`` 是子串匹配，英文论文会被误伤成一片
+    红——``haemorrhagic``（出血性的）含 ``emo``、``occupied`` 含 ``cpu``、
+    ``remove`` 含 ``emo``。这类假阳性会让降重引擎以为碰到网络用语而放弃改写。
+
+    :param text: 待检查文本
+    :return: ``[(命中词, 次数), ...]``，无命中返回 ``[]``
+    """
+    hits = []
+    for term in COLLOQUIAL_TERMS:
+        if term.isascii():
+            continue
+        c = text.count(term)
+        if c:
+            hits.append((term, c))
+    if _HAS_CJK.search(text):
+        for m in _COLLOQUIAL_ASCII.finditer(text):
+            hits.append((m.group(0).lower(), 1))
+    return hits
+
+
+def find_colloquial(text):
+    """命中词去重列表（按在文中首次出现的位置排序），供诊断/审计展示。"""
+    seen = {}
+    for term, _ in count_colloquial(text):
+        pos = text.find(term)
+        if pos < 0:  # ASCII 大小写与原文不同的情况
+            pos = text.lower().find(term)
+        seen.setdefault(pos, term)
+    return [seen[k] for k in sorted(seen)]
+
 # 口语词 → 书面学术替代（语体守门用，只替换黑名单里可安全映射的）
 COLLOQUIAL_FIXES = {
     "说白了": "具体而言",
@@ -555,3 +606,136 @@ SUGGESTIONS = {
         "en": "High comma density: split long compound sentences",
     },
 }
+
+
+# ─────────────────────────────────────────────────────────────
+# 7. 英文降重规则库（SCI/学术论文向）
+# ─────────────────────────────────────────────────────────────
+# 为什么单列一节：治疗引擎的中文规则全是汉字模式，英文段落一条都匹配不上，
+# 结果就是英文论文只能被 ``NUMBERED_MARKERS`` 把"(1)"换成"其一，"——既破坏句子
+# 又只拿到 1% 修改率。英文需要的不是词级同义替换，而是**去掉 AI 腔的元话语
+# （meta-discourse）**并做句式重构：学术英语里"It is important to note that"
+# "Due to the fact that" "In conclusion" 这类壳比用词更像 AI。
+#
+# 全部为确定性替换，不调用任何 LLM——与本引擎"禁止全量重写、不编造事实"的
+# 铁律一致：只删壳、换连接词、调语序，不动事实、不动数字、不动引用。
+EN_SENTENCE_REWRITES = [
+    # ── 元话语壳（AI 最强特征，删掉不损失信息）
+    (re.compile(r"It is (?:important|worth|essential|crucial|necessary) to note that\s*", re.I), ""),
+    (re.compile(r"It should be noted that\s*", re.I), ""),
+    (re.compile(r"It is worth mentioning that\s*", re.I), ""),
+    (re.compile(r"It is worth noting that\s*", re.I), ""),
+    (re.compile(r"It is important to (?:emphasize|highlight|stress) that\s*", re.I), ""),
+    (re.compile(r"It is (?:clear|evident|apparent) that\s*", re.I), ""),
+    (re.compile(r"It (?:can|may) be (?:seen|observed|noted) that\s*", re.I), ""),
+    (re.compile(r"There (?:is|are) (?:a number of|several|many|various) \w+ that\s*", re.I), ""),
+    (re.compile(r"It (?:is|was) (?:also )?(?:important|necessary) to (?:note|mention|stress)\b", re.I), ""),
+    # ── 冗余连接壳 → 学术连词
+    (re.compile(r"Due to the fact that\s*", re.I), "Because "),
+    (re.compile(r"Due to the reason that\s*", re.I), "Because "),
+    (re.compile(r"In order to\s*", re.I), "To "),
+    (re.compile(r"In the event that\s*", re.I), "If "),
+    (re.compile(r"With regard to\s*", re.I), "For "),
+    (re.compile(r"With respect to\s*", re.I), "For "),
+    (re.compile(r"Despite the fact that\s*", re.I), "Although "),
+    (re.compile(r"Regardless of the fact that\s*", re.I), "Although "),
+    (re.compile(r"a (?:large|wide) (?:number|range) of\s*", re.I), "many "),
+    (re.compile(r"a great deal of\s*", re.I), "much "),
+    (re.compile(r"the utilization of\s*", re.I), "the use of "),
+    (re.compile(r"the implementation of\s*", re.I), "the application of "),
+    # ── 章末套话（AI 收束签名）。不锚在段首：SCI 长段里"In conclusion,"
+    # 常出现在句中甚至句尾，锚 ^ 会整条落空（早期版本因此漏删）。
+    (re.compile(r"\bIn conclusion,\s*", re.I), ""),
+    (re.compile(r"\bTo sum(?:mary|ing) up,\s*", re.I), ""),
+    (re.compile(r"\bIn summary,\s*", re.I), ""),
+    (re.compile(r"\bOverall,\s*", re.I), ""),
+    (re.compile(r"\bTherefore,\s*", re.I), "Hence, "),
+    (re.compile(r"\bThus,\s*", re.I), "Hence, "),
+    (re.compile(r"\bMoreover,\s*", re.I), "In addition, "),
+    (re.compile(r"\bFurthermore,\s*", re.I), "In addition, "),
+    (re.compile(r"\bAdditionally,\s*", re.I), "In addition, "),
+    (re.compile(r"\bBesides,\s*", re.I), ""),
+    (re.compile(r"\bConsequently,\s*", re.I), "Accordingly, "),
+    (re.compile(r"\bHenceforth,\s*", re.I), ""),
+    # ── 空壳名词化（AI 偏好 nominalization，拆回动词）
+    (re.compile(r"the (?:utilization|employment) of\s*", re.I), "using "),
+    (re.compile(r"is able to\s*", re.I), "can "),
+    (re.compile(r"are able to\s*", re.I), "can "),
+    (re.compile(r"has the ability to\s*", re.I), "can "),
+    (re.compile(r"have the ability to\s*", re.I), "can "),
+(re.compile(r"there (?:is|are) (?:no|little) (?:doubt|question) (?:that )?\s*", re.I), "Clearly, "),
+    # ⚠️ 刻意**不做** "plays a crucial role in → is central to" 这类转换：
+    # "numerous factors play a crucial role in X" 会变成 "many factors is central
+    # to X"，主谓不一致（factors 是复数）。把 play 拆成 is 就必须同步改主语单复数，
+    # 而单复数判定依赖具体名词（factors/data/results…规则表列不全），漏一个就是
+    # 语法错误。宁可少改，也不要违反本引擎「不产出病句」的铁律——AI 腔的削弱
+    # 由删除元话语壳 + 词级替换承担，不需要动这条。
+    (re.compile(r"on the basis of\s*", re.I), "from "),
+    (re.compile(r"in the context of\s*", re.I), "within "),
+    (re.compile(r"at the same time\s*", re.I), "concurrently "),
+]
+
+# 英文词级替换：长词优先 + 大小写保持（句首大写不动）
+EN_WORD_REPLACEMENTS = [
+    ("numerous", ["many", "several"]),
+    ("a variety of", ["multiple", "a range of"]),
+    ("a wide range of", ["a broad spectrum of", "many"]),
+    ("a variety", ["a range"]),
+    ("significant", ["notable", "substantial"]),
+    ("significantly", ["notably", "markedly"]),
+    ("crucial", ["essential", "pivotal"]),
+    ("crucially", ["essentially", "above all"]),
+    ("very important", ["critical"]),
+    ("extremely", ["highly"]),
+    ("in addition", ["furthermore", "also"]),
+    ("utilize", ["use", "apply"]),
+    ("utilizes", ["uses", "applies"]),
+    ("utilized", ["used", "applied"]),
+    ("utilization", ["use"]),
+    ("approximately", ["about", "roughly"]),
+    ("approximately", ["circa"]),
+    ("prior to", ["before"]),
+    ("subsequent to", ["after"]),
+    ("a number of", ["several"]),
+    ("the majority of", ["most"]),
+    ("conducted a comprehensive", ["ran a full"]),
+    ("comprehensive analysis", ["full analysis", "systematic review"]),
+    ("detailed analysis", ["close analysis"]),
+    ("researchers conducted", ["we carried out", "the study examined"]),
+    # ⚠️ 故意**不收**这几条：in order to / due to the fact that / is able to /
+    # are able to / has the ability to / it is worth noting / it is important to note
+    # ——它们已由 EN_SENTENCE_REWRITES 处理（换连接词或删壳）。同一条内容在两张表里
+    # 各写一遍会互相打架：句级删掉 "It is important to note that" 后，词级规则会把
+    # 残留的 "it is important to note" 再换成 "notably"，留下悬空的 "that"
+    # （"It is important to note that" → "Notably that"，语法崩坏）。
+    # 这类壳的清理**只放在句级表**，词级表只留句级表不处理的纯词。
+    ("furthermore", ["in addition", "also"]),
+    ("moreover", ["in addition", "also"]),
+    ("therefore", ["hence", "thus"]),
+    ("however", ["yet", "still"]),
+    ("very", ["highly", "notably"]),
+]
+
+# 排序：长词优先，避免 "significant" 先于 "significantly" 被拆坏
+EN_WORD_REPLACEMENTS.sort(key=lambda x: len(x[0]), reverse=True)
+
+# 英文语境判定：ASCII 字母占比够高、且汉字极少，才让治疗引擎走英文路径。
+# 阈值放宽到 1.5%：SCI 段落常夹 (1)、n = 30、Fig. 2 这类符号，拉太紧会误判成中文路径。
+_EN_CJK = re.compile(r"[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+_EN_LATIN = re.compile(r"[A-Za-z]")
+
+
+def is_english_text(text, min_latin=20):
+    """判断文本是否"以英文为主"（治疗引擎据此选中文规则还是英文规则）。
+
+    :param text: 待判定文本
+    :param min_latin: 拉丁字母数下限，不足则一律当中文（样本太小判不准）
+    :return: True = 英文为主
+    """
+    if not text:
+        return False
+    latin = len(_EN_LATIN.findall(text))
+    if latin < min_latin:
+        return False
+    cjk = len(_EN_CJK.findall(text))
+    return latin >= cjk * 20

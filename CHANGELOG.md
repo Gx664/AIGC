@@ -28,6 +28,173 @@ These rules apply to this project from 2026-09-25 onward:
 
 ---
 
+## v1.3.8 (2026-10-07)
+
+> User-feedback fix release: fixes three live bugs — **false "driver too old" on GPU
+> check**, **false colloquialism hits on English papers**, **rewrite doing nothing on
+> English text** — plus the **Linux AppImage first-launch crash**.
+> No engine algorithm or threshold changes; this release only touches detection,
+> register judgement, and the rewrite pipeline.
+
+All three fixes come from a complete report from a user on an RTX 4060 Laptop
+(driver 610.47). All three are bugs that compile, run, and still produce wrong output,
+which string-level validation cannot catch — so each one gets a behaviour-level
+regression test (`_diag/test_en_gpu_fixes.py`, 55 assertions).
+
+### Visible to users
+
+- 🎮 **"Check GPU" no longer contradicts itself** — the same dialog used to say
+  "driver too old (CUDA ?), CPU only" on the top half and "torch can already use the
+  GPU" on the bottom half. It now trusts the **torch measurement**: if the GPU is
+  usable, only the actual state is reported and the machine-side pessimism is dropped.
+  The popup goes from two contradictory lines to one definite answer.
+- 📄 **English SCI papers are no longer flagged as colloquial** — the whole document
+  used to scream "register warning: colloquial/online slang: emo" because
+  `haemorrhagic` contains the four letters `emo`. Matching is now **whole-word**, so
+  those false positives are gone. Chinese colloquialism detection is **unaffected**
+  (`yyds` / `绝绝子` / `说白了` / `emo了` still hit).
+- ✍️ **English rewrite goes from "almost nothing" to "actually rewriting"** — English
+  paragraphs used to get `(1)` turned into `其一，` (which mangles an English sentence
+  and yields a 1% change ratio) while everything else was skipped. English now runs
+  **its own academic-English rule set**: strips AI meta-discourse shells
+  (`It is important to note that`, `In conclusion`, …), swaps redundant connectives,
+  and does word-level synonym replacement with case preservation.
+  Measured on a comparable paragraph: **1% → 77%** change ratio, with numbers,
+  citations, and technical terms left untouched.
+- 🐧 **Fixed the Linux AppImage "flashes and dies on double-click"** — the v1.3.7
+  AppImage on a clean machine only showed a process flashing once and nothing else;
+  the log said `ModuleNotFoundError: No module named 'queue'`. Windows is unaffected.
+- ✅ **The first-launch "install runtime components" wizard now actually opens** —
+  previously the app never even got that far.
+- 📦 Still published on all three platforms (Windows setup / Linux AppImage / macOS dmg).
+
+### Fixed
+
+**① GPU check misjudged a perfectly good card as "driver too old"**
+(`app/core/gpuinfo.py`, `app/ui/main_window.py`)
+
+- **Root cause**: from the 610 driver family NVIDIA renamed the `nvidia-smi` field
+  from `CUDA Version:` to `CUDA UMD Version:`, while the regex
+  `r"CUDA Version:\s*([\d.]+)"` only knew the old name → the match came up empty →
+  `cuda=""` → `pick_torch_index("")` returned `""` → judged "driver too old".
+  "Regex didn't match" and "driver really is old" were conflated into one branch.
+- Fix: ① the field name is now a `_CUDA_FIELDS` table tried in order, so future NVIDIA
+  renames only need one more entry; ② new `cuda_from_driver()` derives the supported
+  CUDA ceiling from the driver major version when the field is missing entirely
+  (R525→12.0, R550→12.4, R570→12.8, R580→13.0) — it **no longer concludes the driver
+  is old just because a field could not be read**; ③ the dialog treats
+  `torch.cuda.is_available()` as the single authority and demotes `gpuinfo` to
+  reference info, which removes the two-line contradiction. On the reporter's driver
+  610.47 it now correctly picks the GPU build of torch.
+
+**② Colloquialism detection used substring matching, so English papers lit up as false
+positives** (`app/core/aigc_rules.py`, `diagnosis.py`, `therapy.py`)
+
+- **Root cause**: three call sites each reimplemented substring matching
+  (`text.count(term)` and `t in text`), and `in` is substring containment for English →
+  `haemorrhagic` / `remove` matched `emo`, and English `CPU` matched `cpu`. The rewrite
+  engine then judged the whole paragraph as "hit an online slang term and gave up",
+  which is the direct cause of the reported 0% change ratio.
+- Fix: new `count_colloquial()` / `find_colloquial()` as the **single entry point** —
+  ① Chinese terms keep substring matching (Chinese has no word boundary concept);
+  ② ASCII terms (`emo` / `cpu` / `yyds`) use explicit ASCII negative lookarounds
+  `(?<!ASCII letter/digit)` for whole-word matching.
+  ⚠️ `` must **not** be used: Python's `\w` counts CJK as word characters, so
+  glued spellings like `emo了` / `cpu崩了` would be missed — hence explicit lookarounds
+  instead of ``. ③ Pure-English text is not checked for ASCII terms at all
+  (English `cpu` is a normal word, not slang). All three call sites now go through that
+  entry point, and a source-level assertion pins "no bare substring matching may return".
+
+**③ Rewrite did almost nothing on English paragraphs and mangled sentences**
+(`app/core/aigc_rules.py`, `therapy.py`)
+
+- **Root cause**: the engine's Chinese rules are all CJK patterns, so the only thing
+  that could "match" an English paragraph was `NUMBERED_MARKERS` turning `(1)` into
+  `其一，` — rewriting an English sentence into Chinese for a 1% change ratio. What
+  English actually needs removed is AI-flavoured **meta-discourse**, and none of the
+  Chinese replacement table applies.
+- Fix: a dedicated English rule set, with per-paragraph routing (`is_english_text()`):
+  - `EN_SENTENCE_REWRITES` (42 entries): strips meta-discourse shells, redundant
+    connective shells (`Due to the fact that` → `Because`), end-of-section clichés
+    (`In conclusion,`), and empty nominalisations (`is able to` → `can`).
+    Cliche openers are **not** anchored to paragraph start — in long SCI paragraphs they
+    appear mid-text, and a `^` anchor misses them entirely.
+  - `EN_WORD_REPLACEMENTS` (30 entries), longest-first, case preserving.
+  - The English path **skips** `_break_parallel` (`(1)` is a reference number in
+    English) and `_fix_dashes` (the Chinese `——` rule does not fit English semantics).
+  - Cleanup for English-specific grammar damage: **restore capitalisation** after shell
+    removal and fix **a/an agreement** (`a essential` → `an essential`).
+- Word-level replacement must be **one combined master regex, single pass, applied back
+  to front** — structurally identical to the Chinese `_word_replace`. Scanning rule by
+  rule desynchronises offsets once an earlier rule changes text length, producing
+  garbage like `signnotabletors` (a word sliced in half). That is a bug actually hit
+  during this work and fixed here.
+- There are three further guards, all added during self-review:
+  - **The two rule tables must not contain the same entry.** Shells like
+    `it is important to note` written in both tables fight each other: after the
+    sentence rule removes the shell, the word rule turns the leftover into `notably`
+    and leaves a dangling `that` (`Notably that`). Such shells now live **only** in
+    the sentence table.
+  - **No `play a crucial role in → is central to` conversions**: with a plural subject
+    (factors / data / results) that breaks subject-verb agreement
+    (`factors is central to`), and deciding plurality depends on the concrete noun, which
+    a rule table will always cover incompletely. Better to change less than to emit
+    broken sentences.
+  - The **broken-sentence guard must judge only after all matches are collected**, and
+    only over "two replacement results": judging while collecting misses cases
+    (`numerous` is collected before `a variety of`), while also checking
+    "replacement + neighbouring original text" wrongly kills the perfectly good
+    `a variety of → multiple`.
+
+**④ Linux AppImage first-launch crash** (`packaging/AIGC_Toolkit_unix.spec`, CI workflow,
+`app/first_run.py`)
+
+- **Root cause**: the Unix packaging analysis entry point `packaging/unix_launcher.py`
+  only imports `os / runpy / sys`, while `app/first_run.py` is loaded **at runtime** by
+  `runpy` — invisible to static analysis, so the standard-library modules imported at
+  `first_run.py` module level (`queue` / `re` / `shutil` / `subprocess` / `threading` /
+  `time` / `traceback` / `importlib.util`) **made it into the bundle none of them**, and
+  the app crashed on first launch. Windows never had this problem: the analysis entry
+  point of `first_run_gui.spec` *is* `first_run.py`.
+- Fix: the spec hands `first_run` to the packager explicitly (`hiddenimports`) and adds a
+  copy of `core/` to `datas`; the Linux / macOS CI builds each gain a smoke self-test that
+  **actually runs the frozen artefact** (`AIGC_TOOLKIT_SELFTEST=1`, asserting the output
+  contains `SELFTEST_OK`). The old "artefact self-check" used the **portable Python**
+  (which ships a full standard library) and could therefore never touch the frozen
+  bundle — which is exactly why the defect reached production.
+- `app/first_run.py`'s `__main__` branch gains an equally named early-return switch for
+  that self-test; it **only reads an environment variable and adds no import** — other-
+  wise the packager would pull those modules in through the self-test code, and the
+  guard would become self-fulfilling and always pass, losing its meaning.
+- `.gitignore` adds `build-unix/` and `dist-unix/`.
+
+### Changed
+- i18n keys 385 → **387** (added `gpu_env_ok`, `gpu_generic_card`), Chinese/English in sync.
+- No engine threshold changes, no new third-party dependencies.
+
+---
+
+## v1.3.8-rc1 (2026-10-04, archive only)
+
+> ⚠️ This entry records the 10-04 AppImage packaging fix; it was never published.
+> It has been folded into the v1.3.8 (2026-10-07) section above; details are not repeated.
+
+Background: the v1.3.7 **Linux AppImage** crashed instantly on first launch on a machine
+that had never installed this software, so it was rejected by the
+[appimage.github.io](https://appimage.github.io/) inclusion test. The Windows setup and
+the macOS dmg were not affected.
+
+### Visible to users
+- 🐧 **Fixed the Linux AppImage "flashes and dies on double-click"**
+- ✅ **The first-launch "install runtime components" wizard now actually opens**
+- 📦 Still published on all three platforms (Windows setup / Linux AppImage / macOS dmg).
+
+### Fixed
+- See item ④ of v1.3.8 above for the `packaging/AIGC_Toolkit_unix.spec` and
+  `.github/workflows/cross-platform-build.yml` changes.
+
+---
+
 ## v1.3.7 (2026-10-03)
 
 > Fix release: touches the first-run launcher plus two leftovers from the v1.3.6 merge,

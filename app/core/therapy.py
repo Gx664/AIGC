@@ -18,13 +18,16 @@ import re
 
 from .aigc_rules import (
     COLLOQUIAL_FIXES,
-    COLLOQUIAL_TERMS,
+    EN_SENTENCE_REWRITES,
+    EN_WORD_REPLACEMENTS,
     NUMBERED_MARKERS,
     PROTECTED_SPAN_PATTERNS,
     SENTENCE_REWRITES,
     SEQ_MARKERS,
     WORD_REPLACEMENTS,
     WORD_SKIP,
+    find_colloquial,
+    is_english_text,
 )
 
 EM_DASH = "——"
@@ -176,6 +179,186 @@ def _break_parallel(text, changes):
     return text
 
 
+# ─────────────────────────────────────────────────────────────
+# 英文路径（SCI / 学术论文）
+# ─────────────────────────────────────────────────────────────
+def _build_en_master_pattern():
+    """把全部英文词级规则合成一条正则：长词优先 + 整词边界，单遍扫描。"""
+    alts = []
+    for word, _ in EN_WORD_REPLACEMENTS:
+        # 前后不能紧贴 ASCII 字母数字，否则 "utilize" 会命中 "utilizationized" 这类
+        alts.append(r"(?<![A-Za-z])%s(?![A-Za-z])" % re.escape(word))
+    pattern = re.compile("|".join("(?:%s)" % a for a in alts), re.I)
+    mapping = {word.lower(): variants for word, variants in EN_WORD_REPLACEMENTS}
+    return pattern, mapping
+
+
+_EN_MASTER, _EN_VARIANTS = _build_en_master_pattern()
+# 每条规则已用掉的次数（决定取第几个变体）。每次 treat_paragraph 开头重置。
+_EN_USED = {}
+
+# 「量词 + 量词」相邻即病句（multiple many / many several / several many）。
+# 这些词单独看都是合法的量词/不定代词，两个量词叠用必然不合语法。
+_EN_QUANTIFIER_ALT = re.compile(
+    r"(?:multiple|many|several|numerous|a\s+range\s+of|a\s+variety\s+of|"
+    r"a\s+number\s+of|both|either|neither)"
+    r"\s+(?:multiple|many|several|numerous|a\s+range\s+of|a\s+variety\s+of|"
+    r"a\s+number\s+of|both|either|neither)(?![A-Za-z])"
+)
+
+
+def _en_keep_case(src, repl):
+    """按原词大小写形态套用替换词：Title / UPPER / 原样。"""
+    if src.isupper() and len(src) > 1:
+        return repl.upper()
+    if src[:1].isupper():
+        return repl[:1].upper() + repl[1:]
+    return repl
+
+
+def _en_sentence_rewrite(text, changes):
+    """删元话语壳 + 换冗余连接词。每条规则单遍扫，命中即记录。"""
+    counters = {}
+    for pattern, repl in EN_SENTENCE_REWRITES:
+        while True:
+            m = pattern.search(text)
+            if not m:
+                break
+            old = m.group(0)
+            # 整句被删空会造成语法断裂，跳过（原文本身也不该只有这个壳）
+            if not old.strip() or not repl.strip():
+                if len(text.strip()) <= len(old.strip()) + 10:
+                    break
+            new_text = text[:m.start()] + repl + text[m.end():]
+            if new_text == text:
+                break
+            text = new_text
+            key = pattern.pattern
+            counters[key] = counters.get(key, 0) + 1
+            changes.append({"level": "sentence", "from": old.strip(), "to": repl.strip() or "（删除元话语壳）"})
+    return text
+
+
+def _en_word_replace(text, changes):
+    """英文词级替换：**合成一条 master 正则、单遍扫描**，长词优先 + 从后往前应用。
+
+    写法必须与中文 ``_word_replace`` 同构，原因有二：
+    1. **单遍扫描**。若按规则逐条扫（每条规则都重新 finditer 一次），前面规则改写
+       后文本长度已变，后面规则拿到的区间就错位——会产出 ``signnotabletors``
+       这种把词劈成两半的垃圾（``significant``→``notable`` 后长度变了，
+       ``factors`` 的区间仍按旧偏移量切片）。
+    2. **从后往前应用**。保持前面所有区间有效。
+
+    另有一道病句防护：``a variety of numerous factors`` 两条规则各自命中会拼出
+    "multiple many"。所以**收集完全部命中后统一校验**，若相邻两条替换的结果
+    叠成「量词 + 量词」就成对丢弃。
+
+    ⚠️ 两条纪律（都是 2026-10-07 自查踩出来的）：
+    - 必须**事后**判定，不能边收集边判：命中顺序不一定相邻
+      （"a variety of numerous" 里 numerous 先被收集），边收集边判会漏。
+    - 只管「两处都是本次替换的结果」，不管「替换结果 + 邻近原文」：
+      曾把 ``a variety of → multiple`` 这种本来正确的替换一起误杀。
+      **宁可漏杀不可错杀**。
+    """
+    replacements = []  # (start, end, old, variant)
+    for m in _EN_MASTER.finditer(text):
+        word = m.group(0)
+        variants = _EN_VARIANTS.get(word.lower())
+        if not variants:
+            continue
+        lw = word.lower()
+        # 变体等于原词 → 空转，跳过
+        usable = [v for v in variants if v.lower() != lw]
+        if not usable:
+            continue
+        used = _EN_USED.get(lw, 0)
+        _EN_USED[lw] = used + 1
+        replacements.append((m.start(), m.end(), word,
+                             _en_keep_case(word, usable[used % len(usable)])))
+
+    # 病句防护：相邻两条替换拼成「量词 + 量词」→ 成对丢弃
+    ordered = sorted(replacements, key=lambda x: x[0])
+    drop = set()
+    for i in range(len(ordered) - 1):
+        s1, e1, _o1, v1 = ordered[i]
+        s2, e2, _o2, v2 = ordered[i + 1]
+        if any(e < s2 for _s, e, _o, _v in ordered[i + 2:]):
+            break  # 中间还夹着别的替换 → 不是紧邻的一对
+        if _EN_QUANTIFIER_ALT.match(v1.lower() + " " + v2.lower()):
+            drop.add((s1, e1))
+            drop.add((s2, e2))
+    ordered = [r for r in ordered if (r[0], r[1]) not in drop]
+
+    for start, end, old, variant in reversed(ordered):
+        text = text[:start] + variant + text[end:]
+        changes.append({"level": "word", "from": old, "to": variant})
+    return text
+
+
+def _treat_english(para, masked, options, changes):
+    """英文段落的完整降重流程。
+
+    与中文流程的差异：① 不跑 ``_break_parallel``——``(1)/(2)`` 在英文里是
+    参考文献编号，换成"其一，"是纯粹的破坏；② 不跑 ``_fix_dashes``——中文
+    破折号规则针对"——"，英文 ``--`` 语义不同，误伤风险大于收益。
+    """
+    if options.get("sentence_level", True):
+        masked = _en_sentence_rewrite(masked, changes)
+    if options.get("word_level", True):
+        masked = _en_word_replace(masked, changes)
+    masked = _en_recap_sentences(masked, changes)
+    masked = _en_fix_articles(masked, changes)
+    return masked
+
+
+def _en_recap_sentences(text, changes):
+    """删掉元话语壳后把句首字母补回大写。
+
+    "It is worth noting that these findings are preliminary." 去掉壳后剩下
+    "these findings are preliminary."——英文句首小写是语法错误。删壳类规则
+    必然制造这种情况，所以收尾统一修一次。
+
+    **句首位置无条件大写**，白名单只管非句首：冠词/介词/连词（a/an/the/in/on/at/
+    of/to/for…）在句中不该大写（"the solution" 不能改成 "The solution"），
+    但出现在**句首就必须大写**（"the use of resources…" → "The use of…"）。
+    早期版本把 the 放进白名单一刀切，结果句首的 the 永远补不上——
+    这类位置判断必须区分"句首"与"句中"，不能只看词性。
+    """
+    out = []
+    for m in re.finditer(r"(^|[.!?]\s+)([a-z])([a-zA-Z'-]*)", text):
+        out.append((m.start(2), m.start(3)))
+    if not out:
+        return text
+    for start, end in reversed(out):
+        text = text[:start] + text[start].upper() + text[end:]
+    changes.append({"level": "sentence", "from": "（句首小写）", "to": "（补大写）"})
+    return text
+
+
+# ── a / an 协调 ──────────────────────────────────────────────
+# 词级替换会把元音开头的词换进来，"a crucial role" → "a essential role"，
+# a/an 不协调是明确的语法错误。英文没有独立的元音音标表，用拼写启发式：
+# 词首是元音字母、但以"辅音音素"开头（u→/ju/、eu/one…）的仍用 an。
+_EN_A_AN_FIX = (
+    re.compile(r"\ban\s+(?=[bcdfgjklmnpqrstvwxyz][a-z])", re.I),   # a + 辅音
+    re.compile(r"\ba\s+(?=[aeiou][a-z])", re.I),                  # an + 元音
+)
+# 例外：hour / honest / university 这类 u 开头但读 /ju/ 或辅音的词
+_AN_EXCEPT = re.compile(
+    r"\ba\s+(?=(?:hour|honest|honor|honour|heir|university|universal|unique|"
+    r"unit|user|usual|useful|utility|european|euro|one[- ]|once)[a-z])", re.I)
+
+
+def _en_fix_articles(text, changes):
+    """修 a/an 不协调（``a essential`` → ``an essential``）。"""
+    fixed = _AN_EXCEPT.sub("an ", text)
+    fixed = _EN_A_AN_FIX[0].sub("a ", fixed)
+    fixed = _EN_A_AN_FIX[1].sub("an ", fixed)
+    if fixed != text:
+        changes.append({"level": "word", "from": "a/an 不协调", "to": "已修正"})
+    return fixed
+
+
 def _fix_dashes(text, changes):
     if text.count(EM_DASH) <= 1:
         return text
@@ -256,7 +439,7 @@ def audit_paragraph(text):
     template_n = len(_template_hits(text))
     if template_n:
         remaining.append("模板句 %d 处" % template_n)
-    hits = [t for t in COLLOQUIAL_TERMS if t in text]
+    hits = find_colloquial(text)
     if hits:
         remaining.append("口语化/网络用语：%s" % "、".join(hits))
     n_dash = text.count(EM_DASH)
@@ -281,25 +464,32 @@ def treat_paragraph(para, options=None):
     orig = para
     masked, spans = protect_spans(para)
     changes = []
+    # 英文段落走独立规则库。中文规则全是汉字模式，硬套英文只会把"(1)"换成
+    # "其一，"——句子改坏、改动率还只有 1%（早期版本对英文 SCI 的实际表现）。
+    english = is_english_text(masked)
 
-    # 第一轮：减法（句子级先于词级，避免“归因于两方面，首先”这类整句规则被拆散）
-    if options.get("sentence_level", True):
-        masked = _sentence_rewrite(masked, changes)
-        masked = _generic_openers(masked, changes)
-    if options.get("word_level", True):
-        masked = _word_replace(masked, changes)
-    if options.get("parallel", True):
-        masked = _break_parallel(masked, changes)
-    if options.get("dash_fix", True):
-        masked = _fix_dashes(masked, changes)
+    if english:
+        _EN_USED.clear()  # 词级轮换计数按段落重置，否则整篇只用第一个变体
+        masked = _treat_english(para, masked, options, changes)
+    else:
+        # 第一轮：减法（句子级先于词级，避免"归因于两方面，首先"这类整句规则被拆散）
+        if options.get("sentence_level", True):
+            masked = _sentence_rewrite(masked, changes)
+            masked = _generic_openers(masked, changes)
+        if options.get("word_level", True):
+            masked = _word_replace(masked, changes)
+        if options.get("parallel", True):
+            masked = _break_parallel(masked, changes)
+        if options.get("dash_fix", True):
+            masked = _fix_dashes(masked, changes)
 
-    # 第二轮：加法（节奏工程，确定性长句拆分）
-    if options.get("split_long", True):
-        masked = _split_long_sentences(masked, changes)
+        # 第二轮：加法（节奏工程，确定性长句拆分）
+        if options.get("split_long", True):
+            masked = _split_long_sentences(masked, changes)
 
-    # 第三轮：语体守门
-    if options.get("style_guard", True):
-        masked = _style_fix(masked, changes)
+        # 第三轮：语体守门
+        if options.get("style_guard", True):
+            masked = _style_fix(masked, changes)
 
     revised = restore_spans(masked, spans)
     changed = revised != orig

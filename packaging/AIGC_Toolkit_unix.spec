@@ -49,7 +49,30 @@ if not os.path.exists(ICON):
 # 引导界面是 tkinter 写的，而 first_run.py 是被 runpy 在运行时加载的
 # —— PyInstaller 的静态分析看不到它，不显式声明就会打出个一启动就
 # "No module named 'tkinter'" 的空壳。
+#
+# ⚠️ 2026-10-04 实测补漏（AppImage 进 appimage.github.io catalog 被打回）：
+#   **光声明 tkinter 远远不够。** 分析入口是 unix_launcher.py，它只 import
+#   os / runpy / sys —— 于是 first_run.py 里那 9 个模块级标准库
+#   （queue / re / shutil / subprocess / threading / time / traceback /
+#     importlib.util / os）**一个都不会进 PYZ**。在干净机器上首启直接：
+#       ModuleNotFoundError: No module named 'queue'
+#       File ".../_internal/app/first_run.py", line 14, in <module>
+#   Windows 侧没有这个问题，因为 first_run_gui.spec 的分析入口就是
+#   app/first_run.py，分析器走得进去。
+#
+#   修法：把 "first_run" 交给分析器。它会顺着 first_run.py 的 import 图把它的
+#   **模块级标准库**（queue / re / shutil / subprocess / threading / time /
+#   traceback / importlib.util …）和它 import 的 core 子模块
+#   （platform_ops / runtime_deps / i18n / gpuinfo / meta / netfix，以及传递
+#    依赖 settings）一并收进来。
+#
+#   副作用必须配对处理：core 因此变成一个**冻结包**，它的 __path__ 指向
+#   <_MEIPASS>/core —— 于是 core 里没有被 first_run 静态引用的子模块
+#   （如 core.engines.*，主程序才用）在运行时只能从磁盘解析，必须把 core/
+#   源码也铺成数据文件（见下面 datas 的第二项）。Windows 的 first_run_gui.spec
+#   就是同样的组合（hiddenimport first_run 的等价效果 + datas 铺 core）。
 HIDDEN = [
+    "first_run",
     "tkinter",
     "tkinter.ttk",
     "tkinter.font",
@@ -71,7 +94,16 @@ a = Analysis(
     [os.path.join(SPEC_DIR, "unix_launcher.py")],
     pathex=[os.path.join(REPO_ROOT, "app")],
     binaries=[],
-    datas=[(os.path.join(REPO_ROOT, "app"), "app")],
+    datas=[
+        # 整份 app/ 源码：便携 Python 跑主程序时从这里加载（那也是 core 的
+        # 权威副本，包含 engines_calibration.json 等数据）
+        (os.path.join(REPO_ROOT, "app"), "app"),
+        # core/ 再放一份到 _MEIPASS/core —— 与 Windows 的 first_run_gui.spec
+        # 一致，理由见上面 HIDDEN 的注释：first_run.py 被分析后 core/* 会被
+        # 冻进 PYZ，而冻结包的 __path__ 就是 <_MEIPASS>/core；不铺这份数据，
+        # 冻结包里 core.engines 之类就再也 import 不到了。
+        (os.path.join(REPO_ROOT, "app", "core"), "core"),
+    ],
     hiddenimports=HIDDEN,
     hookspath=[],
     hooksconfig={},
