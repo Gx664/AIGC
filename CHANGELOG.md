@@ -28,6 +28,117 @@ These rules apply to this project from 2026-09-25 onward:
 
 ---
 
+## v1.3.9 (2026-10-11)
+
+> Model-warehouse release: four open-source rewrite models are now listed for
+> pre-download, while the **built-in rule-based rewrite engine stays exactly as it
+> was and remains the default**. Engine algorithms, word tables and thresholds are
+> all untouched — this release only adds catalog entries and changes no rewriting logic.
+
+The release came out of a discussion about whether the rewriter could use a local LLM.
+The answer up front: **rewriting currently depends on neither a GPU nor any model** —
+`therapy.py` contains zero occurrences of `import torch` and is a pure rule engine
+(104 Chinese word-level substitutions + 15 sentence rewrites; 30 English word-level
++ 42 sentence-level). The cost of that design is that it **cannot touch expressions
+absent from the rule tables**, so the modification rate is inherently modest
+(26.8% / 44.3% measured on comparable English paragraphs). This release stages the
+models in the catalog first; **none of them take over any rewriting** yet.
+
+### Visible to users
+
+- 📦 **Four downloadable rewrite models appear in "Engine Manager"**, stored locally once fetched:
+  | Entry | Language | Download size | Notes |
+  |---|---|---|---|
+  | Qwen3-0.6B | Chinese / English | ~1.2GB | Entry tier, weakest rewrite quality |
+  | Qwen3-1.7B | Chinese / English | ~3.4GB | **Recommended**, best quality/size balance |
+  | Qwen3-4B | Chinese / English | ~8.0GB | Strongest on long sentences, a GPU is advised |
+  | Paraphraser | **English only** | ~900MB | The only ready-to-use rewrite fine-tune |
+  - Each entry states its **language coverage, size and license**; restrictions are
+  visible in the entry details without extra clicks.
+- ⚠️ **These four entries are for staging models locally only and do not participate in
+  rewriting in this release.** Selecting one and pressing "start rewrite" raises an
+  explicit error pointing you back to the rule engine — this is intentional, so nobody
+  assumes a model is already doing the work. Real rewriting still goes through the
+  default rule engine.
+- 🔒 **The default rewrite engine is unchanged** — still the built-in rule engine
+  (three-round protocol, zero download, no GPU required). Not a single line of it was
+  touched: Chinese and English rewriting results are identical to v1.3.8.
+
+### Added
+
+**① Local rewrite model warehouse (4 entries)** (`app/core/engines/catalog.py`)
+
+- Four new `repair` entries declaring only "which model, how big, where to fetch",
+  using the same catalog mechanism as the existing detection engines — downloaded
+  on demand from "Engine Manager", never pre-bundled.
+- Every entry's `desc` opens with "⚠️ Download-only; NOT used for rewriting in this
+  release", and `tags` carries both "仅预下载" and the size, so **restrictions are
+  visible in the list itself**.
+- **Paraphraser is English-only** — useless on Chinese text — and its repo carries no
+  license tag while its training target is sentence-level rephrasing, so long
+  paragraphs get truncated at the 512-token limit. All three restrictions are in the details.
+
+**② Model warehouse engine implementation** (`app/core/engines/model_warehouse_engine.py`, new file)
+
+- Every catalog entry needs a registered `impl`, otherwise pressing download fails with
+  "engine implementation not loaded". This minimal implementation reuses only the base
+  class's download/placement machinery.
+- 🔴 **`rewrite()` and `predict_paragraphs()` always raise RuntimeError**: this engine
+  contains no rewriting logic, so being mistaken for a rewrite engine fails loudly
+  instead of silently emitting meaningless output.
+
+**③ Deliberately excluded models** (documented in a `catalog.py` comment to avoid
+re-litigating this later)
+
+- `google/mt5-small` and `uer/t5-v1_1-small-chinese` are **intentionally left out**:
+  their model cards state they are pretrained only and must be fine-tuned before use
+  on a downstream task. Feeding such a model straight into the rewriter produces
+  **meaningless output** (not merely poor quality — unusable), so listing them would
+  only waste 1.4GB of disk and a download wait.
+
+### Fixed
+
+**New entries pushed the built-in rule engine out of the default first slot**
+(`app/core/engines/catalog.py`)
+
+- `EngineManager._sort()` orders entries by the **alphabetical order of `name`**, and
+  ASCII uppercase letters sort below lowercase — the new entries started with
+  `Q`(81) / `T`(84), pushing the built-in rule engine (`aigc-reduce`, `a`=97) down to
+  the fifth slot.
+  🔴 **That silently swapped the user's default rewrite engine**, and nothing at the
+  catalog layer would reveal it. New entry names now start with Chinese text, and
+  "the rule engine must still sort first" is pinned by a regression assertion.
+
+**An English-only model was mislabelled as bilingual** (`app/core/engines/catalog.py`)
+
+- `engine_dialog.engine_lang_mark()` tests `"中文" in tag` — a **substring** check — so
+  a tag reading "中文无效" made this **English-only** model show as "🌐 中文 / 英文",
+  misleading users into thinking Chinese works. Tags are now limited to pure language
+  markers, with the restriction moved into the description body.
+
+### Verification
+
+- New guard `_diag/test_model_warehouse.py` passes **61/61**, covering: complete
+  catalog fields / correct language marks / engine instantiable / `repos()` matching the
+  declaration / `rewrite()` genuinely refusing / **the rule engine still rewriting both
+  Chinese and English with meaning intact** / the rule engine still sorting first.
+- 🔴 That guard was **self-tested for actually failing**: with the two bugs above
+  deliberately injected, it correctly reported 5 failures — so the criteria are not
+  running vacuously.
+- All existing regressions green: call_arity 9, mod_ratio 19, en_gpu_fixes 79,
+  param_merge_order 6, new_engines 7, unix_adapt 88, uninstall_reg 9, i18n
+  Chinese/English parity, `pyright 0 errors`.
+- `rule_engine.py` / `aigc_rules.py` are **completely untouched** (pure addition; no
+  change to existing rewriting behaviour).
+
+### Changed
+
+- Engine catalog 12 → **16 entries** (`repair` category 2 → 6).
+- This release **downloads no models**; fetch any of the four yourself via "Engine
+  Manager" if you want them staged.
+
+---
+
 ## v1.3.8 (2026-10-07)
 
 > User-feedback fix release: fixes three live bugs — **false "driver too old" on GPU

@@ -452,8 +452,33 @@ def audit_paragraph(text):
 
 
 def _mod_ratio(orig, rev):
-    ratio = difflib.SequenceMatcher(None, orig, rev).ratio()
-    return round(1 - ratio, 3)
+    """改了多少：真实编辑距离占原文的比例，0~1。
+
+    🔴 早前用 ``1 - SequenceMatcher.ratio()``，两个坑（2026-10-11 用户实测抓到）：
+      1. ``SequenceMatcher`` 有autojunk启发式：序列长度≥200 时，**出现 ≥2 次的元素
+         被当成"垃圾"整批排除**。英文 SCI 段落动辄 500 字且满篇重复词
+         （hantavirus/sensitivity/hantaviruses），正中靶心—— 实测只改 6 个字符却算出
+         修改率 0.37%，用户在界面看到"已降重 7/15 段，平均修改率 0%"，
+         而下方明明列着 3 条改动 —— 自相矛盾。
+      2. 即使关掉 autojunk，``ratio()`` 是"匹配上的字符数 ×2 / 总长"，
+         换词（length≠）这类替换会被算成两次独立增删，比例虚高。
+
+    正解：**直接数真正改动的字符**（不用 difflib）：用字级 LCS 的
+    ``SequenceMatcher(None, orig, rev, autojunk=False)`` 取出替换/删除/插入区间，
+    累加两侧受影响字符数。开销 O(n²)，但段落级（≤2000 字）完全够用，
+    且**与"用户看到几条改动"严格对应**，不会出现 0% 却有改动。
+    """
+    if orig == rev:
+        return 0.0
+    sm = difflib.SequenceMatcher(None, orig, rev, autojunk=False)
+    changed = 0
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == "equal":
+            continue
+        # 替换计两侧最大值而非相加：换词 6→3 只算 6 个字符改动，
+        # 不是 6+3=9（后者会让"词级替换"虚高一倍）
+        changed += max(i2 - i1, j2 - j1)
+    return round(min(1.0, changed / max(1, len(orig))), 3)
 
 
 # ─────────────────────────────────────────────────────────────

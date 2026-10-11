@@ -280,6 +280,121 @@ BUILTIN_ENGINES = [
         "params": {},
         "update_channel": "rules",
     },
+    # ------------------------------------------------------------ 本地改写模型仓库
+    # 以下四条**只用于提前把模型下到本地**，当前版本不参与降重流程 ——
+    # 真正的降重仍然走上面的内置规则引擎（默认选中，且是 LLM 失败时的兜底）。
+    # 它们能出现在「模型下载管理」里，是因为有 model_warehouse 这个最小实现
+    # 负责落盘；该实现的 rewrite() 会明确抛异常，不会误用。
+    #
+    # 🔴 为什么不收 mt5-small / uer/t5-v1_1-small-chinese：
+    # 这类模型**只做过预训练，没有做过任何改写微调**，官方模型卡写明
+    # "has to be fine-tuned before it is useable on a downstream task"。
+    # 直接拿来降重得到的是无意义输出（不是效果差，是根本不能用），
+    # 收录只会浪费用户 1.4GB 磁盘和一次下载等待，故不收。
+    {
+        "id": "qwen3_06b_rewrite",
+        "name": "本地改写模型 Qwen3-0.6B（仓库 · 最小）",
+        "name_en": "Qwen3-0.6B rewrite model (warehouse, smallest)",
+        "category": CAT_REPAIR,
+        "impl": "model_warehouse",
+        "model_id": "Qwen/Qwen3-0.6B",
+        "models": [
+            {
+                "repo": "Qwen/Qwen3-0.6B",
+                "kind": "causal",
+                "size": "约 1.2GB",
+                "role": "因果改写模型（入门档，Q4 量化约 0.4GB 显存）",
+                "role_en": "Causal rewrite model (entry tier, ~0.4GB VRAM at Q4)",
+            }
+        ],
+        "size_hint": "约 1.2GB",
+        "paper": "arXiv:2505.09388 · Apache-2.0",
+        "venue": "中文 / 英文均可，Qwen3 家族最小号",
+        "desc": "⚠️ 仅预下载，当前版本**不参与降重**。Qwen3 最小号，中英文都能跑，体积和磁盘占用最低；但 0.6B 的改写质量在三者中最弱，长句容易丢信息，适合先试用确定是否合口味。",
+        "desc_en": "⚠️ Download-only; NOT used for rewriting in this release. The smallest Qwen3 tier handles both Chinese and English with the lowest disk footprint, but 0.6B is the weakest of the three at rewriting and may drop information in long sentences.",
+        "tags": ["中文", "英文", "需 1.2GB", "仅预下载", "入门档", "Apache-2.0"],
+        "params": {},
+        "update_channel": "models",
+    },
+    {
+        "id": "qwen3_17b_rewrite",
+        "name": "本地改写模型 Qwen3-1.7B（仓库 · 推荐）",
+        "name_en": "Qwen3-1.7B rewrite model (warehouse, recommended)",
+        "category": CAT_REPAIR,
+        "impl": "model_warehouse",
+        "model_id": "Qwen/Qwen3-1.7B",
+        "models": [
+            {
+                "repo": "Qwen/Qwen3-1.7B",
+                "kind": "causal",
+                "size": "约 3.4GB",
+                "role": "因果改写模型（推荐档，Q4 量化约 1.1GB 显存）",
+                "role_en": "Causal rewrite model (recommended tier, ~1.1GB VRAM at Q4)",
+            }
+        ],
+        "size_hint": "约 3.4GB",
+        "paper": "arXiv:2505.09388 · Apache-2.0",
+        "venue": "中文 / 英文均可，质量与体积的最佳平衡",
+        "desc": "⚠️ 仅预下载，当前版本**不参与降重**。四个仓库条目里质量与体积平衡最好的一档：比 0.6B 稳（长句不易丢信息），比 4B 省一半磁盘。纯 CPU 机器上改写一段约需 30~60 秒。",
+        "desc_en": "⚠️ Download-only; NOT used for rewriting in this release. The best quality-to-size balance among the four warehouse entries: steadier than 0.6B on long sentences, half the disk of 4B. Roughly 30-60s per paragraph on a CPU-only machine.",
+        "tags": ["中文", "英文", "需 3.4GB", "仅预下载", "推荐", "Apache-2.0"],
+        "params": {},
+        "update_channel": "models",
+    },
+    {
+        "id": "qwen3_4b_rewrite",
+        "name": "本地改写模型 Qwen3-4B（仓库 · 最强）",
+        "name_en": "Qwen3-4B rewrite model (warehouse, strongest)",
+        "category": CAT_REPAIR,
+        "impl": "model_warehouse",
+        "model_id": "Qwen/Qwen3-4B",
+        "models": [
+            {
+                "repo": "Qwen/Qwen3-4B",
+                "kind": "causal",
+                "size": "约 8.0GB",
+                "role": "因果改写模型（最强档，Q4 量化约 2.5GB 显存）",
+                "role_en": "Causal rewrite model (strongest tier, ~2.5GB VRAM at Q4)",
+            }
+        ],
+        "size_hint": "约 8.0GB",
+        "paper": "arXiv:2505.09388 · Apache-2.0",
+        "venue": "中文 / 英文均可，长句重构能力最强",
+        "desc": "⚠️ 仅预下载，当前版本**不参与降重**。四个仓库条目里改写质量最高的一档，长句和多小句的段落重构明显更强；代价是 8GB 下载 + 8GB 磁盘，纯 CPU 机器上推理较慢，建议有独显再用。",
+        "desc_en": "⚠️ Download-only; NOT used for rewriting in this release. The highest rewrite quality of the four warehouse entries, noticeably stronger on long multi-clause sentences; costs 8GB download plus 8GB on disk and is slow on CPU-only machines, so a dedicated GPU is advised.",
+        "tags": ["中文", "英文", "需 8GB", "仅预下载", "最强", "Apache-2.0"],
+        "params": {},
+        "update_channel": "models",
+    },
+    {
+        "id": "ateeqq_paraphraser",
+        "name": "本地改写模型 Paraphraser（仓库 · 仅英文）",
+        "name_en": "Text-Rewriter-Paraphraser English rewriter (warehouse, English only)",
+        "category": CAT_REPAIR,
+        "impl": "model_warehouse",
+        "model_id": "Ateeqq/Text-Rewriter-Paraphraser",
+        "models": [
+            {
+                "repo": "Ateeqq/Text-Rewriter-Paraphraser",
+                "kind": "seq2seq",
+                "size": "约 900MB",
+                "role": "英文释义改写模型（T5-base，43 万条改写语料微调）",
+                "role_en": "English paraphrase model (T5-base, fine-tuned on 430k pairs)",
+            }
+        ],
+        "size_hint": "约 900MB",
+        "paper": "T5-base · 43 万条改写数据 · 许可证未标注",
+        "venue": "仅英文；中文无效",
+        "desc": "⚠️ 仅预下载，当前版本**不参与降重**。🔴 **只支持英文**，中文段落用它无效。这是唯一一个开箱即用的改写微调模型（其余几个只有预训练），但训练目标是「一句话换说法」，输出长度接近输入，长段落会被 512 token 上限截断；且仓库未标注许可证，**非商业用途需自行确认授权**。",
+        "desc_en": "⚠️ Download-only; NOT used for rewriting in this release. 🔴 **English only** - useless on Chinese text. The only ready-to-use rewrite fine-tune here (the others are pretrained-only), but its training target is sentence-level rephrasing with output length close to input, so long paragraphs get truncated at the 512-token limit; the repo carries no license tag, so confirm authorization yourself before any use.",
+        # 🔴 tags 里**不能出现「中文」或「英文」以外含这两个字的词**：
+        # engine_dialog.engine_lang_mark 用 `"中文" in tag` 做**子串**判断
+        # （engine_dialog.py:123-124），任何含「中文」二字的标签都会让这条
+        # 仅英文的模型被错标成中英双语。正文说明放 desc 里，tags 只留纯语言标记。
+        "tags": ["英文", "仅英文", "需 900MB", "仅预下载", "许可证未标注"],
+        "params": {},
+        "update_channel": "models",
+    },
     # ------------------------------------------------------------ 评测基准
     {
         "id": "raid",

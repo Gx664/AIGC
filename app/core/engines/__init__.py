@@ -29,6 +29,7 @@ _ENGINE_MODULES = (
     "curvature_engine",
     "binoculars_engine",
     "rule_engine",
+    "model_warehouse_engine",
 )
 
 MODULE_ERRORS = {}

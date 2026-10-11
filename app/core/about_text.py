@@ -116,8 +116,21 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
      于是它模块级 import 的标准库（queue / re / shutil / subprocess / threading / time /
      traceback / importlib.util）一个都没进包体；现已显式交给打包器收集。Windows 安装包
      不受该缺陷影响；
-  ⑤ 打包自检加强：三端构建增加一步「真跑冻结产物」的冒烟自测 —— 原先的自检用的是自带完整
+  ⑤ 打包自检加强：三端构建增加一步「真跑冻结产物」的冒烟自测—— 原先的自检用的是自带完整
      标准库的便携 Python，碰不到冻结包体，才让上面这个问题漏到线上
+- v1.3.9 新增 / 修复（模型仓库版；引擎算法、词表、阈值一律不动）：
+  ① 「引擎管理」新增 4 个可下载的改写模型：Qwen3-0.6B（约 1.2GB）、Qwen3-1.7B
+     （约 3.4GB，推荐）、Qwen3-4B（约 8.0GB，长句最强）、Paraphraser（约 900MB，
+     **仅英文**、许可证未标注）。每条都标清语言范围、体积与许可证；
+  ② 🔴 这 4 条**只用于提前把模型下到本地，当前版本不参与降重**。选中它们点「开始降重」
+     会直接报错提示改用规则引擎—— 这是有意为之，避免误以为已经在用模型。
+     **默认降重引擎仍是内置规则引擎**，本版一行都没碰它，中英文降重效果与 v1.3.8 完全一致；
+  ③ 顺带修掉两个清单层缺陷：新条目因名称字母序把内置规则引擎挤出了默认第一位
+     （等于悄悄换掉了默认降重引擎），以及仅英文模型因标签子串匹配被错标成中英双语。
+     前者已加回归断言钉死；
+  ④ 刻意不收`google/mt5-small`、`uer/t5-v1_1-small-chinese`：官方卡明确写「只做过
+     预训练，必须微调后才能用于下游任务」，直接拿去降重得到的是无意义输出
+     （不是效果差，是根本不能用），收录只会浪费 1.4GB 磁盘和一次下载等待
 
 【检测 → 诊断 → 治疗（v1.1 新增）】
 检测只是第一步。本工具内置完全离线的 AI 痕迹诊断与降重（治疗）引擎：
@@ -414,6 +427,27 @@ a paragraph-level report.
   5) stronger build self-check: the three-platform build now runs a smoke test that actually
      executes the frozen artifact - the old check used the portable Python (full standard
      library) and never touched the frozen bundle, which is how the problem reached production
+- v1.3.9 added / fixed (model-warehouse release; engine algorithms, word tables and
+  thresholds all untouched):
+  1) Four downloadable rewrite models now appear in "Engine Manager": Qwen3-0.6B (~1.2GB),
+     Qwen3-1.7B (~3.4GB, recommended), Qwen3-4B (~8.0GB, strongest on long sentences), and
+     Paraphraser (~900MB, **English only**, license not stated). Each entry states its
+     language coverage, size and license;
+  2) NOTE: these four entries are for staging models locally only and do **not**
+     participate in rewriting in this release. Selecting one and pressing "start rewrite"
+     raises an explicit error pointing you back to the rule engine - this is intentional,
+     so nobody assumes a model is already doing the work. The **default rewrite engine is
+     still the built-in rule engine**, not one line of it was touched, and Chinese and
+     English rewriting results are identical to v1.3.8;
+  3) two catalog-layer defects fixed along the way: new entries pushed the built-in rule
+     engine out of the default first slot via alphabetical name ordering (silently swapping
+     the default rewrite engine), and an English-only model was mislabelled as bilingual by
+     a substring tag check. The former is now pinned by a regression assertion;
+  4) deliberately excluded `google/mt5-small` and `uer/t5-v1_1-small-chinese`: their model
+     cards state they are pretrained only and must be fine-tuned before use on a downstream
+     task, so feeding one straight into the rewriter produces meaningless output (not merely
+     poor quality - unusable), and listing them would only waste 1.4GB of disk and a
+     download wait
 
 [Detect → Diagnose → Treat (new in v1.1)]
 Detection is only the first step. This tool ships with fully offline diagnosis
