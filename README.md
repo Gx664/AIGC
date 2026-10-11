@@ -1,4 +1,4 @@
-# AI 检测工具箱（AIGC Detector Toolkit）  我的网站：何钰刚.xyz
+# AI 检测工具箱（AIGC Detector Toolkit） 
 
 <p align="center">
   <img src="app/assets/icon.png" width="120" alt="AI 检测工具箱">
@@ -244,7 +244,7 @@ If you'd like to tip but don't use either of the two payment methods above, you 
 
 ## Bug 反馈
 
-软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**，或 Telegram 私信 **@AaAa9100**。我的网站：何钰刚.xyz
+软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**，或 Telegram 私信 **@AaAa9100**。
 
 反馈 / 意见 / 合作都欢迎联系，两个渠道都可以。
 
