@@ -45,26 +45,86 @@ def _tmp():
     return tempfile.mkdtemp(prefix="aigc_eng_")
 
 
+# 引擎数量**永远从内置清单动态读**。v1.3.9 之前这些地方硬编码了 12 / 8 / 2，
+# 往清单里加条目就得同步改这几个数字，漏改就 CI 两个平台一起红。
+# 现在改成动态读 + 只断言结构关系（分类总数自洽、id 不重复、字段齐全）。
+def catalog_all_detect():
+    from core.engines import catalog
+
+    return catalog.by_category("detect")
+
+
+def catalog_all_repair():
+    from core.engines import catalog
+
+    return catalog.by_category("repair")
+
+
+def catalog_all_bench():
+    from core.engines import catalog
+
+    return catalog.by_category("benchmark")
+
+
 # ---------------------------------------------------------------- 1. 清单
 @case
 def test_catalog_entries():
     from core.engines import catalog
 
     engines = catalog.BUILTIN_ENGINES
-    assert len(engines) == 12, "应有 12 个条目，实际 %d" % len(engines)
+    # 🔴 数量判据**一律动态读**，不硬编码（v1.3.9 教训：加了 4 条仓库条目后
+    # 这里的 12 变 16，CI 两个平台一起挂在「引擎回归测试」这一步）。
+    # 真正要守的是**结构关系**：三类都在、id 不重复、字段齐全 ——
+    # 这些才是「清单坏了」的特征，数量本身不是。
+    n_det = len(catalog.by_category("detect"))
+    n_rep = len(catalog.by_category("repair"))
+    n_ben = len(catalog.by_category("benchmark"))
+    assert n_det + n_rep + n_ben == len(engines), (
+        "按 category 分类的总数（%d+%d+%d=%d）与清单条目数（%d）不一致，"
+        "说明有条目的 category 非法" % (n_det, n_rep, n_ben,
+                                    n_det + n_rep + n_ben, len(engines))
+    )
     ids = [e["id"] for e in engines]
-    assert len(set(ids)) == 12, "id 有重复：%s" % ids
+    assert len(set(ids)) == len(ids), "id 有重复：%s" % ids
     for e in engines:
         for key in ("id", "name", "category", "impl", "desc"):
             assert e.get(key), "%s 缺字段 %s" % (e.get("id"), key)
         assert e["category"] in ("detect", "repair", "benchmark"), e["category"]
         assert isinstance(e.get("models", []), list)
-    assert len(catalog.by_category("detect")) == 8
-    assert len(catalog.by_category("repair")) == 2
-    assert len(catalog.by_category("benchmark")) == 2
-    # 2026-10 新增的两个检测引擎必须落在清单里
-    for eid in ("aigc_zh_v3", "pan_modernbert"):
-        assert catalog.by_id(eid) is not None, "缺少条目 %s" % eid
+    assert n_det >= 1 and n_rep >= 1 and n_ben >= 1, (
+        "三类引擎都至少要有 1 个，实际 detect=%d repair=%d benchmark=%d"
+        % (n_det, n_rep, n_ben)
+    )
+    # 内置的规则降重引擎必须在清单里，且是 repair 类的第一项
+    # （它靠 name 字母序排序，见下面 test_rule_engine_is_default）
+    assert any(e["id"] == "aigc_reduce" for e in engines), "规则降重引擎不在清单里"
+
+
+@case
+def test_rule_engine_is_default():
+    """内置规则降重引擎必须是 repair 类的**第一项**（= 界面默认选中项）。
+
+    🔴 这条是排序守卫（v1.3.9 加仓库条目时踩过）：``EngineManager._sort()``
+    按 ``name`` 的字母序排，而 **ASCII 大写字母码位低于小写** —— 条目名若以
+    "Q"(81) / "T"(84) 开头，会把 "aigc-reduce"（'a'=97）挤到后面去，
+    **等于悄悄把用户的默认降重引擎换掉了**，而清单层完全看不出异常。
+    凡新增 repair 类条目都必须过这一关。
+    """
+    from core.engines import EngineManager
+
+    tmp = _tmp()
+    try:
+        repair = EngineManager(tmp).by_category("repair")
+        assert repair, "repair 类没有条目"
+        assert repair[0]["id"] == "aigc_reduce", (
+            "repair 类第一项应是内置规则降重引擎，实际是 %r（默认降重引擎被换掉了）"
+            % repair[0]["id"]
+        )
+        # 规则引擎必须标为「无需下载」，否则界面会误导用户去下载
+        assert repair[0].get("size_hint") == "内置（无需下载）", repair[0].get("size_hint")
+        assert "无需模型" in (repair[0].get("tags") or []), repair[0].get("tags")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 @case
@@ -83,6 +143,9 @@ def test_catalog_covers_methods():
         "aigc_text_detector", "pan 2026",
     ):
         assert needle in blob, "清单里找不到 %s" % needle
+    # 2026-10 新增的两个检测引擎必须落在清单里
+    for eid in ("aigc_zh_v3", "pan_modernbert"):
+        assert catalog.by_id(eid) is not None, "缺少条目 %s" % eid
 
 
 # ------------------------------------------------------------- 2. manager
@@ -93,10 +156,12 @@ def test_manager_categories():
     tmp = _tmp()
     try:
         mgr = EngineManager(tmp)
-        assert len(mgr.all()) == 12
-        assert len(mgr.by_category("detect")) == 8
-        assert len(mgr.by_category("repair")) == 2
-        assert len(mgr.by_category("benchmark")) == 2
+        # 数量动态读（见 test_catalog_entries 的说明），只校验结构关系
+        all_eng = mgr.all()
+        assert len(mgr.by_category("detect")) + len(mgr.by_category("repair")) \
+            + len(mgr.by_category("benchmark")) == len(all_eng), "分类总数与条目数不一致"
+        assert len(mgr.by_category("detect")) == len(catalog_all_detect())
+        assert len(mgr.by_category("benchmark")) == len(catalog_all_bench())
         # 检测流程只应看到检查类引擎
         names = [e["id"] for e in mgr.runnable()]
         assert sorted(names) == sorted(
@@ -128,7 +193,10 @@ def test_manager_local_override():
         assert e["name"] == "我的 GLTR", e["name"]
         assert e["model_id"] == "gpt2-medium"
         assert e["category"] == "detect", "覆盖时不应丢掉未声明的字段"
-        assert len(mgr.all()) == 12
+        # 本意是「覆盖**不新增**条目」—— 与内置清单比，而不是硬编码 12
+        assert len(mgr.all()) == len(catalog_all_detect()) \
+            + len(catalog_all_repair()) + len(catalog_all_bench()), (
+            "本地覆盖文件只应改字段，不该改变条目总数")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -391,6 +459,7 @@ def main():
 
     for fn in (
         test_catalog_entries,
+        test_rule_engine_is_default,
         test_catalog_covers_methods,
         test_manager_categories,
         test_manager_local_override,
