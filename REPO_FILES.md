@@ -138,8 +138,8 @@ launch. Allow it once and it behaves normally from then on.
 | File | Purpose |
 |---|---|
 | `icon.ico` / `icon.png` | Application icon. `icon.ico` is used for the exe, window, taskbar and shortcuts; `icon.png` is for the README |
-| `donate/alipay.jpg` | Alipay donation QR code (shown in README) |
-| `donate/wechat_pay.jpg` | WeChat Pay donation QR code |
+| `donate/alipay.jpg` | Alipay donation QR code (**no longer shown in README**, kept for reference) |
+| `donate/wechat_pay.jpg` | WeChat Pay donation QR code (**no longer shown in README**, kept for reference) |
 | `donate/deepseek_usage.png` | Illustration for the earlier "gift an API key" note aimed at international users (no longer referenced since v1.3.3; kept for reference) |
 
 ---

@@ -207,28 +207,13 @@ xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app
 
 感谢两位作者与相关社区，让"检测、诊断、治疗"的完整流程成为可能。
 
-## 支持与赞赏 · Support
+## 支持 · Support
 
-这个项目对个人完全免费。如果它对你有一点帮助，可以**请作者喝杯奶茶**，支持继续开发；或者**把项目分享给需要的同学**、点个 ⭐ **Star**，同样是最好的支持。
+这个项目对个人完全免费。如果它对你有一点帮助，可以**把项目分享给需要的同学**、点个 ⭐ **Star**，同样是最好的支持。
 
 > ⚠️ **本项目禁止任何形式的商业使用。** 个人学习、研究、交流免费；如需商用请先联系作者获得书面授权。
 
-<p align="center">
-  <img src="app/assets/donate/alipay.jpg" width="220" alt="支付宝赞赏码 / Alipay" title="支付宝 / Alipay">
-  <img src="app/assets/donate/wechat_pay.jpg" width="220" alt="微信支付赞赏码 / WeChat Pay" title="微信支付 / WeChat Pay">
-</p>
-
-<p align="center">支付宝（Alipay）｜微信支付（WeChat Pay）</p>
-
-也欢迎发邮件到 **gxgx3456@qq.com**，或 Telegram 私信 **@AaAa9100** 说声加油。
-
-> 💬 **反馈 / 意见 / 合作都欢迎联系：gxgx3456@qq.com ｜ Telegram: @AaAa9100**
-
-### For international users
-
-If you'd like to tip but don't use either of the two payment methods above, you can contact me on Telegram to send a tip instead - thank you!!!
-
-**Telegram: @AaAa9100** (not my personal account; it is a purchased one)
+> 💬 **反馈 / 意见 / 合作都欢迎联系：gxgx3456@qq.com**
 
 ## 技术架构
 
@@ -244,9 +229,9 @@ If you'd like to tip but don't use either of the two payment methods above, you 
 
 ## Bug 反馈
 
-软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**，或 Telegram 私信 **@AaAa9100**。
+软件内点击「导出日志」打包日志后，发送至：**gxgx3456@qq.com**。
 
-反馈 / 意见 / 合作都欢迎联系，两个渠道都可以。
+反馈 / 意见 / 合作都欢迎联系。
 
 ## 开源协议
 
@@ -269,6 +254,6 @@ If you'd like to tip but don't use either of the two payment methods above, you 
 
 ### 如需商业授权
 
-请邮件联系 **gxgx3456@qq.com**，或 Telegram 私信 **@AaAa9100**，说明用途与范围。
+请邮件联系 **gxgx3456@qq.com**，说明用途与范围。
 
 > 本协议限制的是**他人**的商业使用，不影响作者本人对项目收费或提供商业授权。

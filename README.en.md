@@ -227,28 +227,13 @@ The "Detect → Diagnose → Treat" loop directly merges the methodology of two 
 
 Thanks to both authors and their communities for making the full detect → diagnose → treat flow possible.
 
-## Support & Donate
+## Support
 
-This project is completely free for personal use. If it helped you, you are welcome to **buy the author a milk tea** to support further development — or simply **share it with someone who needs it** / give it a ⭐ **Star**, which helps just as much.
+This project is completely free for personal use. If it helped you, you are welcome to simply **share it with someone who needs it** / give it a ⭐ **Star**, which helps just as much.
 
 > ⚠️ **Commercial use of this project is prohibited.** Personal study, research and exchange are free; for commercial use, please contact the author for written permission first.
 
-<p align="center">
-  <img src="app/assets/donate/alipay.jpg" width="220" alt="Alipay QR code" title="Alipay">
-  <img src="app/assets/donate/wechat_pay.jpg" width="220" alt="WeChat Pay QR code" title="WeChat Pay">
-</p>
-
-<p align="center">Alipay ｜ WeChat Pay</p>
-
-You're also welcome to just drop a line to **gxgx3456@qq.com** or ping **@A9100010** on Telegram.
-
-> 💬 **Feedback / suggestions / collaboration are all welcome - contact: gxgx3456@qq.com | Telegram: @A9100010**
-
-### For international users
-
-If you'd like to tip but don't use either of the two payment methods above, you can contact me on Telegram to send a tip instead - thank you!!!
-
-**Telegram: @A9100010** (not my personal account; it is a purchased one)
+> 💬 **Feedback / suggestions / collaboration are all welcome - contact: gxgx3456@qq.com**
 
 ## Tech Stack
 
@@ -264,9 +249,9 @@ If you'd like to tip but don't use either of the two payment methods above, you 
 
 ## Bug Reports
 
-Click "Export Logs" in the app and send the package to: **gxgx3456@qq.com**, or message **@A9100010** on Telegram.
+Click "Export Logs" in the app and send the package to: **gxgx3456@qq.com**.
 
-Feedback, suggestions and collaboration are all welcome through either channel.
+Feedback, suggestions and collaboration are all welcome.
 
 ## License
 
@@ -289,6 +274,6 @@ Feedback, suggestions and collaboration are all welcome through either channel.
 
 ### Commercial licensing
 
-Please email **gxgx3456@qq.com**, or message **@A9100010** on Telegram, with the intended use and scope.
+Please email **gxgx3456@qq.com** with the intended use and scope.
 
 > This license restricts **third-party** commercial use only. It does not prevent the author from charging for the project or offering commercial licenses.

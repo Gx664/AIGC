@@ -85,4 +85,4 @@ xattr -dr com.apple.quarantine /Applications/AIGC_Toolkit.app
 
 ---
 
-有问题或想反馈，Telegram：[@A9100010](https://t.me/A9100010) ｜ 详细文档见 [README](https://github.com/Gx664/AIGC#readme)
+有问题或想反馈：gxgx3456@qq.com ｜ 详细文档见 [README](https://github.com/Gx664/AIGC#readme)
