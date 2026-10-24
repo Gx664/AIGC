@@ -28,7 +28,71 @@ These rules apply to this project from 2026-09-25 onward:
 
 ---
 
-## v1.3.9 (2026-10-11)
+## v1.4.0 (2026-10-24)
+
+> Model-warehouse expansion + contact-info cleanup: two new open-source rewrite
+> models (**Humanizer** and **humanize-zh**) can now be pre-downloaded, and the
+> download layer understands GGUF files and subfolder weights. The **built-in
+> rule-based rewrite engine is still the default** — its algorithms, word tables
+> and thresholds are untouched in this release. Donation QR codes and the
+> Telegram contact were also removed from the app itself.
+
+### Added
+
+- **Download layer now supports GGUF and subfolder weights**: `BaseEngine.install()`
+  previously only accepted transformers' safetensors layout. It now downloads files
+  one by one via `hf_hub_download` according to each entry's `files` / `subfolder`
+  declaration, so `.gguf` files also land in the model directory (for use with
+  external tools such as llama.cpp). The size calculator in `engine_dialog.py`
+  now recognises `.gguf` as well.
+- **Two new downloadable rewrite models in "Engine Manager"** (each states language
+  coverage, size, license, and a prominent download-only reminder):
+  - **Humanizer** (`jialinyyzz/humanizer`): bilingual Chinese/English, Gemma-4-12B
+    base with real SFT+DPO fine-tuning; Apache-2.0; GGUF Q4_K_M ≈ 7.6GB.
+    ⚠️ Officially a **text-completion model, not a chat model** — the prompt must
+    match byte for byte and sampling must stay at
+    `temperature=1.0 / top_p=0.95 / top_k=0 / min_p=0`.
+  - **humanize-zh** (`XiangJinYu/Qwen3.5-9B-Humanize-DPO-Round2`): **Chinese only**,
+    Qwen3.5-9B + 18k SFT + two rounds of DPO; Apache-2.0; adapter only 0.116GB but
+    needs the ~19.3GB base model alongside it (that is what the `subfolder`
+    mechanism is for).
+  - 🔴 Like the four entries in v1.3.9, these two are for **staging models locally
+    only — they do not rewrite in this version**. Selecting them and hitting
+    "Start rewrite" raises an error telling you to use the rule engine instead.
+    The **default rewrite engine is still the built-in rule engine**; not one line
+    of it changed here, so Chinese and English rewriting behave exactly as in v1.3.9.
+
+### Changed (contact info cleanup)
+
+- Removed donation QR codes and the Telegram contact from the app itself:
+  - `core/meta.py`: `AUTHOR_TG` constant deleted; `AUTHOR_CONTACT` now carries the
+    email address only;
+  - `ui/main_window.py`: the donation QR UI (Alipay / WeChat Pay) and
+    `_donate_image_path()` were dropped from the About window, and the main
+    window's contact row no longer shows Telegram; now-unused imports
+    (`QPixmap`, `sys`) were cleaned up too;
+  - `core/i18n.py`: both the Chinese and English `nc_banner_tip` strings now give
+    the email address only, no Telegram;
+  - `core/about_text.py`: the Chinese and English "Support" sections were rewritten
+    to "free and open source, email only", and the Telegram handle in the historical
+    release notes has been redacted;
+  - the `app/assets/donate/` image directory (alipay.jpg / wechat_pay.jpg) was deleted.
+- `_diag/check_i18n.py` contact rule inverted: it used to require the Telegram handle
+  in the same sentence as the email, and now **forbids it**, so this cannot regress.
+- The documentation layer (README / manual / release notes) had already been cleaned
+  up after v1.3.9; this release brings the app itself in line.
+
+### Visible to users
+
+- Two new entries, Humanizer and humanize-zh, appear in "Engine Manager" with a
+  "Download model" button.
+- The About window no longer shows Alipay / WeChat Pay QR codes and no longer
+  mentions Telegram; the main window's contact line shows the email
+  `gxgx3456@qq.com` only.
+- The default rewrite engine and the Chinese / English rewriting behaviour are
+  identical to v1.3.9 (rule engine untouched).
+
+---
 
 > Model-warehouse release: four open-source rewrite models are now listed for
 > pre-download, while the **built-in rule-based rewrite engine stays exactly as it

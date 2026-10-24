@@ -27,7 +27,7 @@ except ImportError:  # pragma: no cover
     tk = filedialog = messagebox = ttk = None
 
 APP_NAME = "AI 检测工具箱"
-APP_VER = "1.3.9"
+APP_VER = "1.4.0"
 PY_VER = "3.12.10"
 PY_EMBED_NAME = "python-%s-embed-amd64.zip" % PY_VER
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\AIGC_Toolkit"
@@ -177,7 +177,7 @@ def _i18n_dir():
 
 sys.path.insert(0, _i18n_dir())
 from i18n import get_lang, set_lang, tr  # noqa: E402
-from meta import AUTHOR_CONTACT, AUTHOR_EMAIL, AUTHOR_TG  # noqa: E402
+from meta import AUTHOR_CONTACT, AUTHOR_EMAIL  # noqa: E402
 from netfix import apply_env_fix, sanitize_env, unusable_system_proxy  # noqa: E402
 from gpuinfo import detect as gpu_detect  # noqa: E402
 
@@ -712,7 +712,6 @@ def register_uninstall(target, runtime_dir, log=print):
             ("RuntimeDir", runtime_dir or ""),
             ("UninstallString", uninstall_cmd),
             ("HelpLink", "mailto:%s" % AUTHOR_EMAIL),
-            ("URLInfoAbout", "https://t.me/%s" % AUTHOR_TG.lstrip("@")),
             ("Contact", AUTHOR_CONTACT),
             ("Comments",
              "反馈 / 意见 / 合作欢迎联系 · Feedback, suggestions & collaboration: %s"

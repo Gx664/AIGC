@@ -1,9 +1,7 @@
 import os
-import sys
 import time
 
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -41,7 +39,6 @@ from core.meta import (
     APP_VERSION,
     AUTHOR_CONTACT,
     AUTHOR_EMAIL,
-    AUTHOR_TG,
 )
 from core import platform_ops
 from core.report import build_report
@@ -413,9 +410,7 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(self._section(tr("label_contact")))
         cont_row = QHBoxLayout()
-        self.author_label = QLabel(
-            "%s  ｜  Telegram %s" % (AUTHOR_EMAIL, AUTHOR_TG)
-        )
+        self.author_label = QLabel(AUTHOR_EMAIL)
         self.author_label.setStyleSheet("color:#64748b;")
         cont_row.addWidget(self.author_label, 1)
         self.btn_copy_mail = GlassButton(tr("btn_copy_contact"))
@@ -763,60 +758,10 @@ class MainWindow(QMainWindow):
             "font-size:13px;line-height:150%;}"
         )
         box.addWidget(text, 1)
-        qr_row = QHBoxLayout()
-        for fname, caption in (
-            ("alipay.jpg", "支付宝  Alipay"),
-            ("wechat_pay.jpg", "微信支付  WeChat Pay"),
-        ):
-            cell = QVBoxLayout()
-            img_path = self._donate_image_path(fname)
-            img_label = QLabel()
-            img_label.setAlignment(Qt.AlignCenter)
-            if img_path and os.path.exists(img_path):
-                pix = QPixmap(img_path)
-                img_label.setPixmap(
-                    pix.scaledToWidth(
-                        240, Qt.SmoothTransformation
-                    )
-                )
-            else:
-                img_label.setText("赞赏码图片缺失")
-            cell.addWidget(img_label)
-            cap = QLabel(caption)
-            cap.setAlignment(Qt.AlignCenter)
-            cap.setStyleSheet("color:#64748b;font-weight:600;")
-            cell.addWidget(cap)
-            qr_row.addLayout(cell)
-        box.addLayout(qr_row)
         close_btn = GlassButton("关闭")
         close_btn.clicked.connect(dlg.accept)
         box.addWidget(close_btn, 0, Qt.AlignRight)
         dlg.exec()
-
-    def _donate_image_path(self, name):
-        """赞赏码图片（``alipay.jpg`` / ``wechat_pay.jpg``）的绝对路径。
-
-        **别把 ``app`` 拼两次**：``BASE_DIR`` 本身已经是 app 目录
-        （``ui/main_window.py`` 上溯两级 = ``<安装目录>\\app``），所以
-        ``BASE_DIR + "app/assets/donate/..."`` 会得到 ``app\\app\\assets\\...``，
-        永远找不到文件，界面上只能显示"赞赏码图片缺失"（v1.0 起就错了）。
-
-        候选顺序：
-            1. PyInstaller 解包目录 ``<_MEIPASS>/app/assets/donate``
-            2. ``<BASE_DIR>/assets/donate`` —— 正常路径
-            3. ``<BASE_DIR 的上一级>/app/assets/donate`` —— 兜底
-        """
-        meipass = getattr(sys, "_MEIPASS", "")
-        cands = []
-        if meipass:
-            cands.append(os.path.join(meipass, "app", "assets", "donate", name))
-        cands.append(os.path.join(BASE_DIR, "app", "assets", "donate", name))
-        cands.append(os.path.join(
-            os.path.dirname(BASE_DIR), "app", "assets", "donate", name))
-        for p in cands:
-            if os.path.exists(p):
-                return p
-        return ""
 
     def copy_author_email(self):
         QApplication.clipboard().setText(AUTHOR_CONTACT)

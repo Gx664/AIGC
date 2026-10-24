@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""引擎清单（11 项，零依赖，UI 与安装器都可安全导入）。
+"""引擎清单（零依赖，UI 与安装器都可安全导入）。
 
 设计要点
 --------
@@ -10,6 +10,12 @@
 * **预留接口**：新增 / 更新条目不一定要改本文件 ——
   ``<base_dir>/engines_catalog.json``（本地覆盖）和远端 manifest 都会与
   本清单合并，见 ``manager.EngineManager``。
+
+条目数量
+--------
+**不要在本文档里写死条目数** —— 加一条就过期一次。
+需要断言时用 ``len(BUILTIN_ENGINES)`` 动态读（``tools/test_engines.py``
+已按此写），别硬编码数字。
 """
 
 CAT_DETECT = "detect"
@@ -392,6 +398,84 @@ BUILTIN_ENGINES = [
         # （engine_dialog.py:123-124），任何含「中文」二字的标签都会让这条
         # 仅英文的模型被错标成中英双语。正文说明放 desc 里，tags 只留纯语言标记。
         "tags": ["英文", "仅英文", "需 900MB", "仅预下载", "许可证未标注"],
+        "params": {},
+        "update_channel": "models",
+    },
+    # ------------------------------------------------------------ 改写模型 · 2026-10 新增
+    # 这一组是**真正做过改写微调**的模型（v1.3.9 那四条只有预训练，
+    # 官方卡写明「必须微调后才能用于下游任务」）。
+    #
+    # 🔴 仍然**只预下载、不参与降重**：本项目的降重默认走内置规则引擎，
+    # 本版一行都没碰它。模型条目只是把权重提前备到本地。
+    {
+        "id": "humanizer_12b_gguf",
+        "name": "本地改写模型 Humanizer 12B（仓库 · 中英双语）",
+        "name_en": "Humanizer 12B rewriter (warehouse, EN+ZH bilingual)",
+        "category": CAT_REPAIR,
+        "impl": "model_warehouse",
+        "model_id": "jialinyyzz/humanizer-GGUF",
+        "models": [
+            {
+                "repo": "jialinyyzz/humanizer-GGUF",
+                "kind": "gguf",
+                # 🔴 必须声明 files：GGUF 是 llama.cpp 的格式，
+                # transformers 的 from_pretrained 读不了 —— 只能原样落盘。
+                # 见 model_warehouse_engine.install() 的「下载分两条路」。
+                "files": [
+                    "humanizer-12b-Q4_K_M.gguf",
+                    "prompt_format.json",
+                ],
+                "size": "约 7.6GB",
+                "role": "中英双语改写模型（GGUF 量化 Q4_K_M，Gemma-4-12B 微调）",
+                "role_en": "EN+ZH rewriting model (GGUF Q4_K_M, fine-tuned from Gemma-4-12B)",
+            }
+        ],
+        "size_hint": "约 7.6GB",
+        "paper": "Gemma-4-12B 微调 · Apache-2.0",
+        "venue": "中英双语 · 2026-10 HF trending #2 · 12.9 万次下载",
+        "desc": "⚠️ 仅预下载，当前版本**不参与降重**。🔴 **唯一中英双语的成品改写模型**——它做了真正的改写微调（合成 AI 稿 → 真人原文），不是只有预训练。官方实测：英文严格检测下 210 篇仅 11 篇被误判为 AI（上一版是 26 篇），且**训练全程没用任何 AI 检测器**。三档量化任选：IQ2_XS 3.9GB / Q3 5.6GB / Q4_K_M 7.6GB（推荐，峰值内存约 10GB）。🔴 官方强调它是 **text-completion 模型而非对话模型**，prompt 必须逐字节匹配官方模板，且采样参数须为 temperature=1.0 / top_p=0.95（top_k、min_p 关闭、repetition_penalty=1.0）—— 自行改写提示词会明显变差。",
+        "desc_en": "⚠️ Download-only; NOT used for rewriting in this release. 🔴 **The only ready-made EN+ZH bilingual rewriter** - genuinely fine-tuned for rewriting (synthetic AI drafts → authentic human text), not merely pretrained. Official measurement: on strict English detection, 11 of 210 rewrites were flagged as AI (down from 26 in the prior release), and no AI detector was used anywhere in training. Three quantizations available: IQ2_XS 3.9GB / Q3 5.6GB / Q4_K_M 7.6GB (recommended, ~10GB peak memory). 🔴 The official docs stress this is a **text-completion model, not a chat model**: the prompt must match the published template byte for byte, and sampling must be temperature=1.0 / top_p=0.95 with top-k and min-p off and repetition_penalty=1.0 - paraphrasing the prompt makes the output noticeably worse.",
+        "tags": ["中文", "英文", "需 7.6GB", "仅预下载", "真微调", "Apache-2.0"],
+        "params": {},
+        "update_channel": "models",
+    },
+    {
+        "id": "humanize_zh_9b",
+        "name": "本地改写模型 Humanize-ZH 9B（仓库 · 中文专用）",
+        "name_en": "Humanize-ZH 9B rewriter (warehouse, Chinese only)",
+        "category": CAT_REPAIR,
+        "impl": "model_warehouse",
+        "model_id": "XiangJinYu/Qwen3.5-9B-Humanize-DPO-Round2",
+        "models": [
+            {
+                "repo": "XiangJinYu/Qwen3.5-9B-Humanize-DPO-Round2",
+                "kind": "adapter",
+                # 🔴 仓库里只有 adapter_model.safetensors（LoRA 增量权重，
+                # 116MB），**没有合并后的完整权重**。要真跑起来必须另外
+                # 准备底座 Qwen3.5-9B（19.3GB）并用 peft 合并 ——
+                # 本项目当前不含 peft，所以这条**只是把 adapter 备到本地**。
+                "files": [
+                    "adapter_model.safetensors",
+                    "adapter_config.json",
+                ],
+                "size": "约 116MB（另需 19.3GB 底座）",
+                "role": "中文改写模型（LoRA 增量权重，基于 Qwen3.5-9B）",
+                "role_en": "Chinese rewriting model (LoRA adapter on Qwen3.5-9B)",
+            },
+            {
+                "repo": "unsloth/Qwen3.5-9B",
+                "kind": "causal",
+                "size": "约 19.3GB",
+                "role": "配套底座（adapter 需要它才能生效）",
+                "role_en": "Required base model (the adapter needs it to take effect)",
+            },
+        ],
+        "size_hint": "约 116MB + 19.3GB",
+        "paper": "Qwen3.5-9B · SFT + 两轮 DPO · Apache-2.0",
+        "venue": "中文专用 · 1.8 万条 SFT 数据 · 作者实测 AI 率 30% → 10% 以下",
+        "desc": "⚠️ 仅预下载，当前版本**不参与降重**。🔴 **中文场景最对口的一个** —— 训练数据全部来自中文学术论文摘要，三阶段训练：SFT（1.8 万条「AI 改写稿 → 真人原文」对）→ DPO 第一轮（正反双向负样本，让模型学「真人分布」而不是简单往口语化偏）→ DPO 第二轮（自博弈数据，进一步提多样性）。作者实测两篇论文 AI 率分别从 50% 降到 24%、从 30% 降到 8.9%。🔴 注意体积：仓库只发布了 **116MB 的 LoRA 增量权重**，要真正跑起来还需 **19.3GB 底座**（本清单里已一并列出）；且合并需要 peft 库，本项目当前未安装。",
+        "desc_en": "⚠️ Download-only; NOT used for rewriting in this release. 🔴 **The best fit for Chinese academic text** - all training data comes from Chinese academic abstracts, trained in three stages: SFT (18k pairs of AI-rewritten → authentic human abstracts) → DPO round 1 (bidirectional negative samples, so it learns the human distribution rather than merely drifting toward colloquial style) → DPO round 2 (self-play data for extra diversity). The author's measurement: AI ratio dropped from 50% to 24% and from 30% to 8.9% on two papers. 🔴 Mind the size: the repo publishes only a **116MB LoRA adapter**, so actually running it also needs the **19.3GB base model** (listed in this entry too); merging additionally requires the peft library, which this release does not ship.",
+        "tags": ["中文", "仅中文", "需 19.3GB", "仅预下载", "真微调", "Apache-2.0"],
         "params": {},
         "update_channel": "models",
     },

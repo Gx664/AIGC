@@ -304,6 +304,52 @@ class BaseEngine:
             if progress_cb:
                 progress_cb(int((i + 1) * 100.0 / n), "%s 就绪" % role)
 
+    # --------------------------------------------------------- 原始文件下载
+    def download_raw(self, repo, files, progress_cb=None):
+        """直接下载仓库里的**原始文件**（不走 transformers 加载）。
+
+        为什么需要这条路径
+        ------------------
+        ``install()`` 走的是 ``transformers.from_pretrained``，它只认
+        「配置 + 权重」能被 transformers 解析的仓库。这带来两个硬限制：
+
+        1. **GGUF 格式吃不了** —— GGUF 是 llama.cpp 的格式，
+           ``from_pretrained`` 读不了（除非装 gguf 转换链，本项目不装）。
+        2. **仓库内的子目录被忽略** —— 比如 ``merged/`` 下的完整权重，
+           ``from_pretrained(repo)`` 会在仓库根找 ``config.json``，
+           找不到就报错；必须显式指到子目录。
+
+        而「模型仓库」条目要的恰恰是「把文件原样搬下来」，
+        不需要在本进程里加载它。所以这里直接用 ``huggingface_hub``
+        的 ``hf_hub_download`` 按文件名精确取文件。
+
+        :param repo: 仓库 id，如 ``"jialinyyzz/humanizer-GGUF"``
+        :param files: 要取的文件名列表（相对仓库根）
+        :param progress_cb: ``(pct, msg)`` 进度回调
+        :return: 落盘后的本地绝对路径列表
+        """
+        from huggingface_hub import hf_hub_download
+
+        os.makedirs(self.model_dir, exist_ok=True)
+        out = []
+        total = len(files) or 1
+        for i, fn in enumerate(files):
+            if progress_cb:
+                progress_cb(int(i * 100.0 / total), "下载 %s（%d/%d）..."
+                            % (fn, i + 1, total))
+            # local_dir=self.model_dir：直接落成
+            # <model_dir>/<仓库名>/<文件>，与 from_pretrained 的缓存布局区分开，
+            # 避免两种格式的权重混在一个目录里（is_installed 判定会误判）。
+            path = hf_hub_download(
+                repo_id=repo,
+                filename=fn,
+                local_dir=self.model_dir,
+            )
+            out.append(path)
+            if progress_cb:
+                progress_cb(int((i + 1) * 100.0 / total), "%s 就绪" % fn)
+        return out
+
     # ----------------------------------------------------------- 通用打分
     @staticmethod
     def _encode_capped(text, tok, max_tokens, model=None):
