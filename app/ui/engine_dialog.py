@@ -39,7 +39,14 @@ _CAT_KEYS = {
     "benchmark": "cat_bench",
 }
 
-_MODEL_EXT = (".bin", ".safetensors", ".h5", ".msgpack", ".onnx")
+# 已下载判定用的权重后缀。
+#
+# 🔴 **必须含 ``.gguf``** —— 「模型仓库」里最常见的两种布局之一就是 GGUF
+# （llama.cpp 的权重格式，transformers 读不了，只能原样落盘）。
+# 漏了它会让已下载的 GGUF 条目永远显示「未下载」，用户以为没下成功。
+# 另一种布局是仓库子目录里的完整权重（如 ``merged/model.safetensors``），
+# 那种由 ``.safetensors`` 覆盖。
+_MODEL_EXT = (".bin", ".safetensors", ".h5", ".msgpack", ".onnx", ".gguf")
 
 
 def _pick_lang(zh, en):

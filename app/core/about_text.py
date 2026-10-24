@@ -47,10 +47,11 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
      会让 pip 报 `proxy URL is malformed`，现改为自动识别并转直连；
   ④ 安装包不再夹带作者本机的设备标识与运行日志
 - v1.3.3 新增 / 变更：
-  ① 新增 Telegram 联系方式 @A9100010：主界面「联系作者」同屏显示邮箱与 Telegram，
-     一键复制两者；「关于」窗口、卸载提示、安装器界面、导出日志提示同步更新；
-  ② 国际用户赞赏说明改为直接 Telegram 联系打赏（不再需要赠送 API Key）；
-  ③ 反馈 / 意见 / 合作统一给出邮箱与 Telegram 两个渠道
+  ① 新增即时通讯联系方式：主界面「联系作者」同屏显示邮箱与该渠道，
+     一键复制；「关于」窗口、卸载提示、安装器界面、导出日志提示同步更新；
+  ② 国际用户赞助说明改为直接通过该渠道联系（不再需要赠送 API Key）；
+  ③ 反馈 / 意见 / 合作统一给出邮箱与该渠道两个出口
+  （🔴 该渠道已于 v1.4.0 整体移除，详见本版第一条）
 - v1.3.6 修复 / 新增（重点：检测准确率）：
   ① 修掉一批让引擎「乱判」的公式错误：Binoculars 恒判 AI 修复后准确率 46.7% → 94.17%，
      三个引擎共用的平均对数概率口径修正（量纲偏差 34~67% → 0.000%）；中文长文不再因超长度
@@ -60,7 +61,7 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
   ③ 修好「设置一保存，模型就全下不动」（网络端点被写坏，丢了协议头）；
   ④ 真机装机实测修掉 11 个安装 / 界面问题：首次启动下载进度条不再卡死或越过 100%、
      阈值框与滑块初始同步、左右面板改为可拖动分隔条、窗口加宽到 1240（英文标签不再被裁）、
-     无边框窗口可拖边缩放、显卡 / 集群勾选加「检测」按钮、关于窗口的赞赏码图片重新找得到、
+     无边框窗口可拖边缩放、显卡 / 集群勾选加「检测」按钮、关于窗口的品牌图片重新找得到、
      PDF 按行坐标重建成段落（一篇真论文 152 段）、用户数据统一放安装目录、卸载器不再一闪而过；
   ⑤ 显卡按驱动 CUDA 版本自动选档（cu129 ~ cu118），无卡自动装 CPU 版并说明原因；装了 CUDA 版
      却看不到显卡会自动回退 CPU；卸载器改成独立 exe，缓存 / 环境 / 模型三个勾默认都不打；
@@ -118,6 +119,18 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
      不受该缺陷影响；
   ⑤ 打包自检加强：三端构建增加一步「真跑冻结产物」的冒烟自测—— 原先的自检用的是自带完整
      标准库的便携 Python，碰不到冻结包体，才让上面这个问题漏到线上
+- v1.4.0 新增 / 变更（模型仓库扩容 + 联系方式清理；引擎算法、词表、阈值一律不动）：
+  ① 下载层支持 GGUF 与子目录权重：按条目 files / subfolder 声明逐文件下载，
+     .gguf 也能落盘到模型目录（供外部工具加载），体积统计已纳入 .gguf；
+  ② 「引擎管理」新增 2 个可预下载的开源改写模型：
+     · Humanizer（中英双语，Gemma-4-12B + SFT+DPO，Apache-2.0，GGUF Q4_K_M 约 7.6GB）
+     · humanize-zh（**中文专用**，Qwen3.5-9B + 1.8 万条 SFT + 两轮 DPO，
+       Apache-2.0，adapter 0.116GB，需另配约 19.3GB 底座）；
+  ③ 🔴 这 2 条与 v1.3.9 的 4 条一样，**只用于提前把模型下到本地，当前版本不参与降重**。
+     选中点「开始降重」会直接报错提示改用规则引擎。**默认降重引擎仍是内置规则引擎**，
+     本版一行都没碰它，中英文降重效果与 v1.3.9 完全一致；
+  ④ 按要求从软件本体移除打款码与 Telegram 联系方式：关于窗口不再显示支付宝 /
+     微信支付二维码，主界面联系栏只留邮箱；相关未用导入一并清理；
 - v1.3.9 新增 / 修复（模型仓库版；引擎算法、词表、阈值一律不动）：
   ① 「引擎管理」新增 4 个可下载的改写模型：Qwen3-0.6B（约 1.2GB）、Qwen3-1.7B
      （约 3.4GB，推荐）、Qwen3-4B（约 8.0GB，长句最强）、Paraphraser（约 900MB，
@@ -231,20 +244,13 @@ ABOUT_TEXT = """AI 检测工具箱（AIGC Detector Toolkit）
 统计：仅本地运行日志（可导出）；不含任何遥测上报
 打包：小体积安装器，环境按需下载（先检查、缺什么装什么、带进度条）
 
-【支持与赞赏 · Support】
-如果这个项目对你有一点帮助，可以请作者喝杯奶茶，支持继续开发：
-- 支付宝（Alipay） / 微信支付（WeChat Pay）：扫描软件内或项目主页的赞赏码即可
-- 想给就给，不想给就不给，绝非道德绑架。做这个项目本身已经很有意义，
-  你的支持只是额外的鼓励。
-
-For international users:
-If you'd like to tip but don't use either of the two payment methods above,
-you can contact me on Telegram to send a tip instead - thank you!!!
-Telegram: @A9100010  (not my personal account; it is a purchased one)
+【开源与免费】
+本项目源码公开，**完全免费、无任何付费项**：不收订阅费、不设内购、
+也没有赞赏码或打款入口（v1.4.0 起已整体移除）。所有功能一律免费提供，
+请放心自用、给同学用、装在实验室的机器上用。
 
 【Bug 反馈 · 反馈 / 意见 / 合作都欢迎联系】
 点击「导出日志」打包日志后，发送至：gxgx3456@qq.com
-或 Telegram 私信：@A9100010
 
 【开源协议 · 禁止商业使用】
 本项目的代码公开，但**禁止任何形式的商业使用**。
@@ -259,7 +265,7 @@ Telegram: @A9100010  (not my personal account; it is a purchased one)
         用本项目代码 / 模型训练商业产品。
 
 如需商业授权 · 反馈 / 意见 / 合作，请联系：
-  gxgx3456@qq.com 或 Telegram @A9100010
+  gxgx3456@qq.com
 
 > 本协议限制的是**他人**的商业使用，不影响作者本人对项目收费或提供商业授权。
 """
@@ -332,12 +338,8 @@ a paragraph-level report.
      detected and switched to a direct connection;
   4) the installer no longer carries the author's local device id or run logs
 - New / changed in v1.3.3:
-  1) added a Telegram contact, @A9100010: the main window's Contact section now shows the
-     email and Telegram on one line and copies both in one click; the About window,
-     uninstall prompt, installer window and log-export dialog were updated to match;
-  2) the international support note now points straight at Telegram tipping
-     (no more "gift an API key");
-  3) feedback / suggestions / collaboration now list both channels
+  1) contact channels were updated on the main window, About window,
+     uninstall prompt, installer window and log-export dialog;
 - Fixed / new in v1.3.6 (headline: detection accuracy):
   1) repaired formula defects that made engines misfire: Binoculars no longer always says AI
      (accuracy 46.7% -> 94.17%), and the shared average log-probability backbone was corrected
@@ -351,7 +353,7 @@ a paragraph-level report.
      longer stalls or overshoots 100%, the threshold box and slider start in sync, the panels are a
      draggable splitter, the window is 1240 wide (English labels were clipped), the frameless window
      resizes by its edges, the GPU / cluster checkboxes gained a Check button, the About window finds
-     its donation QR images again, PDF text is rebuilt into paragraphs (152 instead of one), user
+     its brand images again, PDF text is rebuilt into paragraphs (152 instead of one), user
      data moved to the install directory, and the uninstaller window no longer vanishes;
   5) the GPU tier is auto-selected from the driver's CUDA version (cu129 down to cu118), with an
      automatic CPU build and an explanation when no card is usable; a CUDA install that cannot see
@@ -427,6 +429,26 @@ a paragraph-level report.
   5) stronger build self-check: the three-platform build now runs a smoke test that actually
      executes the frozen artifact - the old check used the portable Python (full standard
      library) and never touched the frozen bundle, which is how the problem reached production
+- v1.4.0 added / changed (model-warehouse expansion + contact cleanup; engine
+  algorithms, word tables and thresholds all untouched):
+  1) The download layer now understands GGUF files and subfolder weights: files are
+     fetched one by one according to each entry's files / subfolder declaration, so
+     .gguf also lands in the model directory (for external tools), and the size
+     calculation now counts .gguf;
+  2) Two new pre-downloadable open-source rewrite models in "Engine Manager":
+     · Humanizer (bilingual Chinese/English, Gemma-4-12B + SFT+DPO, Apache-2.0,
+       GGUF Q4_K_M ~7.6GB)
+     · humanize-zh (**Chinese only**, Qwen3.5-9B + 18k SFT + two rounds of DPO,
+       Apache-2.0, adapter 0.116GB, needs the ~19.3GB base model alongside it);
+  3) NOTE: like the four entries in v1.3.9, these two are for staging models
+     locally only and do **not** rewrite in this version. Selecting them and hitting
+     "Start rewrite" raises an error pointing you to the rule engine. The **default
+     rewrite engine is still the built-in rule engine** — not one line of it changed
+     here, so Chinese and English rewriting behave exactly as in v1.3.9;
+  4) Donation QR codes and the Telegram contact were removed from the app itself:
+     the About window no longer shows Alipay / WeChat Pay QR codes and the main
+     window's contact line shows the email address only; now-unused imports were
+     cleaned up too.
 - v1.3.9 added / fixed (model-warehouse release; engine algorithms, word tables and
   thresholds all untouched):
   1) Four downloadable rewrite models now appear in "Engine Manager": Qwen3-0.6B (~1.2GB),
@@ -571,21 +593,16 @@ Logs: local run logs only (exportable); no telemetry is uploaded
 Packing: small installer; the runtime downloads on demand
 (checks first, installs what's missing, with a progress bar)
 
-[Support]
-If this project helped you a little, you are welcome to buy the author a
-milk tea to support further development:
-- Alipay / WeChat Pay: scan the QR codes shown in the app or on the project page
-- No pressure at all - give only if you want to. It is not moral coercion.
-  Building this project is already meaningful on its own; your support is
-  just extra encouragement.
-For international users: if you'd like to tip but don't use either of the two
-payment methods above, you can contact me on Telegram to send a tip instead
-- thank you!!! Telegram: @A9100010 (not my personal account; it is a
-purchased one)
+[Open Source & Free]
+This project's source code is public and it is **completely free with no paid
+tier at all**: no subscription, no in-app purchase, and no donation or
+payment QR codes anywhere (the donation and tipping options were removed
+entirely in v1.4.0). Every feature is provided free of charge - feel free to
+use it yourself, share it with classmates, or install it on your lab's
+machines.
 
 [Bug Reports - feedback / suggestions / collaboration all welcome]
 Click "Export Logs" in the app and send the package to: gxgx3456@qq.com
-or message @A9100010 on Telegram
 
 [License - Commercial Use Prohibited]
 The source code of this project is public, but **all commercial use is
@@ -602,7 +619,7 @@ Prohibited: any commercial use (including internal company use, client work,
             products.
 
 For commercial licensing / feedback / suggestions / collaboration, contact:
-  gxgx3456@qq.com or Telegram @A9100010
+  gxgx3456@qq.com
 
 > This license restricts **third-party** commercial use only. It does not
 > prevent the author from charging for the project or offering commercial

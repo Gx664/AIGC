@@ -20,7 +20,20 @@
 没有做过下游微调**的模型，官方模型卡明确写了必须微调才能用于改写任务。
 直接拿去「降重」只会得到无意义输出（不是效果差，是不能用），所以清单里
 不收它们 —— 详见 ``catalog.py`` 里对应位置的注释。
+
+下载分两条路
+------------
+清单里每个模型条目可声明 ``files``（要取的原始文件名列表）：
+
+* **声明了** → 走 ``BaseEngine.download_raw()``，用 ``huggingface_hub``
+  按文件名精确取。用于**两种 transformers 读不了的布局**：
+  ① GGUF 格式（llama.cpp 的权重）；② 仓库子目录里的完整权重（如 ``merged/``）。
+* **没声明** → 走基类 ``from_pretrained``，用于标准 transformers 仓库。
+
+两条路都只落盘，不在本进程加载权重。
 """
+import os
+
 from .base import BaseEngine
 from .registry import register
 
@@ -61,3 +74,55 @@ class ModelWarehouseEngine(BaseEngine):
         if not self.repos():
             return "no_models"
         return "installed" if self.is_installed() else "missing"
+
+    # --------------------------------------------------------------- 下载
+    def install(self, progress_cb=None):
+        """下载模型。
+
+        **按清单声明分两条路**（这是本引擎唯一需要区别对待的地方）：
+
+        * 声明了 ``files`` —— 走 ``download_raw()`` 原样取文件。
+          用于 **GGUF 格式**（llama.cpp 的权重，transformers 读不了）
+          和**子目录权重**（如 ``merged/`` 下的完整模型）。
+        * 没声明 ``files`` —— 走基类的 ``from_pretrained`` 路径，
+          用于标准 transformers 仓库（Qwen3 系列、Paraphraser 等）。
+
+        两条路都只**落盘**，不在本进程里加载权重。
+        """
+        declared = self.cfg.get("models") or []
+        raw = [m for m in declared if isinstance(m, dict) and m.get("files")]
+        if not raw:
+            # 全是标准格式：交给基类（它会连分词器一起备好）
+            return super().install(progress_cb)
+
+        # 有需要原样取文件的条目：逐个处理
+        os.makedirs(self.model_dir, exist_ok=True)
+        n = len(raw)
+        for i, m in enumerate(raw):
+            repo = m.get("repo") or ""
+            role = m.get("role") or repo
+            files = m.get("files") or []
+            if progress_cb:
+                progress_cb(int(i * 100.0 / n), "下载 %s（%d/%d）..."
+                            % (role, i + 1, n))
+            self.download_raw(repo, files, progress_cb)
+            if progress_cb:
+                progress_cb(int((i + 1) * 100.0 / n), "%s 就绪" % role)
+
+    def is_installed(self):
+        """已下载判定。
+
+        基类只认 ``.bin/.safetensors/.h5/.msgpack/.onnx``，**不认 ``.gguf``** ——
+        而 GGUF 恰恰是本引擎最常见的落盘格式。所以这里补上，
+        并额外识别「子目录权重」这种布局（``merged/model.safetensors``）。
+        """
+        if not self.repos():
+            return True
+        if not os.path.isdir(self.model_dir):
+            return False
+        for root, _dirs, files in os.walk(self.model_dir):
+            for f in files:
+                if f.endswith((".bin", ".safetensors", ".h5", ".msgpack",
+                                ".onnx", ".gguf")):
+                    return True
+        return False

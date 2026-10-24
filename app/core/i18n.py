@@ -69,7 +69,7 @@ ZH = {
     "nc_banner": "禁止商业使用 · Noncommercial only",
     "nc_banner_tip": "本项目源码公开，但禁止任何形式的商业使用（PolyForm Noncommercial 1.0.0）。"
                      "个人学习 / 研究 / 非营利组织使用免费。"
-                     "如需商用或反馈 / 意见 / 合作，请联系 gxgx3456@qq.com 或 Telegram @A9100010。",
+                     "如需商用或反馈 / 意见 / 合作，请联系 gxgx3456@qq.com。",
     "lang_btn": "EN",
     "engine_mgr_title": "引擎管理",
     "engine_mgr_hint": "内置引擎可直接使用；自定义引擎可添加任意 HuggingFace 模型。",
@@ -470,8 +470,7 @@ EN = {
     "nc_banner_tip": "The source code is public, but all commercial use is prohibited "
                      "(PolyForm Noncommercial 1.0.0). Free for personal study, research "
                      "and noncommercial organizations. For commercial licensing, feedback, "
-                     "suggestions or collaboration, contact gxgx3456@qq.com "
-                     "or Telegram @A9100010.",
+                     "suggestions or collaboration, contact gxgx3456@qq.com.",
     "lang_btn": "中文",
     "engine_mgr_title": "Engine Manager",
     "engine_mgr_hint": "Built-in engines work out of the box; custom engines can use any HuggingFace model.",
